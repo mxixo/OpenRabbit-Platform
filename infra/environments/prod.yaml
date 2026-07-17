@@ -1,0 +1,18 @@
+environment: prod
+tier: production
+deployment_policy:
+  auto_deploy: false
+  change_approval_required: true
+  requires_branch: main
+security_controls:
+  secret_source: managed
+  audit_logging: strict
+  data_classification: restricted
+promotion:
+  can_promote_to: none
+  minimum_checks:
+    - ci_passed
+    - quality_gates_passed
+    - smoke_tests_passed
+    - rollback_plan_attached
+    - approval_recorded

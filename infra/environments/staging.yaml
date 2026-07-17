@@ -1,0 +1,17 @@
+environment: staging
+tier: pre-production
+deployment_policy:
+  auto_deploy: false
+  change_approval_required: true
+  requires_branch: main
+security_controls:
+  secret_source: managed
+  audit_logging: enhanced
+  data_classification: confidential
+promotion:
+  can_promote_to: prod
+  minimum_checks:
+    - ci_passed
+    - quality_gates_passed
+    - smoke_tests_passed
+    - approval_recorded

@@ -1,0 +1,14 @@
+deployment_baseline:
+  strategy: rolling
+  max_unavailable_percent: 25
+  health_check:
+    path: /health
+    timeout_seconds: 5
+    failure_threshold: 3
+  rollback:
+    enabled: true
+    automatic_on_health_failure: true
+  observability:
+    structured_logs: true
+    execution_timeline: true
+    deployment_events: true

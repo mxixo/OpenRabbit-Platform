@@ -1,0 +1,15 @@
+environment: dev
+tier: development
+deployment_policy:
+  auto_deploy: true
+  change_approval_required: false
+  requires_branch: develop
+security_controls:
+  secret_source: managed
+  audit_logging: basic
+  data_classification: internal
+promotion:
+  can_promote_to: staging
+  minimum_checks:
+    - ci_passed
+    - quality_gates_passed

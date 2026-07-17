@@ -1,0 +1,6 @@
+environment: dev
+promotion_from: none
+promotion_to: staging
+required_gates:
+  - ci_passed
+  - quality_gates_passed

@@ -1,0 +1,9 @@
+environment: prod
+promotion_from: staging
+promotion_to: none
+required_gates:
+  - ci_passed
+  - quality_gates_passed
+  - smoke_tests_passed
+  - rollback_plan_attached
+  - approval_recorded
