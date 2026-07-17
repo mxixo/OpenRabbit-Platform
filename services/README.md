@@ -6,5 +6,7 @@ Phase 5 bootstrap infrastructure is now in place for:
 - `orchestrator`
 - `model-gateway`
 - `policy`
+- `memory`
+- `skills`
 
 See `docs/architecture/core-services-infrastructure.md` for lifecycle contracts, service scaffold conventions, and dependency boundaries.
