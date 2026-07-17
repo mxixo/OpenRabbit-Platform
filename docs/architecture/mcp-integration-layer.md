@@ -12,6 +12,7 @@ Define a production-ready MCP integration baseline with clear boundaries between
 - request/response envelopes
 - tool/resource descriptors
 - server descriptor metadata
+- protocol version constants and version negotiation helper
 - tool/resource operation result shapes
 
 ### Adapters
@@ -24,8 +25,15 @@ Define a production-ready MCP integration baseline with clear boundaries between
 `mcp/servers/src` provides:
 - in-memory MCP server implementation
 - tool/resource registration APIs
+- `initialize` handshake with protocol compatibility negotiation
 - request routing for `tools/list`, `tools/call`, `resources/list`, `resources/read`
-- deterministic error mapping for unsupported methods and missing handlers
+- deterministic error mapping for unsupported methods, missing handlers, incompatible protocol versions, and invalid params
+
+## Protocol compatibility behavior
+- Clients should send `initialize` first with `params.protocolVersion`.
+- Server responds with negotiated protocol metadata when compatible.
+- If protocol is unsupported, server returns `PROTOCOL_VERSION_UNSUPPORTED`.
+- If required params are missing for `initialize`, `tools/call`, or `resources/read`, server returns `INVALID_PARAMS`.
 
 ## Core service integration
 `services/orchestrator` now supports:

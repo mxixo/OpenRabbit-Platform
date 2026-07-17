@@ -1,0 +1,9 @@
+project_name    = "openrabbit-platform"
+environment     = "prod"
+primary_region  = "us-east-1"
+release_channel = "stable"
+
+additional_tags = {
+  owner       = "platform-team"
+  cost_center = "core-runtime"
+}

@@ -4,6 +4,7 @@ import {
   type RegistryToolHandler
 } from "../../adapters/src/index.js";
 import type {
+  McpInitializeResult,
   McpRequestEnvelope,
   McpResourceDescriptor,
   McpResourceReadResult,
@@ -11,6 +12,11 @@ import type {
   McpServerDescriptor,
   McpToolCallResult,
   McpToolDescriptor
+} from "../../contracts/src/index.js";
+import {
+  MCP_PROTOCOL_VERSION,
+  MCP_SUPPORTED_PROTOCOL_VERSIONS,
+  negotiateMcpProtocolVersion
 } from "../../contracts/src/index.js";
 
 export interface McpServer {
@@ -32,7 +38,8 @@ export function createInMemoryMcpServer(
   const serverDescriptor: McpServerDescriptor = {
     serverName,
     version,
-    protocolVersion: "2026-07-17",
+    protocolVersion: MCP_PROTOCOL_VERSION,
+    supportedProtocolVersions: MCP_SUPPORTED_PROTOCOL_VERSIONS,
     capabilities: ["tools", "resources", "requests"]
   };
 
@@ -85,6 +92,37 @@ export function createInMemoryMcpServer(
       };
     },
     async handleRequest(request: McpRequestEnvelope): Promise<McpResponseEnvelope> {
+      if (request.method === "initialize") {
+        const params = asRecord(request.params);
+        const requestedProtocol = params?.protocolVersion;
+        if (typeof requestedProtocol !== "string" || requestedProtocol.length === 0) {
+          return {
+            id: request.id,
+            error: {
+              code: "INVALID_PARAMS",
+              message: "initialize requires params.protocolVersion"
+            }
+          };
+        }
+        const negotiatedProtocol = negotiateMcpProtocolVersion(requestedProtocol);
+        if (!negotiatedProtocol) {
+          return {
+            id: request.id,
+            error: {
+              code: "PROTOCOL_VERSION_UNSUPPORTED",
+              message: `Unsupported MCP protocol version: ${requestedProtocol}; supported: ${MCP_SUPPORTED_PROTOCOL_VERSIONS.join(", ")}`
+            }
+          };
+        }
+        const result: McpInitializeResult = {
+          serverName: serverDescriptor.serverName,
+          version: serverDescriptor.version,
+          protocolVersion: negotiatedProtocol,
+          supportedProtocolVersions: MCP_SUPPORTED_PROTOCOL_VERSIONS,
+          capabilities: serverDescriptor.capabilities
+        };
+        return { id: request.id, result };
+      }
       if (request.method === "tools/list") {
         return { id: request.id, result: this.listTools() };
       }
@@ -92,16 +130,34 @@ export function createInMemoryMcpServer(
         return { id: request.id, result: this.listResources() };
       }
       if (request.method === "tools/call") {
-        const params = request.params ?? {};
+        const params = asRecord(request.params);
+        if (typeof params?.name !== "string" || params.name.length === 0) {
+          return {
+            id: request.id,
+            error: {
+              code: "INVALID_PARAMS",
+              message: "tools/call requires params.name"
+            }
+          };
+        }
         const result = await this.callTool(
-          String(params.name ?? ""),
+          params.name,
           (params.args as Record<string, unknown> | undefined) ?? {}
         );
         return { id: request.id, result };
       }
       if (request.method === "resources/read") {
-        const params = request.params ?? {};
-        const result = await this.readResource(String(params.uri ?? ""));
+        const params = asRecord(request.params);
+        if (typeof params?.uri !== "string" || params.uri.length === 0) {
+          return {
+            id: request.id,
+            error: {
+              code: "INVALID_PARAMS",
+              message: "resources/read requires params.uri"
+            }
+          };
+        }
+        const result = await this.readResource(params.uri);
         return { id: request.id, result };
       }
       return {
@@ -113,4 +169,11 @@ export function createInMemoryMcpServer(
       };
     }
   };
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  return value as Record<string, unknown>;
 }
