@@ -1,0 +1,33 @@
+services:
+  - name: api-gateway
+    deploy_order: 1
+    health_endpoint: /health
+    min_instances: 3
+  - name: orchestrator
+    deploy_order: 2
+    health_endpoint: /health
+    min_instances: 3
+  - name: model-gateway
+    deploy_order: 3
+    health_endpoint: /health
+    min_instances: 2
+  - name: policy
+    deploy_order: 4
+    health_endpoint: /health
+    min_instances: 2
+  - name: memory
+    deploy_order: 5
+    health_endpoint: /health
+    min_instances: 2
+  - name: skills
+    deploy_order: 6
+    health_endpoint: /health
+    min_instances: 2
+  - name: workflows
+    deploy_order: 7
+    health_endpoint: /health
+    min_instances: 2
+  - name: clients
+    deploy_order: 8
+    health_endpoint: /health
+    min_instances: 2

@@ -1,0 +1,42 @@
+deployment:
+  environment: prod
+  strategy: canary
+  execution_order:
+    - preflight
+    - canary
+    - full_rollout
+    - post_verify
+  preflight:
+    required_checks:
+      - ci_passed
+      - quality_gates_passed
+      - smoke_tests_passed
+      - rollback_plan_attached
+      - release_owner_approval
+    max_duration_minutes: 30
+  canary:
+    traffic_percent: 10
+    bake_time_minutes: 20
+    success_criteria:
+      error_rate_percent_max: 1
+      p95_latency_ms_max: 800
+      availability_percent_min: 99.9
+  full_rollout:
+    batch_percent: 25
+    pause_between_batches_minutes: 10
+    auto_halt_on_alert: true
+  post_verify:
+    verification_window_minutes: 60
+    required_signals:
+      - service_health_green
+      - workflow_execution_stable
+      - model_gateway_error_budget_healthy
+  rollback:
+    enabled: true
+    trigger_thresholds:
+      error_rate_percent: 2
+      p95_latency_ms: 1200
+      availability_percent: 99.5
+    action:
+      mode: automatic
+      restore_last_stable_release: true
