@@ -21,4 +21,20 @@ describe("orchestrator service infrastructure", () => {
       await service.intakeTask({ taskId: "t1", taskType: "sync", payload: {} })
     ).toEqual({ accepted: true });
   });
+
+  it("routes MCP requests to registered MCP server", async () => {
+    const service = createOrchestratorService();
+    await service.start();
+    service.registerMcpServer({
+      async handleRequest(request) {
+        return { id: request.id, result: { echoedMethod: request.method } };
+      }
+    });
+    await expect(
+      service.routeMcpRequest({ id: "m1", method: "tools/list" })
+    ).resolves.toEqual({
+      id: "m1",
+      result: { echoedMethod: "tools/list" }
+    });
+  });
 });

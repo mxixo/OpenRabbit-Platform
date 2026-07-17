@@ -21,6 +21,21 @@ export interface TaskIntakeResult {
   reason?: string;
 }
 
+export interface McpRequestInput {
+  id?: string;
+  method: string;
+  params?: Record<string, unknown>;
+}
+
+export interface McpRequestOutput {
+  id?: string;
+  result?: unknown;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
 export interface OrchestratorService {
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -28,4 +43,8 @@ export interface OrchestratorService {
   getDescriptor(): ServiceDescriptor;
   getHealth(): ServiceHealth;
   intakeTask(input: TaskIntakeRequest): Promise<TaskIntakeResult>;
+  registerMcpServer(server: {
+    handleRequest(request: McpRequestInput): Promise<McpRequestOutput>;
+  }): void;
+  routeMcpRequest(input: McpRequestInput): Promise<McpRequestOutput>;
 }

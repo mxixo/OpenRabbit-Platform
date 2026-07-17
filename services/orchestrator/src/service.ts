@@ -5,6 +5,8 @@ import {
   StructuredLogger
 } from "../../../packages/runtime-core/src/index.js";
 import {
+  McpRequestInput,
+  McpRequestOutput,
   OrchestratorService,
   ServiceDescriptor,
   ServiceHealth,
@@ -24,11 +26,14 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
   });
 
   let started = false;
+  let registeredMcpServer:
+    | { handleRequest(request: McpRequestInput): Promise<McpRequestOutput> }
+    | undefined;
 
   const descriptor: ServiceDescriptor = {
     serviceName: "orchestrator",
     version,
-    capabilities: ["task-intake", "event-emission"]
+    capabilities: ["task-intake", "event-emission", "mcp-routing"]
   };
 
   return {
@@ -69,6 +74,37 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
         timestamp: new Date().toISOString()
       });
       return { accepted: true };
+    },
+    registerMcpServer(server: {
+      handleRequest(request: McpRequestInput): Promise<McpRequestOutput>;
+    }): void {
+      registeredMcpServer = server;
+    },
+    async routeMcpRequest(input: McpRequestInput): Promise<McpRequestOutput> {
+      if (!started) {
+        return {
+          id: input.id,
+          error: {
+            code: "SERVICE_NOT_STARTED",
+            message: "orchestrator service not started"
+          }
+        };
+      }
+      if (!registeredMcpServer) {
+        return {
+          id: input.id,
+          error: {
+            code: "MCP_SERVER_NOT_REGISTERED",
+            message: "no MCP server registered"
+          }
+        };
+      }
+      await eventBus.publish({
+        type: "orchestrator.mcp.dispatch",
+        payload: input,
+        timestamp: new Date().toISOString()
+      });
+      return registeredMcpServer.handleRequest(input);
     }
   };
 }
