@@ -8,6 +8,7 @@ export * from "./interfaces/agent-registry.js";
 export * from "./interfaces/model-provider.js";
 export * from "./interfaces/memory.js";
 export * from "./interfaces/mcp.js";
+export * from "./interfaces/service-reliability.js";
 
 export * from "./core/in-memory-configuration-manager.js";
 export * from "./core/simple-di-container.js";
@@ -18,6 +19,7 @@ export * from "./core/in-memory-permission-manager.js";
 export * from "./core/in-memory-tool-registry.js";
 export * from "./core/in-memory-agent-registry.js";
 export * from "./core/in-memory-memory-store.js";
+export * from "./core/with-retry.js";
 
 export * from "./mocks/mock-model-provider.js";
 export * from "./mocks/mock-mcp-client.js";

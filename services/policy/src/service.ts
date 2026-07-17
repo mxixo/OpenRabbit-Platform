@@ -1,6 +1,8 @@
 import {
   InMemoryLogSink,
   InMemoryPermissionManager,
+  ServiceOperationResult,
+  ServiceReliabilitySnapshot,
   StructuredLogger
 } from "../../../packages/runtime-core/src/index.js";
 import {
@@ -32,11 +34,14 @@ export function createPolicyService(version = "0.1.0"): PolicyService {
   });
 
   let started = false;
+  let operationsSucceeded = 0;
+  let operationsFailed = 0;
+  let lastErrorCode: string | undefined;
 
   const descriptor: ServiceDescriptor = {
     serviceName: "policy",
     version,
-    capabilities: ["policy-evaluation", "permission-adapter"]
+    capabilities: ["policy-evaluation", "permission-adapter", "safe-evaluation"]
   };
 
   return {
@@ -61,9 +66,47 @@ export function createPolicyService(version = "0.1.0"): PolicyService {
         dependencies: [{ name: "permission-manager", status: "up" }]
       };
     },
+    getReliabilitySnapshot(): ServiceReliabilitySnapshot {
+      return {
+        operationsSucceeded,
+        operationsFailed,
+        lastErrorCode
+      };
+    },
     evaluate(input: PolicyCheckInput): PolicyCheckOutput {
+      const result = this.evaluateSafe(input);
+      if (!result.ok) {
+        return {
+          allowed: false,
+          reason: result.error?.message ?? "evaluation failed"
+        };
+      }
+      return result.data as PolicyCheckOutput;
+    },
+    evaluateSafe(input: PolicyCheckInput): ServiceOperationResult<PolicyCheckOutput> {
       if (!started) {
-        return { allowed: false, reason: "service not started" };
+        operationsFailed += 1;
+        lastErrorCode = "SERVICE_NOT_STARTED";
+        return {
+          ok: false,
+          error: {
+            code: "SERVICE_NOT_STARTED",
+            message: "service not started",
+            retryable: true
+          }
+        };
+      }
+      if (!input.subjectId || !input.action || !input.resourceType) {
+        operationsFailed += 1;
+        lastErrorCode = "INVALID_POLICY_REQUEST";
+        return {
+          ok: false,
+          error: {
+            code: "INVALID_POLICY_REQUEST",
+            message: "subjectId, action, and resourceType are required",
+            retryable: false
+          }
+        };
       }
       const decision = permissionManager.evaluate({
         subject: {
@@ -73,9 +116,13 @@ export function createPolicyService(version = "0.1.0"): PolicyService {
         action: input.action,
         resource: { type: input.resourceType }
       });
+      operationsSucceeded += 1;
       return {
-        allowed: decision.allowed,
-        reason: decision.reason
+        ok: true,
+        data: {
+          allowed: decision.allowed,
+          reason: decision.reason
+        }
       };
     }
   };

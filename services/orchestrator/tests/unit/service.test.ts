@@ -20,6 +20,11 @@ describe("orchestrator service infrastructure", () => {
     expect(
       await service.intakeTask({ taskId: "t1", taskType: "sync", payload: {} })
     ).toEqual({ accepted: true });
+    expect(
+      await service.intakeTask({ taskId: "t1", taskType: "sync", payload: {} })
+    ).toEqual({ accepted: true, duplicate: true, reason: "duplicate task ignored" });
+    expect(service.getReliabilitySnapshot().operationsSucceeded).toBe(2);
+    expect(service.getReliabilitySnapshot().operationsFailed).toBe(1);
   });
 
   it("routes MCP requests to registered MCP server", async () => {

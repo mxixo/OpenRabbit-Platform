@@ -24,4 +24,18 @@ describe("api-gateway service infrastructure", () => {
     ).toBe(true);
     expect(service.validateRequest({ method: "TRACE" }).valid).toBe(false);
   });
+
+  it("handles requests with reliability tracking", async () => {
+    const service = createApiGatewayService();
+    expect((await service.handleRequest({})).ok).toBe(false);
+    await service.start();
+    const result = await service.handleRequest({
+      requestId: "r2",
+      path: "/status",
+      method: "GET"
+    });
+    expect(result.ok).toBe(true);
+    expect(service.getReliabilitySnapshot().operationsSucceeded).toBe(1);
+    expect(service.getReliabilitySnapshot().operationsFailed).toBe(1);
+  });
 });

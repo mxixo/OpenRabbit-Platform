@@ -1,3 +1,7 @@
+import {
+  ServiceOperationResult,
+  ServiceReliabilitySnapshot
+} from "../../../packages/runtime-core/src/index.js";
 export interface ServiceDescriptor {
   serviceName: "policy";
   version: string;
@@ -28,5 +32,7 @@ export interface PolicyService {
   isStarted(): boolean;
   getDescriptor(): ServiceDescriptor;
   getHealth(): ServiceHealth;
+  getReliabilitySnapshot(): ServiceReliabilitySnapshot;
   evaluate(input: PolicyCheckInput): PolicyCheckOutput;
+  evaluateSafe(input: PolicyCheckInput): ServiceOperationResult<PolicyCheckOutput>;
 }

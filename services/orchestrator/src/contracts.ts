@@ -1,3 +1,4 @@
+import { ServiceReliabilitySnapshot } from "../../../packages/runtime-core/src/index.js";
 export interface ServiceDescriptor {
   serviceName: "orchestrator";
   version: string;
@@ -19,6 +20,7 @@ export interface TaskIntakeRequest {
 export interface TaskIntakeResult {
   accepted: boolean;
   reason?: string;
+  duplicate?: boolean;
 }
 
 export interface McpRequestInput {
@@ -42,6 +44,7 @@ export interface OrchestratorService {
   isStarted(): boolean;
   getDescriptor(): ServiceDescriptor;
   getHealth(): ServiceHealth;
+  getReliabilitySnapshot(): ServiceReliabilitySnapshot;
   intakeTask(input: TaskIntakeRequest): Promise<TaskIntakeResult>;
   registerMcpServer(server: {
     handleRequest(request: McpRequestInput): Promise<McpRequestOutput>;

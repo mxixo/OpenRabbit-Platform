@@ -2,7 +2,10 @@ import {
   InMemoryConfigurationManager,
   InMemoryLogSink,
   MockModelProvider,
-  StructuredLogger
+  ServiceOperationResult,
+  ServiceReliabilitySnapshot,
+  StructuredLogger,
+  withRetry
 } from "../../../packages/runtime-core/src/index.js";
 import {
   ModelGatewayService,
@@ -29,11 +32,14 @@ export function createModelGatewayService(version = "0.1.0"): ModelGatewayServic
   }));
 
   let started = false;
+  let operationsSucceeded = 0;
+  let operationsFailed = 0;
+  let lastErrorCode: string | undefined;
 
   const descriptor: ServiceDescriptor = {
     serviceName: "model-gateway",
     version,
-    capabilities: ["model-routing", "mock-provider-bridge"]
+    capabilities: ["model-routing", "mock-provider-bridge", "safe-invoke"]
   };
 
   return {
@@ -61,22 +67,78 @@ export function createModelGatewayService(version = "0.1.0"): ModelGatewayServic
         ]
       };
     },
+    getReliabilitySnapshot(): ServiceReliabilitySnapshot {
+      return {
+        operationsSucceeded,
+        operationsFailed,
+        lastErrorCode
+      };
+    },
     async invokeModel(input: ModelInvocationInput): Promise<ModelInvocationOutput> {
+      const result = await this.invokeModelSafe(input);
+      if (!result.ok) {
+        throw new Error(result.error?.message ?? "model invocation failed");
+      }
+      return result.data as ModelInvocationOutput;
+    },
+    async invokeModelSafe(
+      input: ModelInvocationInput
+    ): Promise<ServiceOperationResult<ModelInvocationOutput>> {
       if (!started) {
-        throw new Error("service not started");
+        operationsFailed += 1;
+        lastErrorCode = "SERVICE_NOT_STARTED";
+        return {
+          ok: false,
+          error: {
+            code: "SERVICE_NOT_STARTED",
+            message: "service not started",
+            retryable: true
+          }
+        };
       }
       if (!input.input?.trim()) {
-        throw new Error("input is required");
+        operationsFailed += 1;
+        lastErrorCode = "INVALID_INPUT";
+        return {
+          ok: false,
+          error: {
+            code: "INVALID_INPUT",
+            message: "input is required",
+            retryable: false
+          }
+        };
       }
-      const model = input.model ?? config.get<string>("defaultModel");
-      const result = await provider.invoke({
-        model,
-        input: input.input
-      });
-      return {
-        model: result.model,
-        output: result.output
-      };
+
+      try {
+        const model = input.model ?? config.get<string>("defaultModel");
+        const result = await withRetry(
+          async () =>
+            provider.invoke({
+              model,
+              input: input.input
+            }),
+          { maxAttempts: 2 }
+        );
+        operationsSucceeded += 1;
+        return {
+          ok: true,
+          data: {
+            model: result.model,
+            output: result.output
+          }
+        };
+      } catch (error) {
+        operationsFailed += 1;
+        lastErrorCode = "MODEL_INVOCATION_FAILED";
+        return {
+          ok: false,
+          error: {
+            code: "MODEL_INVOCATION_FAILED",
+            message: error instanceof Error ? error.message : String(error),
+            retryable: true
+          }
+        };
+      }
     }
   };
 }

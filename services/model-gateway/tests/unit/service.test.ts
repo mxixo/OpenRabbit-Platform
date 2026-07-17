@@ -19,4 +19,18 @@ describe("model-gateway service infrastructure", () => {
     });
     await expect(service.invokeModel({ input: "" })).rejects.toThrow("input is required");
   });
+
+  it("provides safe invocation results and reliability counters", async () => {
+    const service = createModelGatewayService();
+    const preStart = await service.invokeModelSafe({ input: "hello" });
+    expect(preStart.ok).toBe(false);
+    await service.start();
+    const ok = await service.invokeModelSafe({ input: "hello" });
+    expect(ok.ok).toBe(true);
+    const bad = await service.invokeModelSafe({ input: "" });
+    expect(bad.ok).toBe(false);
+    const snapshot = service.getReliabilitySnapshot();
+    expect(snapshot.operationsSucceeded).toBe(1);
+    expect(snapshot.operationsFailed).toBe(2);
+  });
 });

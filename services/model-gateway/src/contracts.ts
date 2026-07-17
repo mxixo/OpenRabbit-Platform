@@ -1,3 +1,7 @@
+import {
+  ServiceOperationResult,
+  ServiceReliabilitySnapshot
+} from "../../../packages/runtime-core/src/index.js";
 export interface ServiceDescriptor {
   serviceName: "model-gateway";
   version: string;
@@ -26,5 +30,7 @@ export interface ModelGatewayService {
   isStarted(): boolean;
   getDescriptor(): ServiceDescriptor;
   getHealth(): ServiceHealth;
+  getReliabilitySnapshot(): ServiceReliabilitySnapshot;
   invokeModel(input: ModelInvocationInput): Promise<ModelInvocationOutput>;
+  invokeModelSafe(input: ModelInvocationInput): Promise<ServiceOperationResult<ModelInvocationOutput>>;
 }

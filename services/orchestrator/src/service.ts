@@ -2,6 +2,7 @@ import {
   InMemoryConfigurationManager,
   InMemoryEventBus,
   InMemoryLogSink,
+  ServiceReliabilitySnapshot,
   StructuredLogger
 } from "../../../packages/runtime-core/src/index.js";
 import {
@@ -26,6 +27,10 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
   });
 
   let started = false;
+  let operationsSucceeded = 0;
+  let operationsFailed = 0;
+  let lastErrorCode: string | undefined;
+  const processedTaskIds = new Set<string>();
   let registeredMcpServer:
     | { handleRequest(request: McpRequestInput): Promise<McpRequestOutput> }
     | undefined;
@@ -33,7 +38,7 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
   const descriptor: ServiceDescriptor = {
     serviceName: "orchestrator",
     version,
-    capabilities: ["task-intake", "event-emission", "mcp-routing"]
+    capabilities: ["task-intake", "event-emission", "mcp-routing", "idempotency"]
   };
 
   return {
@@ -61,18 +66,35 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
         ]
       };
     },
+    getReliabilitySnapshot(): ServiceReliabilitySnapshot {
+      return {
+        operationsSucceeded,
+        operationsFailed,
+        lastErrorCode
+      };
+    },
     async intakeTask(input: TaskIntakeRequest): Promise<TaskIntakeResult> {
       if (!started) {
+        operationsFailed += 1;
+        lastErrorCode = "SERVICE_NOT_STARTED";
         return { accepted: false, reason: "service not started" };
       }
       if (!input.taskId || !input.taskType) {
+        operationsFailed += 1;
+        lastErrorCode = "INVALID_TASK_REQUEST";
         return { accepted: false, reason: "taskId and taskType are required" };
+      }
+      if (processedTaskIds.has(input.taskId)) {
+        operationsSucceeded += 1;
+        return { accepted: true, duplicate: true, reason: "duplicate task ignored" };
       }
       await eventBus.publish({
         type: "orchestrator.task.intake",
         payload: input,
         timestamp: new Date().toISOString()
       });
+      processedTaskIds.add(input.taskId);
+      operationsSucceeded += 1;
       return { accepted: true };
     },
     registerMcpServer(server: {
@@ -82,6 +104,8 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
     },
     async routeMcpRequest(input: McpRequestInput): Promise<McpRequestOutput> {
       if (!started) {
+        operationsFailed += 1;
+        lastErrorCode = "SERVICE_NOT_STARTED";
         return {
           id: input.id,
           error: {
@@ -91,6 +115,8 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
         };
       }
       if (!registeredMcpServer) {
+        operationsFailed += 1;
+        lastErrorCode = "MCP_SERVER_NOT_REGISTERED";
         return {
           id: input.id,
           error: {
@@ -104,7 +130,14 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
         payload: input,
         timestamp: new Date().toISOString()
       });
-      return registeredMcpServer.handleRequest(input);
+      const output = await registeredMcpServer.handleRequest(input);
+      if (output.error) {
+        operationsFailed += 1;
+        lastErrorCode = output.error.code;
+      } else {
+        operationsSucceeded += 1;
+      }
+      return output;
     }
   };
 }
