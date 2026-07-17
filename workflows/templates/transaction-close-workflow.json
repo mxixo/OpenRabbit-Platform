@@ -1,0 +1,38 @@
+{
+  "workflowId": "transaction-close-workflow",
+  "version": "0.1.0",
+  "name": "Transaction Close Workflow",
+  "description": "Coordinate closing prerequisites, approval, and completion recording.",
+  "steps": [
+    {
+      "id": "verify-docs",
+      "name": "Verify docs",
+      "action": "transaction.verifyDocs",
+      "guardrails": {
+        "policyCheck": true,
+        "requiresApproval": false,
+        "maxRetries": 2
+      }
+    },
+    {
+      "id": "confirm-funds",
+      "name": "Confirm funds",
+      "action": "transaction.confirmFunds",
+      "guardrails": {
+        "policyCheck": true,
+        "requiresApproval": false,
+        "maxRetries": 2
+      }
+    },
+    {
+      "id": "finalize-close",
+      "name": "Finalize close",
+      "action": "transaction.finalize",
+      "guardrails": {
+        "policyCheck": true,
+        "requiresApproval": true,
+        "maxRetries": 1
+      }
+    }
+  ]
+}
