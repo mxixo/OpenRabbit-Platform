@@ -1,0 +1,38 @@
+{
+  "workflowId": "compliance-review-workflow",
+  "version": "0.1.0",
+  "name": "Compliance Review Workflow",
+  "description": "Validate content against policy and route to human review when required.",
+  "steps": [
+    {
+      "id": "collect-artifact",
+      "name": "Collect artifact",
+      "action": "compliance.collect",
+      "guardrails": {
+        "policyCheck": true,
+        "requiresApproval": false,
+        "maxRetries": 1
+      }
+    },
+    {
+      "id": "run-policy-check",
+      "name": "Run policy check",
+      "action": "compliance.evaluate",
+      "guardrails": {
+        "policyCheck": true,
+        "requiresApproval": false,
+        "maxRetries": 1
+      }
+    },
+    {
+      "id": "approve-release",
+      "name": "Approve release",
+      "action": "compliance.approve",
+      "guardrails": {
+        "policyCheck": true,
+        "requiresApproval": true,
+        "maxRetries": 0
+      }
+    }
+  ]
+}

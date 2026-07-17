@@ -1,0 +1,38 @@
+{
+  "workflowId": "lead-intake-workflow",
+  "version": "0.1.0",
+  "name": "Lead Intake Workflow",
+  "description": "Capture, qualify, and route a new lead through policy-aware gates.",
+  "steps": [
+    {
+      "id": "capture-lead",
+      "name": "Capture lead",
+      "action": "lead.capture",
+      "guardrails": {
+        "policyCheck": true,
+        "requiresApproval": false,
+        "maxRetries": 1
+      }
+    },
+    {
+      "id": "qualify-lead",
+      "name": "Qualify lead",
+      "action": "lead.qualify",
+      "guardrails": {
+        "policyCheck": true,
+        "requiresApproval": false,
+        "maxRetries": 2
+      }
+    },
+    {
+      "id": "route-lead",
+      "name": "Route lead",
+      "action": "lead.route",
+      "guardrails": {
+        "policyCheck": true,
+        "requiresApproval": true,
+        "maxRetries": 1
+      }
+    }
+  ]
+}

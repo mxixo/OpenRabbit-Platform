@@ -1,1 +1,11 @@
-# Placeholder gitignore for future repository initialization
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+coverage/
+
+# Runtime temporary files
+runtime/logs/
+runtime/cache/
+runtime/tmp/
