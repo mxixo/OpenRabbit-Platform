@@ -8,5 +8,6 @@ Phase 5 bootstrap infrastructure is now in place for:
 - `policy`
 - `memory`
 - `skills`
+- `workflows`
 
 See `docs/architecture/core-services-infrastructure.md` for lifecycle contracts, service scaffold conventions, and dependency boundaries.
