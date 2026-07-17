@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createMemoryService } from "../../src/service.js";
 
 describe("memory service scaffold", () => {
@@ -58,5 +61,49 @@ describe("memory service scaffold", () => {
     });
     expect(service.getReliabilitySnapshot().operationsSucceeded).toBeGreaterThan(0);
     expect(service.getReliabilitySnapshot().operationsFailed).toBeGreaterThan(0);
+  });
+
+  it("persists memory records with json-file mode across restarts", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "memory-service-test-"));
+    const filePath = join(dir, "memory-store.json");
+
+    const firstService = createMemoryService("0.1.0", {
+      persistenceMode: "json-file",
+      persistenceFilePath: filePath
+    });
+    await firstService.start();
+    await firstService.putMemory({
+      id: "persist-1",
+      namespace: "tenant:persist",
+      content: "durable content"
+    });
+    await firstService.stop();
+
+    const secondService = createMemoryService("0.1.0", {
+      persistenceMode: "json-file",
+      persistenceFilePath: filePath
+    });
+    await secondService.start();
+
+    await expect(secondService.getMemory("persist-1")).resolves.toMatchObject({
+      id: "persist-1",
+      namespace: "tenant:persist",
+      content: "durable content"
+    });
+  });
+
+  it("marks service degraded when persistence initialization fails", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "memory-service-bad-json-"));
+    const filePath = join(dir, "broken-store.json");
+    await writeFile(filePath, "{\"broken\":true}", "utf8");
+
+    const service = createMemoryService("0.1.0", {
+      persistenceMode: "json-file",
+      persistenceFilePath: filePath
+    });
+    await service.start();
+    expect(service.isStarted()).toBe(false);
+    expect(service.getHealth().dependencies.find((dependency) => dependency.name === "memory-persistence")?.status).toBe("down");
+    expect(service.getReliabilitySnapshot().lastErrorCode).toBe("PERSISTENCE_INIT_FAILED");
   });
 });

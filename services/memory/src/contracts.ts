@@ -30,6 +30,25 @@ export interface MemoryDeleteResult {
   deleted: boolean;
   reason?: string;
 }
+export interface MemoryRepository {
+  initialize(): Promise<void>;
+  put(record: Omit<MemoryRecord, "createdAt" | "updatedAt">): Promise<MemoryRecord>;
+  get(id: string): Promise<MemoryRecord | undefined>;
+  search(query: MemoryQuery): Promise<MemoryRecord[]>;
+  delete(id: string): Promise<boolean>;
+}
+
+export interface MemoryPersistenceAdapter {
+  load(): Promise<MemoryRecord[]>;
+  save(records: MemoryRecord[]): Promise<void>;
+}
+
+export interface MemoryServiceOptions {
+  repository?: MemoryRepository;
+  persistence?: MemoryPersistenceAdapter;
+  persistenceMode?: "in-memory" | "json-file";
+  persistenceFilePath?: string;
+}
 
 export interface MemoryService {
   start(): Promise<void>;
