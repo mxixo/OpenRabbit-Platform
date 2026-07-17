@@ -18,6 +18,16 @@ describe("mcp adapters", () => {
   it("validates MCP request envelopes", () => {
     expect(validateMcpRequestEnvelope({ method: "tools/list" }).valid).toBe(true);
     expect(validateMcpRequestEnvelope({ method: 42 }).valid).toBe(false);
+    expect(
+      validateMcpRequestEnvelope({ method: "initialize", params: { protocolVersion: "2026-07-17" } })
+        .valid
+    ).toBe(true);
+    expect(validateMcpRequestEnvelope({ method: "initialize", params: {} }).valid).toBe(false);
+    expect(validateMcpRequestEnvelope({ method: "tools/call", params: null }).valid).toBe(false);
+    expect(validateMcpRequestEnvelope({ method: "tools/call", params: {} }).valid).toBe(false);
+    expect(
+      validateMcpRequestEnvelope({ method: "resources/read", params: { uri: "memo://1" } }).valid
+    ).toBe(true);
   });
 
   it("registers tools and resources in-memory", async () => {

@@ -1,4 +1,6 @@
-export type McpProtocolVersion = "2026-07-17";
+export const MCP_PROTOCOL_VERSION = "2026-07-17" as const;
+export type McpProtocolVersion = typeof MCP_PROTOCOL_VERSION;
+export const MCP_SUPPORTED_PROTOCOL_VERSIONS: readonly McpProtocolVersion[] = [MCP_PROTOCOL_VERSION];
 
 export interface McpErrorShape {
   code: string;
@@ -22,6 +24,7 @@ export interface McpServerDescriptor {
   serverName: string;
   version: string;
   protocolVersion: McpProtocolVersion;
+  supportedProtocolVersions?: readonly McpProtocolVersion[];
   capabilities: string[];
 }
 
@@ -35,6 +38,20 @@ export interface McpResponseEnvelope {
   id?: string;
   result?: unknown;
   error?: McpErrorShape;
+}
+
+export interface McpInitializeParams {
+  protocolVersion: string;
+  clientName?: string;
+  clientVersion?: string;
+}
+
+export interface McpInitializeResult {
+  serverName: string;
+  version: string;
+  protocolVersion: McpProtocolVersion;
+  supportedProtocolVersions: readonly McpProtocolVersion[];
+  capabilities: string[];
 }
 
 export interface McpToolCallResult {
@@ -59,4 +76,15 @@ export function isMcpRequestEnvelope(value: unknown): value is McpRequestEnvelop
   }
   const request = value as Partial<McpRequestEnvelope>;
   return typeof request.method === "string" && request.method.length > 0;
+}
+
+export function isMcpProtocolVersion(value: unknown): value is McpProtocolVersion {
+  return value === MCP_PROTOCOL_VERSION;
+}
+
+export function negotiateMcpProtocolVersion(requested: string): McpProtocolVersion | undefined {
+  if (isMcpProtocolVersion(requested)) {
+    return requested;
+  }
+  return undefined;
 }
