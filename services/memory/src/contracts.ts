@@ -1,4 +1,10 @@
-import { MemoryQuery, MemoryRecord, ServiceReliabilitySnapshot } from "../../../packages/runtime-core/src/index.js";
+import {
+  MemoryDomain,
+  MemoryQualityMetadata,
+  MemoryQuery,
+  MemoryRecord,
+  ServiceReliabilitySnapshot
+} from "../../../packages/runtime-core/src/index.js";
 
 export interface ServiceDescriptor {
   serviceName: "memory";
@@ -16,7 +22,10 @@ export interface MemoryWriteInput {
   id: string;
   namespace: string;
   sessionId?: string;
+  agentId?: string;
+  domain?: MemoryDomain;
   content: string;
+  quality?: MemoryQualityMetadata;
   metadata?: Record<string, unknown>;
 }
 
@@ -29,6 +38,19 @@ export interface MemoryWriteResult {
 export interface MemoryDeleteResult {
   deleted: boolean;
   reason?: string;
+}
+
+export interface MemoryConsolidationRequest {
+  namespace: string;
+  sessionId?: string;
+  agentId?: string;
+  minAccessCount?: number;
+  maxPromotions?: number;
+}
+
+export interface MemoryConsolidationResult {
+  promotedCount: number;
+  promotedRecordIds: string[];
 }
 export interface MemoryRepository {
   initialize(): Promise<void>;
@@ -61,4 +83,5 @@ export interface MemoryService {
   getMemory(id: string): Promise<MemoryRecord | undefined>;
   searchMemory(query: MemoryQuery): Promise<MemoryRecord[]>;
   deleteMemory(id: string): Promise<MemoryDeleteResult>;
+  consolidateMemory(request: MemoryConsolidationRequest): Promise<MemoryConsolidationResult>;
 }

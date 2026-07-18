@@ -43,4 +43,63 @@ describe("persistent memory repository", () => {
     const persistedRecords = await persistence.load();
     expect(persistedRecords.map((record) => record.id)).toEqual(["rec-2"]);
   });
+
+  it("supports domain and confidence filtering for retrieval quality controls", async () => {
+    const persistence = new InMemoryPersistenceAdapter();
+    const repository = new PersistentMemoryRepository(persistence);
+    await repository.initialize();
+
+    await repository.put({
+      id: "quality-1",
+      namespace: "tenant:quality",
+      agentId: "agent-a",
+      domain: "working",
+      content: "high confidence memory",
+      quality: {
+        confidence: {
+          score: 0.9
+        }
+      }
+    });
+    await repository.put({
+      id: "quality-2",
+      namespace: "tenant:quality",
+      agentId: "agent-a",
+      domain: "long-term",
+      content: "archived confidence memory",
+      quality: {
+        confidence: {
+          score: 0.4
+        }
+      }
+    });
+
+    await expect(
+      repository.search({
+        namespace: "tenant:quality",
+        agentId: "agent-a",
+        domain: "working",
+        minConfidenceScore: 0.8
+      })
+    ).resolves.toMatchObject([{ id: "quality-1" }]);
+  });
+
+  it("tracks access count in consolidation metadata on read operations", async () => {
+    const persistence = new InMemoryPersistenceAdapter();
+    const repository = new PersistentMemoryRepository(persistence);
+    await repository.initialize();
+
+    await repository.put({
+      id: "access-1",
+      namespace: "tenant:consolidation",
+      content: "track read counts"
+    });
+
+    await repository.get("access-1");
+    await repository.get("access-1");
+    const record = await repository.get("access-1");
+
+    expect(record?.quality?.consolidation?.accessCount).toBe(3);
+    expect(record?.quality?.consolidation?.lastAccessedAt).toBeDefined();
+  });
 });

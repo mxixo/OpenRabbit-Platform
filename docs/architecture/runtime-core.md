@@ -26,3 +26,24 @@ The package is intentionally interface-first:
 
 ## Integration model
 Future services should depend on runtime-core interfaces and inject implementations through the DI container. As production adapters are introduced, they should replace only implementation bindings, not interface contracts.
+
+## Planned memory and cognition extension boundaries
+To keep Phase 4 implementation modular and avoid major refactors in later phases, memory-related contracts should remain decomposed into additive capability interfaces:
+- Memory domains
+  - Partition interfaces for working memory, long-term memory, world knowledge, and tenant/business knowledge.
+- Memory quality metadata
+  - Standard metadata envelope for confidence, freshness timestamp, decay policy, and provenance reference IDs.
+- Consolidation policy hooks
+  - Strategy contract for promoting high-value working-memory items into long-term memory.
+- Knowledge linkage adapters
+  - Optional graph-link interface that can attach entity/relationship edges without coupling base memory CRUD to graph engines.
+- Agent skill and experience traces
+  - Separate agent-learning memory contract for capability outcomes, tool efficacy, and execution context.
+- Reasoning and decision provenance
+  - Trace contract for rationale summaries, cited evidence pointers, and decision lineage IDs.
+- Event-sourced state timeline
+  - Append-only state-transition event contract for replaying historical agent state.
+- Reflection loop boundary
+  - Governed feedback interface that consumes outcomes/evals and proposes policy-safe memory updates.
+
+These boundaries should be introduced as stable contracts first, with phase-appropriate implementations layered later by memory, knowledge, skills, and workflow services.
