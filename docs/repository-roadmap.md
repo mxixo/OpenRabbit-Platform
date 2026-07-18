@@ -16,6 +16,7 @@
 - Implement tenant-aware memory services and persistence abstractions.
 - Add memory retention, retrieval quality, and governance controls.
 - Add agent memory foundations with confidence, freshness, and consolidation hooks.
+Status: completed.
 
 ### Phase 5 Knowledge
 - Expand indexing/embedding/retrieval and knowledge graph pipelines.
@@ -56,6 +57,23 @@ To support long-term autonomous business agents (not only CRM retrieval), memory
   - Attach recency/freshness metadata and policy-driven decay windows so stale memory can be deprioritized.
 - Memory consolidation
   - Add promotion hooks to move frequently accessed working memory into long-term stores using explicit consolidation policies.
+
+### Phase 4 implementation snapshot (completed)
+- Runtime contracts extended with:
+  - memory domains (`working`, `long-term`, `world`, `business`)
+  - agent-scoped records (`agentId`) and domain-aware query filters
+  - memory quality metadata (confidence, freshness, decay, consolidation, provenance references)
+- In-memory and persistent repositories implement:
+  - quality-aware retrieval filtering (`minConfidenceScore`)
+  - stale/expired memory de-prioritization via decay policy metadata
+  - read-access tracking for consolidation (`accessCount`, `lastAccessedAt`)
+- Memory service implements:
+  - confidence validation guardrails (`0..1`)
+  - consolidation operation for promoting frequently accessed working memory into long-term memory
+  - consolidation event emission for downstream observability hooks
+- Unit test coverage verifies:
+  - consolidation threshold behavior and promotion semantics
+  - freshness/decay ordering and expiration de-prioritization
 
 ### Later phases (knowledge, skill adaptation, and provenance)
 - Phase 5: Knowledge graph/entity relationships

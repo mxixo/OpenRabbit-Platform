@@ -16,7 +16,11 @@ The package is intentionally interface-first:
 - Tool Registry: tool metadata + invocation registry.
 - Agent Registry: agent metadata, capability, status, and tag lookup registry.
 - Model Provider abstraction: provider-neutral model invocation contract.
-- Memory interface: namespace/session-scoped memory CRUD + search contract.
+- Memory interface:
+  - namespace/session/agent-scoped memory CRUD + search contract
+  - memory-domain support (`working`, `long-term`, `world`, `business`)
+  - quality metadata envelope (confidence, freshness, decay, consolidation, provenance references)
+  - quality-aware query filters (`domain`, `agentId`, `minConfidenceScore`)
 - MCP interface: transport-agnostic MCP request/tool interaction contract.
 
 ## Boundaries and non-goals (Phase 5)
@@ -27,8 +31,15 @@ The package is intentionally interface-first:
 ## Integration model
 Future services should depend on runtime-core interfaces and inject implementations through the DI container. As production adapters are introduced, they should replace only implementation bindings, not interface contracts.
 
-## Planned memory and cognition extension boundaries
-To keep Phase 4 implementation modular and avoid major refactors in later phases, memory-related contracts should remain decomposed into additive capability interfaces:
+## Phase 4 memory substrate implementation (completed)
+Phase 4 memory substrate capabilities are now implemented in runtime contracts and memory-service adapters:
+- Domain-aware memory records and retrieval contracts.
+- Confidence/freshness/decay metadata support for retrieval quality controls.
+- Consolidation metadata and access-tracking hooks for working-to-long-term promotion.
+- Stale/expired record de-prioritization behavior through decay metadata.
+
+## Memory and cognition extension boundaries for later phases
+To keep future phases modular and avoid major refactors, memory-related contracts should remain decomposed into additive capability interfaces:
 - Memory domains
   - Partition interfaces for working memory, long-term memory, world knowledge, and tenant/business knowledge.
 - Memory quality metadata
@@ -46,4 +57,4 @@ To keep Phase 4 implementation modular and avoid major refactors in later phases
 - Reflection loop boundary
   - Governed feedback interface that consumes outcomes/evals and proposes policy-safe memory updates.
 
-These boundaries should be introduced as stable contracts first, with phase-appropriate implementations layered later by memory, knowledge, skills, and workflow services.
+These boundaries should continue to evolve through additive contracts, with phase-appropriate implementations layered by memory, knowledge, skills, and workflow services.
