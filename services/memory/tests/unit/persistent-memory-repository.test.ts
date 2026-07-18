@@ -43,4 +43,55 @@ describe("persistent memory repository", () => {
     const persistedRecords = await persistence.load();
     expect(persistedRecords.map((record) => record.id)).toEqual(["rec-2"]);
   });
+
+  it("increments access metadata on get and search", async () => {
+    const persistence = new InMemoryPersistenceAdapter();
+    const repository = new PersistentMemoryRepository(persistence);
+    await repository.initialize();
+
+    await repository.put({
+      id: "access-1",
+      namespace: "tenant:access",
+      content: "track accesses"
+    });
+
+    await repository.get("access-1");
+    await repository.search({ namespace: "tenant:access" });
+    const record = await repository.get("access-1");
+
+    expect(record?.metadata?.accessCount).toBe(3);
+    expect(record?.metadata?.lastAccessedAt).toBeDefined();
+  });
+
+  it("preserves provenance metadata while updating access counts", async () => {
+    const persistence = new InMemoryPersistenceAdapter();
+    const repository = new PersistentMemoryRepository(persistence);
+    await repository.initialize();
+
+    await repository.put({
+      id: "prov-1",
+      namespace: "tenant:prov",
+      content: "memory with provenance",
+      metadata: {
+        reasoningHistory: [
+          { stepId: "r-1", summary: "Compared options", timestamp: "2026-07-18T08:03:00.000Z" }
+        ],
+        decisionProvenance: {
+          decisionId: "decision-xyz",
+          decidedAt: "2026-07-18T08:03:30.000Z"
+        }
+      }
+    });
+
+    await repository.get("prov-1");
+    const record = await repository.get("prov-1");
+
+    expect(record?.metadata?.decisionProvenance).toMatchObject({
+      decisionId: "decision-xyz"
+    });
+    expect(record?.metadata?.reasoningHistory).toMatchObject([
+      { stepId: "r-1" }
+    ]);
+    expect(record?.metadata?.accessCount).toBe(2);
+  });
 });
