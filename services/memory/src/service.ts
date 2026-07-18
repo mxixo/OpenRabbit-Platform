@@ -8,6 +8,8 @@ import {
   StructuredLogger
 } from "../../../packages/runtime-core/src/index.js";
 import {
+  MemoryConsolidationRequest,
+  MemoryConsolidationResult,
   MemoryDeleteResult,
   MemoryPersistenceAdapter,
   MemoryRepository,
@@ -46,7 +48,14 @@ export function createMemoryService(
   const descriptor: ServiceDescriptor = {
     serviceName: "memory",
     version,
-    capabilities: ["memory-put", "memory-get", "memory-search", "memory-delete", "persistence"]
+    capabilities: [
+      "memory-put",
+      "memory-get",
+      "memory-search",
+      "memory-delete",
+      "memory-consolidate",
+      "persistence"
+    ]
   };
 
   const requiresStarted = (): string | undefined => {
@@ -111,6 +120,11 @@ export function createMemoryService(
         operationsFailed += 1;
         lastErrorCode = "INVALID_MEMORY_RECORD";
         return { saved: false, reason: "id, namespace, and content are required" };
+      }
+      if (!isConfidenceScoreValid(input)) {
+        operationsFailed += 1;
+        lastErrorCode = "INVALID_MEMORY_CONFIDENCE";
+        return { saved: false, reason: "confidence score must be between 0 and 1" };
       }
       try {
         const record = await repository.put(input);
@@ -206,6 +220,71 @@ export function createMemoryService(
         });
         return { deleted: false, reason: "failed to persist memory deletion" };
       }
+    },
+    async consolidateMemory(
+      request: MemoryConsolidationRequest
+    ): Promise<MemoryConsolidationResult> {
+      const notStartedReason = requiresStarted();
+      if (notStartedReason) {
+        return { promotedCount: 0, promotedRecordIds: [] };
+      }
+      if (!request.namespace) {
+        operationsFailed += 1;
+        lastErrorCode = "INVALID_CONSOLIDATION_REQUEST";
+        return { promotedCount: 0, promotedRecordIds: [] };
+      }
+      const minAccessCount = request.minAccessCount ?? 3;
+      const maxPromotions = request.maxPromotions ?? 50;
+      try {
+        const candidates = await repository.search({
+          namespace: request.namespace,
+          sessionId: request.sessionId,
+          agentId: request.agentId,
+          domain: "working",
+          limit: maxPromotions * 5
+        });
+        const toPromote = candidates
+          .filter(
+            (record) => (record.quality?.consolidation?.accessCount ?? 0) >= minAccessCount
+          )
+          .slice(0, maxPromotions);
+        const promotedRecordIds: string[] = [];
+        for (const record of toPromote) {
+          const promotedRecord = await repository.put({
+            ...record,
+            domain: "long-term",
+            quality: {
+              ...record.quality,
+              consolidation: {
+                ...record.quality?.consolidation,
+                promotedAt: new Date().toISOString()
+              }
+            }
+          });
+          promotedRecordIds.push(promotedRecord.id);
+        }
+        if (promotedRecordIds.length > 0) {
+          await eventBus.publish({
+            type: "memory.records.consolidated",
+            payload: {
+              namespace: request.namespace,
+              promotedRecordIds
+            },
+            timestamp: new Date().toISOString()
+          });
+        }
+        operationsSucceeded += 1;
+        return { promotedCount: promotedRecordIds.length, promotedRecordIds };
+      } catch (error) {
+        operationsFailed += 1;
+        lastErrorCode = "PERSISTENCE_WRITE_FAILED";
+        persistenceState = "error";
+        await logger.error("memory consolidation failure", {
+          error: toErrorMessage(error),
+          namespace: request.namespace
+        });
+        return { promotedCount: 0, promotedRecordIds: [] };
+      }
     }
   };
 }
@@ -232,4 +311,12 @@ function toErrorMessage(error: unknown): string {
     return error.message;
   }
   return String(error);
+}
+
+function isConfidenceScoreValid(input: MemoryWriteInput): boolean {
+  const score = input.quality?.confidence?.score;
+  if (score === undefined) {
+    return true;
+  }
+  return typeof score === "number" && Number.isFinite(score) && score >= 0 && score <= 1;
 }

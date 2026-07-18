@@ -92,6 +92,122 @@ describe("memory service scaffold", () => {
     });
   });
 
+  it("rejects invalid confidence scores", async () => {
+    const service = createMemoryService();
+    await service.start();
+    await expect(
+      service.putMemory({
+        id: "bad-confidence",
+        namespace: "tenant:quality",
+        content: "invalid confidence",
+        quality: {
+          confidence: {
+            score: 1.25
+          }
+        }
+      })
+    ).resolves.toEqual({
+      saved: false,
+      reason: "confidence score must be between 0 and 1"
+    });
+  });
+
+  it("consolidates frequently accessed working memory into long-term memory", async () => {
+    const service = createMemoryService();
+    await service.start();
+    await service.putMemory({
+      id: "memory-hot-1",
+      namespace: "tenant:consolidate",
+      domain: "working",
+      content: "frequently used memory"
+    });
+    await service.putMemory({
+      id: "memory-cold-1",
+      namespace: "tenant:consolidate",
+      domain: "working",
+      content: "rarely used memory"
+    });
+
+    await service.getMemory("memory-hot-1");
+    await service.getMemory("memory-hot-1");
+    await service.getMemory("memory-hot-1");
+    await service.getMemory("memory-cold-1");
+
+    await expect(
+      service.consolidateMemory({
+        namespace: "tenant:consolidate",
+        minAccessCount: 3
+      })
+    ).resolves.toEqual({
+      promotedCount: 1,
+      promotedRecordIds: ["memory-hot-1"]
+    });
+
+    await expect(service.getMemory("memory-hot-1")).resolves.toMatchObject({
+      id: "memory-hot-1",
+      domain: "long-term"
+    });
+  });
+
+  it("does not promote memories below consolidation threshold", async () => {
+    const service = createMemoryService();
+    await service.start();
+    await service.putMemory({
+      id: "memory-threshold-1",
+      namespace: "tenant:consolidate-threshold",
+      domain: "working",
+      content: "not yet hot enough"
+    });
+
+    await service.getMemory("memory-threshold-1");
+    await expect(
+      service.consolidateMemory({
+        namespace: "tenant:consolidate-threshold",
+        minAccessCount: 3
+      })
+    ).resolves.toEqual({
+      promotedCount: 0,
+      promotedRecordIds: []
+    });
+
+    await expect(service.getMemory("memory-threshold-1")).resolves.toMatchObject({
+      id: "memory-threshold-1",
+      domain: "working"
+    });
+  });
+
+  it("de-prioritizes stale memories in search results using decay policy", async () => {
+    const service = createMemoryService();
+    await service.start();
+    await service.putMemory({
+      id: "memory-stale-1",
+      namespace: "tenant:decay",
+      content: "stale high confidence memory",
+      quality: {
+        confidence: { score: 0.95 },
+        freshnessTimestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+        decayPolicy: { staleAfterSeconds: 300 }
+      }
+    });
+    await service.putMemory({
+      id: "memory-fresh-1",
+      namespace: "tenant:decay",
+      content: "fresh memory",
+      quality: {
+        confidence: { score: 0.4 },
+        freshnessTimestamp: new Date(Date.now() - 20 * 1000).toISOString(),
+        decayPolicy: { staleAfterSeconds: 300 }
+      }
+    });
+
+    await expect(
+      service.searchMemory({
+        namespace: "tenant:decay",
+        limit: 2
+      })
+    ).resolves.toMatchObject([{ id: "memory-fresh-1" }, { id: "memory-stale-1" }]);
+  });
+
   it("marks service degraded when persistence initialization fails", async () => {
     const dir = await mkdtemp(join(tmpdir(), "memory-service-bad-json-"));
     const filePath = join(dir, "broken-store.json");
