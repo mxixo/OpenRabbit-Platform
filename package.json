@@ -1,0 +1,9 @@
+{
+  "name": "openrabbit-platform",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "ci:quality-gates": "bash ./scripts/ci/run-quality-gates.sh",
+    "ci:quick": "bash ./scripts/bootstrap/check-env.sh"
+  }
+}
