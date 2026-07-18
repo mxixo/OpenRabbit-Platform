@@ -30,9 +30,10 @@ run_pkg_checks() {
   cd "${REPO_ROOT}/${dir}"
   npm ci --silent
   ensure_required_script "lint"
+  ensure_required_script "typecheck"
   npm run lint
   npm test
-  npm exec --yes tsc --noEmit -p tsconfig.json
+  npm run typecheck
 }
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
