@@ -21,6 +21,10 @@ The package is intentionally interface-first:
   - memory-domain support (`working`, `long-term`, `world`, `business`)
   - quality metadata envelope (confidence, freshness, decay, consolidation, provenance references)
   - quality-aware query filters (`domain`, `agentId`, `minConfidenceScore`)
+- Knowledge interface:
+  - namespace-scoped knowledge record CRUD + retrieval contract
+  - text/embedding/tag-scored search result model
+  - entity and relationship primitives for graph-oriented expansion
 - MCP interface: transport-agnostic MCP request/tool interaction contract.
 
 ## Boundaries and non-goals (Phase 5)

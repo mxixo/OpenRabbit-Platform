@@ -34,13 +34,20 @@ export class PersistentMemoryRepository implements MemoryRepository {
 
   async get(id: string): Promise<MemoryRecord | undefined> {
     this.ensureInitialized();
-    return this.records.get(id);
+    const record = this.records.get(id);
+    if (!record) {
+      return undefined;
+    }
+    const touched = markAccess(record);
+    this.records.set(id, touched);
+    await this.persistence.save(this.listRecords());
+    return touched;
   }
 
   async search(query: MemoryQuery): Promise<MemoryRecord[]> {
     this.ensureInitialized();
     const limit = query.limit ?? 20;
-    return this.listRecords()
+    const results = this.listRecords()
       .filter((record) => record.namespace === query.namespace)
       .filter((record) => (query.sessionId ? record.sessionId === query.sessionId : true))
       .filter((record) =>
@@ -48,6 +55,13 @@ export class PersistentMemoryRepository implements MemoryRepository {
       )
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, limit);
+    if (results.length > 0) {
+      for (const result of results) {
+        this.records.set(result.id, markAccess(result));
+      }
+      await this.persistence.save(this.listRecords());
+    }
+    return results.map((result) => this.records.get(result.id) ?? result);
   }
 
   async delete(id: string): Promise<boolean> {
@@ -68,4 +82,23 @@ export class PersistentMemoryRepository implements MemoryRepository {
       throw new Error("memory repository not initialized");
     }
   }
+}
+
+function markAccess(record: MemoryRecord): MemoryRecord {
+  const now = new Date().toISOString();
+  const currentAccessCount = readAccessCount(record.metadata);
+  return {
+    ...record,
+    metadata: {
+      ...record.metadata,
+      accessCount: currentAccessCount + 1,
+      lastAccessedAt: now
+    },
+    updatedAt: now
+  };
+}
+
+function readAccessCount(metadata: Record<string, unknown> | undefined): number {
+  const raw = metadata?.accessCount;
+  return typeof raw === "number" && Number.isFinite(raw) ? raw : 0;
 }

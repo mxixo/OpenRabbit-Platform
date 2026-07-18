@@ -21,6 +21,7 @@ Status: completed.
 ### Phase 5 Knowledge
 - Expand indexing/embedding/retrieval and knowledge graph pipelines.
 - Standardize ingestion and semantic search validation.
+Status: in progress (foundation slice implemented).
 
 ### Phase 6 Skills
 - Version and harden skill definitions, packaging, and execution boundaries.
@@ -93,3 +94,10 @@ To support long-term autonomous business agents (not only CRM retrieval), memory
 - Keep memory, knowledge, skills, and workflow provenance as separable modules behind versioned contracts.
 - Prefer additive schemas/events over breaking rewrites so autonomous agents can share and learn across phases.
 - Keep policy/approval boundaries independent from storage engines so governance can evolve without memory refactors.
+
+## Phase 5 implementation snapshot (initial slice)
+- Runtime-core now exposes a `KnowledgeStore` contract and in-memory implementation for:
+  - knowledge record ingestion primitives
+  - text/embedding/tag-scored retrieval
+  - entity and relationship upsert/list operations
+- Phase 5 architecture baseline is documented in `docs/architecture/knowledge-foundation.md`.

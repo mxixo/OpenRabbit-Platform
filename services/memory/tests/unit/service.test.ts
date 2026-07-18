@@ -92,6 +92,153 @@ describe("memory service scaffold", () => {
     });
   });
 
+  it("promotes frequently accessed records to long-term storage", async () => {
+    const service = createMemoryService();
+    await service.start();
+    await service.putMemory({
+      id: "promote-1",
+      namespace: "tenant:consolidate",
+      content: "frequently retrieved memory"
+    });
+    await service.putMemory({
+      id: "promote-2",
+      namespace: "tenant:consolidate",
+      content: "rarely retrieved memory"
+    });
+
+    await service.getMemory("promote-1");
+    await service.getMemory("promote-1");
+    await service.getMemory("promote-1");
+    await service.getMemory("promote-2");
+
+    await expect(
+      service.consolidateMemory({
+        namespace: "tenant:consolidate",
+        minAccessCount: 4
+      })
+    ).resolves.toEqual({
+      promotedCount: 1,
+      promotedRecordIds: ["promote-1"]
+    });
+
+    await expect(service.getMemory("promote-1")).resolves.toMatchObject({
+      id: "promote-1",
+      metadata: {
+        storageTier: "long-term"
+      }
+    });
+  });
+
+  it("tracks reasoning history and decision provenance on memory writes", async () => {
+    const service = createMemoryService();
+    await service.start();
+    await service.putMemory({
+      id: "prov-1",
+      namespace: "tenant:provenance",
+      content: "decision context memory",
+      reasoningHistory: [
+        {
+          stepId: "step-1",
+          summary: "Compared candidate outreach strategies",
+          timestamp: "2026-07-18T08:00:00.000Z",
+          confidence: 0.82,
+          evidenceMemoryIds: ["m-evidence-1"]
+        }
+      ],
+      decisionProvenance: {
+        decisionId: "decision-1",
+        traceId: "trace-1",
+        model: "gpt-5.6-sol-medium",
+        policyVersion: "policy-v3",
+        rationale: "Selected the highest expected response rate option",
+        evidenceMemoryIds: ["m-evidence-1", "m-evidence-2"],
+        decidedAt: "2026-07-18T08:01:00.000Z"
+      }
+    });
+
+    await expect(service.getMemory("prov-1")).resolves.toMatchObject({
+      id: "prov-1",
+      metadata: {
+        reasoningHistory: [
+          {
+            stepId: "step-1",
+            summary: "Compared candidate outreach strategies"
+          }
+        ],
+        decisionProvenance: {
+          decisionId: "decision-1",
+          traceId: "trace-1"
+        }
+      }
+    });
+  });
+
+  it("preserves provenance metadata when records are promoted to long-term", async () => {
+    const service = createMemoryService();
+    await service.start();
+    await service.putMemory({
+      id: "prov-promote-1",
+      namespace: "tenant:provenance-promote",
+      content: "memory with decision provenance",
+      reasoningHistory: [
+        {
+          stepId: "s-1",
+          summary: "Validated policy constraints",
+          timestamp: "2026-07-18T08:02:00.000Z"
+        }
+      ],
+      decisionProvenance: {
+        decisionId: "decision-promote-1",
+        decidedAt: "2026-07-18T08:02:30.000Z"
+      }
+    });
+
+    await service.getMemory("prov-promote-1");
+    await service.getMemory("prov-promote-1");
+    await service.getMemory("prov-promote-1");
+
+    await service.consolidateMemory({
+      namespace: "tenant:provenance-promote",
+      minAccessCount: 4
+    });
+
+    await expect(service.getMemory("prov-promote-1")).resolves.toMatchObject({
+      id: "prov-promote-1",
+      metadata: {
+        storageTier: "long-term",
+        decisionProvenance: {
+          decisionId: "decision-promote-1"
+        },
+        reasoningHistory: [
+          {
+            stepId: "s-1"
+          }
+        ]
+      }
+    });
+  });
+
+  it("does not promote records below consolidation threshold", async () => {
+    const service = createMemoryService();
+    await service.start();
+    await service.putMemory({
+      id: "no-promote-1",
+      namespace: "tenant:consolidate-low",
+      content: "insufficiently accessed memory"
+    });
+    await service.getMemory("no-promote-1");
+
+    await expect(
+      service.consolidateMemory({
+        namespace: "tenant:consolidate-low",
+        minAccessCount: 5
+      })
+    ).resolves.toEqual({
+      promotedCount: 0,
+      promotedRecordIds: []
+    });
+  });
+
   it("marks service degraded when persistence initialization fails", async () => {
     const dir = await mkdtemp(join(tmpdir(), "memory-service-bad-json-"));
     const filePath = join(dir, "broken-store.json");

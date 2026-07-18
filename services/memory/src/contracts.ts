@@ -17,7 +17,27 @@ export interface MemoryWriteInput {
   namespace: string;
   sessionId?: string;
   content: string;
+  reasoningHistory?: ReasoningHistoryEntry[];
+  decisionProvenance?: DecisionProvenance;
   metadata?: Record<string, unknown>;
+}
+
+export interface ReasoningHistoryEntry {
+  stepId: string;
+  summary: string;
+  timestamp: string;
+  confidence?: number;
+  evidenceMemoryIds?: string[];
+}
+
+export interface DecisionProvenance {
+  decisionId: string;
+  traceId?: string;
+  model?: string;
+  policyVersion?: string;
+  rationale?: string;
+  evidenceMemoryIds?: string[];
+  decidedAt: string;
 }
 
 export interface MemoryWriteResult {
@@ -29,6 +49,18 @@ export interface MemoryWriteResult {
 export interface MemoryDeleteResult {
   deleted: boolean;
   reason?: string;
+}
+
+export interface MemoryConsolidationRequest {
+  namespace: string;
+  sessionId?: string;
+  minAccessCount?: number;
+  maxPromotions?: number;
+}
+
+export interface MemoryConsolidationResult {
+  promotedCount: number;
+  promotedRecordIds: string[];
 }
 export interface MemoryRepository {
   initialize(): Promise<void>;
@@ -61,4 +93,5 @@ export interface MemoryService {
   getMemory(id: string): Promise<MemoryRecord | undefined>;
   searchMemory(query: MemoryQuery): Promise<MemoryRecord[]>;
   deleteMemory(id: string): Promise<MemoryDeleteResult>;
+  consolidateMemory(request: MemoryConsolidationRequest): Promise<MemoryConsolidationResult>;
 }

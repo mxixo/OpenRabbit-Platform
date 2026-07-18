@@ -8,12 +8,16 @@ import {
   StructuredLogger
 } from "../../../packages/runtime-core/src/index.js";
 import {
+  DecisionProvenance,
+  MemoryConsolidationRequest,
+  MemoryConsolidationResult,
   MemoryDeleteResult,
   MemoryPersistenceAdapter,
   MemoryRepository,
   MemoryService,
   MemoryServiceOptions,
   MemoryWriteInput,
+  ReasoningHistoryEntry,
   MemoryWriteResult,
   ServiceDescriptor,
   ServiceHealth
@@ -46,7 +50,14 @@ export function createMemoryService(
   const descriptor: ServiceDescriptor = {
     serviceName: "memory",
     version,
-    capabilities: ["memory-put", "memory-get", "memory-search", "memory-delete", "persistence"]
+    capabilities: [
+      "memory-put",
+      "memory-get",
+      "memory-search",
+      "memory-delete",
+      "memory-consolidate",
+      "persistence"
+    ]
   };
 
   const requiresStarted = (): string | undefined => {
@@ -113,12 +124,27 @@ export function createMemoryService(
         return { saved: false, reason: "id, namespace, and content are required" };
       }
       try {
-        const record = await repository.put(input);
+        const record = await repository.put({
+          ...input,
+          metadata: buildMemoryMetadata(input)
+        });
         await eventBus.publish({
           type: "memory.record.upserted",
           payload: { id: record.id, namespace: record.namespace },
           timestamp: new Date().toISOString()
         });
+        if (input.reasoningHistory || input.decisionProvenance) {
+          await eventBus.publish({
+            type: "memory.provenance.tracked",
+            payload: {
+              id: record.id,
+              namespace: record.namespace,
+              reasoningStepCount: input.reasoningHistory?.length ?? 0,
+              decisionId: input.decisionProvenance?.decisionId
+            },
+            timestamp: new Date().toISOString()
+          });
+        }
         operationsSucceeded += 1;
         return { saved: true, record };
       } catch (error) {
@@ -206,6 +232,68 @@ export function createMemoryService(
         });
         return { deleted: false, reason: "failed to persist memory deletion" };
       }
+    },
+    async consolidateMemory(
+      request: MemoryConsolidationRequest
+    ): Promise<MemoryConsolidationResult> {
+      const notStartedReason = requiresStarted();
+      if (notStartedReason) {
+        return { promotedCount: 0, promotedRecordIds: [] };
+      }
+      if (!request.namespace) {
+        operationsFailed += 1;
+        lastErrorCode = "INVALID_CONSOLIDATION_REQUEST";
+        return { promotedCount: 0, promotedRecordIds: [] };
+      }
+      const minAccessCount = request.minAccessCount ?? 3;
+      const maxPromotions = request.maxPromotions ?? 50;
+      try {
+        const candidates = await repository.search({
+          namespace: request.namespace,
+          sessionId: request.sessionId,
+          limit: maxPromotions * 5
+        });
+        const toPromote = candidates
+          .filter((record) => isWorkingTier(record))
+          .filter((record) => getAccessCount(record) >= minAccessCount)
+          .slice(0, maxPromotions);
+        const promotedRecordIds: string[] = [];
+        for (const record of toPromote) {
+          const promoted = await repository.put({
+            ...record,
+            metadata: {
+              ...record.metadata,
+              storageTier: "long-term",
+              promotedAt: new Date().toISOString()
+            }
+          });
+          promotedRecordIds.push(promoted.id);
+        }
+        if (promotedRecordIds.length > 0) {
+          await eventBus.publish({
+            type: "memory.records.consolidated",
+            payload: {
+              namespace: request.namespace,
+              promotedRecordIds
+            },
+            timestamp: new Date().toISOString()
+          });
+        }
+        operationsSucceeded += 1;
+        return {
+          promotedCount: promotedRecordIds.length,
+          promotedRecordIds
+        };
+      } catch (error) {
+        operationsFailed += 1;
+        lastErrorCode = "PERSISTENCE_WRITE_FAILED";
+        persistenceState = "error";
+        await logger.error("memory consolidation persistence failure", {
+          error: toErrorMessage(error),
+          namespace: request.namespace
+        });
+        return { promotedCount: 0, promotedRecordIds: [] };
+      }
     }
   };
 }
@@ -232,4 +320,52 @@ function toErrorMessage(error: unknown): string {
     return error.message;
   }
   return String(error);
+}
+
+function buildMemoryMetadata(input: MemoryWriteInput): Record<string, unknown> {
+  const reasoningHistory = normalizeReasoningHistory(input.reasoningHistory);
+  const decisionProvenance = normalizeDecisionProvenance(input.decisionProvenance);
+  return {
+    storageTier: "working",
+    accessCount: 0,
+    ...input.metadata,
+    reasoningHistory,
+    decisionProvenance
+  };
+}
+
+function getAccessCount(record: MemoryRecord): number {
+  const raw = record.metadata?.accessCount;
+  return typeof raw === "number" && Number.isFinite(raw) ? raw : 0;
+}
+
+function isWorkingTier(record: MemoryRecord): boolean {
+  const tier = record.metadata?.storageTier;
+  return tier === undefined || tier === "working";
+}
+
+function normalizeReasoningHistory(
+  history: ReasoningHistoryEntry[] | undefined
+): ReasoningHistoryEntry[] {
+  if (!history) {
+    return [];
+  }
+  return history.map((entry) => ({
+    ...entry,
+    evidenceMemoryIds: entry.evidenceMemoryIds ? [...entry.evidenceMemoryIds] : undefined
+  }));
+}
+
+function normalizeDecisionProvenance(
+  provenance: DecisionProvenance | undefined
+): DecisionProvenance | undefined {
+  if (!provenance) {
+    return undefined;
+  }
+  return {
+    ...provenance,
+    evidenceMemoryIds: provenance.evidenceMemoryIds
+      ? [...provenance.evidenceMemoryIds]
+      : undefined
+  };
 }
