@@ -12,20 +12,28 @@ import {
   ApiRequestEnvelope,
   ServiceDescriptor,
   ServiceHealth,
+  ServiceStartupContext,
   ValidationResult
 } from "./contracts.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
-export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
-  const config = new InMemoryConfigurationManager({
-    defaults: {
-      serviceName: "api-gateway"
-    }
-  });
-  const eventBus = new InMemoryEventBus();
-  const permissionManager = new InMemoryPermissionManager();
-  const logger = new StructuredLogger([new InMemoryLogSink()]).child({
+export function createApiGatewayService(
+  version = "0.1.0",
+  startupContext: ServiceStartupContext = {}
+): ApiGatewayService {
+  const config =
+    startupContext.config ??
+    new InMemoryConfigurationManager({
+      defaults: {
+        serviceName: "api-gateway"
+      }
+    });
+  const eventBus = startupContext.eventBus ?? new InMemoryEventBus();
+  const permissionManager = startupContext.permissionManager ?? new InMemoryPermissionManager();
+  const logger = (
+    startupContext.logger ?? new StructuredLogger([new InMemoryLogSink()])
+  ).child({
     service: "api-gateway"
   });
 

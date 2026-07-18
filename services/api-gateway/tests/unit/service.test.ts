@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { InMemoryConfigurationManager } from "../../../../packages/runtime-core/src/index.js";
 import { createApiGatewayService } from "../../src/service.js";
 
 describe("api-gateway service infrastructure", () => {
@@ -37,5 +38,18 @@ describe("api-gateway service infrastructure", () => {
     expect(result.ok).toBe(true);
     expect(service.getReliabilitySnapshot().operationsSucceeded).toBe(1);
     expect(service.getReliabilitySnapshot().operationsFailed).toBe(1);
+  });
+
+  it("supports startup context dependency overrides", async () => {
+    const service = createApiGatewayService("0.1.0", {
+      config: new InMemoryConfigurationManager({
+        defaults: {
+          serviceName: "api-gateway",
+          region: "local-test"
+        }
+      })
+    });
+    await service.start();
+    expect(service.getHealth().status).toBe("ok");
   });
 });

@@ -11,18 +11,25 @@ import {
   OrchestratorService,
   ServiceDescriptor,
   ServiceHealth,
+  ServiceStartupContext,
   TaskIntakeRequest,
   TaskIntakeResult
 } from "./contracts.js";
-
-export function createOrchestratorService(version = "0.1.0"): OrchestratorService {
-  const config = new InMemoryConfigurationManager({
-    defaults: {
-      serviceName: "orchestrator"
-    }
-  });
-  const eventBus = new InMemoryEventBus();
-  const logger = new StructuredLogger([new InMemoryLogSink()]).child({
+export function createOrchestratorService(
+  version = "0.1.0",
+  startupContext: ServiceStartupContext = {}
+): OrchestratorService {
+  const config =
+    startupContext.config ??
+    new InMemoryConfigurationManager({
+      defaults: {
+        serviceName: "orchestrator"
+      }
+    });
+  const eventBus = startupContext.eventBus ?? new InMemoryEventBus();
+  const logger = (
+    startupContext.logger ?? new StructuredLogger([new InMemoryLogSink()])
+  ).child({
     service: "orchestrator"
   });
 

@@ -1,4 +1,7 @@
 import {
+  ConfigurationManager,
+  Logger,
+  ModelProvider,
   ServiceOperationResult,
   ServiceReliabilitySnapshot
 } from "../../../packages/runtime-core/src/index.js";
@@ -22,6 +25,11 @@ export interface ModelInvocationInput {
 export interface ModelInvocationOutput {
   model: string;
   output: string;
+}
+export interface ServiceStartupContext {
+  config?: ConfigurationManager;
+  logger?: Logger;
+  modelProvider?: ModelProvider;
 }
 
 export interface ModelGatewayService {

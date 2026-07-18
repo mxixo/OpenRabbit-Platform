@@ -1,4 +1,6 @@
 import {
+  Logger,
+  PermissionManager,
   ServiceOperationResult,
   ServiceReliabilitySnapshot
 } from "../../../packages/runtime-core/src/index.js";
@@ -24,6 +26,10 @@ export interface PolicyCheckInput {
 export interface PolicyCheckOutput {
   allowed: boolean;
   reason: string;
+}
+export interface ServiceStartupContext {
+  logger?: Logger;
+  permissionManager?: PermissionManager;
 }
 
 export interface PolicyService {

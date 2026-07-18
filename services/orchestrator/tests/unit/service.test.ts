@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { InMemoryConfigurationManager } from "../../../../packages/runtime-core/src/index.js";
 import { createOrchestratorService } from "../../src/service.js";
 
 describe("orchestrator service infrastructure", () => {
@@ -41,5 +42,18 @@ describe("orchestrator service infrastructure", () => {
       id: "m1",
       result: { echoedMethod: "tools/list" }
     });
+  });
+
+  it("supports startup context dependency overrides", async () => {
+    const service = createOrchestratorService("0.1.0", {
+      config: new InMemoryConfigurationManager({
+        defaults: {
+          serviceName: "orchestrator",
+          queueName: "test-queue"
+        }
+      })
+    });
+    await service.start();
+    expect(service.getHealth().status).toBe("ok");
   });
 });

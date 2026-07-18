@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { InMemoryPermissionManager } from "../../../../packages/runtime-core/src/index.js";
 import { createPolicyService } from "../../src/service.js";
 
 describe("policy service infrastructure", () => {
@@ -50,5 +51,20 @@ describe("policy service infrastructure", () => {
     const snapshot = service.getReliabilitySnapshot();
     expect(snapshot.operationsSucceeded).toBe(1);
     expect(snapshot.operationsFailed).toBe(2);
+  });
+
+  it("supports startup context dependency overrides", async () => {
+    const permissionManager = new InMemoryPermissionManager();
+    permissionManager.addPolicy({
+      id: "allow-write-doc",
+      effect: "allow",
+      actions: ["write"],
+      resources: ["doc"]
+    });
+    const service = createPolicyService("0.1.0", { permissionManager });
+    await service.start();
+    expect(service.evaluate({ subjectId: "u9", action: "write", resourceType: "doc" }).allowed).toBe(
+      true
+    );
   });
 });

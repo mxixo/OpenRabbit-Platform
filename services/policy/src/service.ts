@@ -10,12 +10,17 @@ import {
   PolicyCheckOutput,
   PolicyService,
   ServiceDescriptor,
-  ServiceHealth
+  ServiceHealth,
+  ServiceStartupContext
 } from "./contracts.js";
-
-export function createPolicyService(version = "0.1.0"): PolicyService {
-  const permissionManager = new InMemoryPermissionManager();
-  const logger = new StructuredLogger([new InMemoryLogSink()]).child({
+export function createPolicyService(
+  version = "0.1.0",
+  startupContext: ServiceStartupContext = {}
+): PolicyService {
+  const permissionManager = startupContext.permissionManager ?? new InMemoryPermissionManager();
+  const logger = (
+    startupContext.logger ?? new StructuredLogger([new InMemoryLogSink()])
+  ).child({
     service: "policy"
   });
 

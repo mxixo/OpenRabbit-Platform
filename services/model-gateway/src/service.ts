@@ -12,24 +12,34 @@ import {
   ModelInvocationInput,
   ModelInvocationOutput,
   ServiceDescriptor,
-  ServiceHealth
+  ServiceHealth,
+  ServiceStartupContext
 } from "./contracts.js";
-
-export function createModelGatewayService(version = "0.1.0"): ModelGatewayService {
-  const config = new InMemoryConfigurationManager({
-    defaults: {
-      serviceName: "model-gateway",
-      defaultModel: "mock-default"
-    }
-  });
-  const logger = new StructuredLogger([new InMemoryLogSink()]).child({
+export function createModelGatewayService(
+  version = "0.1.0",
+  startupContext: ServiceStartupContext = {}
+): ModelGatewayService {
+  const config =
+    startupContext.config ??
+    new InMemoryConfigurationManager({
+      defaults: {
+        serviceName: "model-gateway",
+        defaultModel: "mock-default"
+      }
+    });
+  const logger = (
+    startupContext.logger ?? new StructuredLogger([new InMemoryLogSink()])
+  ).child({
     service: "model-gateway"
   });
-  const provider = new MockModelProvider("core-services-mock-provider");
-  provider.registerModel("mock-default", async (request) => ({
-    model: request.model,
-    output: `mock-response:${request.input}`
-  }));
+  const provider =
+    startupContext.modelProvider ?? new MockModelProvider("core-services-mock-provider");
+  if (provider instanceof MockModelProvider) {
+    provider.registerModel("mock-default", async (request) => ({
+      model: request.model,
+      output: `mock-response:${request.input}`
+    }));
+  }
 
   let started = false;
   let operationsSucceeded = 0;

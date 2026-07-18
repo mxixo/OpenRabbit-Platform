@@ -1,4 +1,8 @@
 import {
+  ConfigurationManager,
+  EventBus,
+  Logger,
+  PermissionManager,
   ServiceHealthReport,
   ServiceOperationResult,
   ServiceReliabilitySnapshot
@@ -24,6 +28,12 @@ export interface ApiRequestEnvelope {
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
+}
+export interface ServiceStartupContext {
+  config?: ConfigurationManager;
+  eventBus?: EventBus;
+  permissionManager?: PermissionManager;
+  logger?: Logger;
 }
 
 export interface ApiGatewayService {

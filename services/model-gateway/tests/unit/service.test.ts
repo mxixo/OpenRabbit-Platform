@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { InMemoryConfigurationManager, MockModelProvider } from "../../../../packages/runtime-core/src/index.js";
 import { createModelGatewayService } from "../../src/service.js";
 
 describe("model-gateway service infrastructure", () => {
@@ -32,5 +33,27 @@ describe("model-gateway service infrastructure", () => {
     const snapshot = service.getReliabilitySnapshot();
     expect(snapshot.operationsSucceeded).toBe(1);
     expect(snapshot.operationsFailed).toBe(2);
+  });
+
+  it("supports startup context injection for provider and config", async () => {
+    const provider = new MockModelProvider("injected-model-provider");
+    provider.registerModel("injected-default", async (request) => ({
+      model: request.model,
+      output: `injected:${request.input}`
+    }));
+    const service = createModelGatewayService("0.1.0", {
+      modelProvider: provider,
+      config: new InMemoryConfigurationManager({
+        defaults: {
+          serviceName: "model-gateway",
+          defaultModel: "injected-default"
+        }
+      })
+    });
+    await service.start();
+    await expect(service.invokeModel({ input: "hello" })).resolves.toEqual({
+      model: "injected-default",
+      output: "injected:hello"
+    });
   });
 });

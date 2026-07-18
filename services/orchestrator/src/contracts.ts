@@ -1,4 +1,9 @@
-import { ServiceReliabilitySnapshot } from "../../../packages/runtime-core/src/index.js";
+import {
+  ConfigurationManager,
+  EventBus,
+  Logger,
+  ServiceReliabilitySnapshot
+} from "../../../packages/runtime-core/src/index.js";
 export interface ServiceDescriptor {
   serviceName: "orchestrator";
   version: string;
@@ -36,6 +41,11 @@ export interface McpRequestOutput {
     code: string;
     message: string;
   };
+}
+export interface ServiceStartupContext {
+  config?: ConfigurationManager;
+  eventBus?: EventBus;
+  logger?: Logger;
 }
 
 export interface OrchestratorService {

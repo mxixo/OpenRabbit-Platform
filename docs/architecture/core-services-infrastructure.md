@@ -1,6 +1,6 @@
 # Core Services Infrastructure
 ## Purpose
-This document defines the initial infrastructure baseline for the Phase 5 core services:
+This document defines the initial infrastructure baseline for the Phase 2 core services:
 - `services/api-gateway`
 - `services/orchestrator`
 - `services/model-gateway`
@@ -9,6 +9,7 @@ This document defines the initial infrastructure baseline for the Phase 5 core s
 ## Design decisions
 - Interface-first service contracts per service (`src/contracts.ts`).
 - Deterministic local bootstrap lifecycle (`start`, `stop`, `isStarted`, descriptor, health).
+- Explicit startup context contract for dependency injection and deterministic overrides.
 - Shared runtime dependencies sourced from `packages/runtime-core`.
 - No external APIs or network listeners in this phase.
 
@@ -25,6 +26,3 @@ Each core service now includes:
 - `orchestrator`: task intake contract + in-memory event emission.
 - `model-gateway`: provider-agnostic model invocation through mock provider bridge.
 - `policy`: permission-evaluation adapter over runtime-core permission manager.
-
-## Next phase handoff
-Future iterations can add transport layers, persistence, and external provider integrations by replacing internal bindings while preserving the contracts introduced here.
