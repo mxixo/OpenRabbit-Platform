@@ -39,6 +39,62 @@ npm run workflow:commercial -- '{"address":"100 Market St, Phoenix, AZ","purchas
 ```
 If `CAMINO_API_KEY` is set, the workflow will also attach location context data to `propertyInfo`.
 
+## Commercial investment MVP workflow
+The `commercial_investment_workflow` skill is the first usable OpenRabbit workflow for screening a commercial property opportunity.
+
+### What it does
+1. Accepts a commercial property address.
+2. Gathers available property context from payload inputs (and optional Camino location context when configured).
+3. Estimates key investment metrics.
+4. Generates an investment summary.
+5. Scores the opportunity (`strong`, `watch`, or `weak`).
+6. Drafts investor outreach.
+7. Produces a structured report object.
+
+### Run from CLI
+```bash
+npm run workflow:commercial -- '{"address":"2500 Commerce Blvd, Dallas, TX","purchasePrice":1850000,"annualGrossIncome":255000,"occupancyRate":0.93,"operatingExpenseRatio":0.34,"downPaymentPct":0.3,"interestRatePct":6.4,"amortizationYears":25,"units":12,"squareFeet":18000,"yearBuilt":2008}'
+```
+
+### Required input
+- `address` (string)
+
+### Optional investment assumptions
+- `purchasePrice`
+- `annualGrossIncome`
+- `occupancyRate`
+- `operatingExpenseRatio`
+- `downPaymentPct`
+- `interestRatePct`
+- `amortizationYears`
+- `units`
+- `squareFeet`
+- `yearBuilt`
+- `notes`
+- `locationRadiusMeters`
+
+### Output fields
+- `propertyInfo`
+- `investmentMetrics`:
+  - `effectiveGrossIncome`
+  - `operatingExpenses`
+  - `noi`
+  - `annualDebtService`
+  - `annualCashFlowBeforeTax`
+  - `capRate`
+  - `cashOnCash`
+  - `dscr`
+- `investmentSummary`
+- `opportunityScore`
+- `investorOutreachDraft`
+- `report` (structured full payload + results)
+
+### Validation behavior
+- Missing `address` returns:
+  - `ok: false`
+  - `error: "input.address must be a non-empty string"`
+
+
 ## Test
 ```bash
 npm test
