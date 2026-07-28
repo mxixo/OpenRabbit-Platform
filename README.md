@@ -24,3 +24,9 @@ The `commercial_investment_workflow` skill in `src/skills/commercial-investment-
 ```bash
 npm run workflow:commercial -- '{"address":"2500 Commerce Blvd, Dallas, TX","purchasePrice":1850000,"annualGrossIncome":255000,"occupancyRate":0.93,"operatingExpenseRatio":0.34,"downPaymentPct":0.3,"interestRatePct":6.4,"amortizationYears":25}'
 ```
+If `CAMINO_API_KEY` is set, location context enrichment is included in `propertyInfo`.
+
+### Run tests
+```bash
+npm test
+```
