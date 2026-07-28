@@ -1,13 +1,20 @@
 {
   "name": "openrabbit",
   "version": "1.0.0",
-  "description": "",
+  "description": "OpenRabbit custom skill scaffold for OpenClaw agents",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "test": "node tests/skills.test.js",
+    "preflight:live": "node scripts/live-preflight.js",
+    "workflow:commercial": "node scripts/run-commercial-workflow.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs"
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "openai": "^6.25.0"
+  }
 }
