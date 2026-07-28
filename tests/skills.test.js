@@ -7,43 +7,9 @@ const {
 async function runTests() {
   const catalog = getSkillCatalog();
   assert.strictEqual(Array.isArray(catalog), true);
-  assert.strictEqual(catalog.length >= 3, true);
+  assert.strictEqual(catalog.length >= 1, true);
 
   const runner = createOpenClawSkillRunner({ actor: "openclaw" });
-
-  const complianceApproved = await runner.run("post_compliance_guard", {
-    postId: "post-1",
-    content: "Join us this Sunday. Equal Housing Opportunity.",
-  });
-  assert.strictEqual(complianceApproved.approved, true);
-
-  const complianceRejected = await runner.run("post_compliance_guard", {
-    postId: "post-2",
-    content: "Join us this Sunday.",
-  });
-  assert.strictEqual(complianceRejected.approved, false);
-
-  const publishResult = await runner.run("social_post_publish", {
-    postId: "post-3",
-    platform: "facebook",
-    content: "New listing available. Equal Housing Opportunity.",
-    mode: "dry_run",
-    mediaUrls: [],
-  });
-  assert.strictEqual(publishResult.ok, true);
-  assert.strictEqual(publishResult.published, false);
-
-  const browserResult = await runner.run("browser_session", {
-    sessionId: "session-1",
-    action: "navigate",
-    mode: "dry_run",
-    target: {
-      platform: "facebook",
-      url: "https://business.facebook.com",
-    },
-  });
-  assert.strictEqual(browserResult.ok, true);
-  assert.strictEqual(browserResult.performed, false);
 
   const investmentWorkflow = await runner.run("commercial_investment_workflow", {
     address: "100 Market St, Phoenix, AZ",
@@ -66,6 +32,18 @@ async function runTests() {
     investmentWorkflow.report.address,
     "100 Market St, Phoenix, AZ"
   );
+  let threwMissingAddress = false;
+  try {
+    await runner.run("commercial_investment_workflow", {
+      purchasePrice: 1200000,
+      annualGrossIncome: 165000,
+    });
+  } catch (error) {
+    threwMissingAddress = String(error.message).includes(
+      "input.address must be a non-empty string"
+    );
+  }
+  assert.strictEqual(threwMissingAddress, true);
 
   let threwUnknownSkill = false;
   try {
@@ -74,8 +52,7 @@ async function runTests() {
     threwUnknownSkill = true;
   }
   assert.strictEqual(threwUnknownSkill, true);
-
-  console.log("All skill scaffold tests passed.");
+  console.log("Commercial workflow MVP tests passed.");
 }
 
 runTests().catch((error) => {

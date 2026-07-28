@@ -1,15 +1,6 @@
-const browserSessionSkill = require("./browser-session.skill");
-const socialPostPublishSkill = require("./social-post-publish.skill");
-const postComplianceGuardSkill = require("./post-compliance-guard.skill");
 const commercialInvestmentWorkflowSkill = require("./commercial-investment-workflow.skill");
 const { assertRequiredString } = require("./utils/schema");
-
-const skillCatalog = [
-  browserSessionSkill,
-  socialPostPublishSkill,
-  postComplianceGuardSkill,
-  commercialInvestmentWorkflowSkill,
-];
+const skillCatalog = [commercialInvestmentWorkflowSkill];
 
 function getSkillCatalog() {
   return skillCatalog.map((skill) => ({
