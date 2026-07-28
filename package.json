@@ -1,9 +1,20 @@
 {
   "name": "openrabbit-platform",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "description": "OpenRabbit platform workspace with commercial investment MVP workflow scaffold",
+  "main": "index.js",
   "scripts": {
+    "start": "node index.js",
+    "test": "node tests/skills.test.js",
+    "preflight:live": "node scripts/live-preflight.js",
+    "workflow:commercial": "node scripts/run-commercial-workflow.js",
     "ci:quality-gates": "bash ./scripts/ci/run-quality-gates.sh",
     "ci:quick": "bash ./scripts/bootstrap/check-env.sh"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "openai": "^6.25.0"
   }
 }
