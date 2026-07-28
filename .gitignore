@@ -9,3 +9,9 @@ coverage/
 runtime/logs/
 runtime/cache/
 runtime/tmp/
+
+# Local environment files
+.env
+
+# macOS metadata
+.DS_Store
