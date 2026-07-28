@@ -37,6 +37,7 @@ Run the first commercial workflow (JSON input with address required):
 ```bash
 npm run workflow:commercial -- '{"address":"100 Market St, Phoenix, AZ","purchasePrice":1200000,"annualGrossIncome":165000}'
 ```
+If `CAMINO_API_KEY` is set, the workflow will also attach location context data to `propertyInfo`.
 
 ## Test
 ```bash

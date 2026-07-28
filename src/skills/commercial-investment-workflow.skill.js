@@ -106,6 +106,63 @@ If aligned with your target profile, I can share the full assumptions and next-s
 Best,
 [Your Name]`;
 }
+async function fetchCaminoContextByAddress({ address, radius = 1000 }) {
+  const apiKey = process.env.CAMINO_API_KEY;
+  if (!apiKey) return null;
+  if (typeof fetch !== "function") return null;
+
+  const geocodeUrl = `https://api.getcamino.ai/query?query=${encodeURIComponent(
+    address
+  )}&limit=1`;
+  const geocodeRes = await fetch(geocodeUrl, {
+    headers: {
+      "X-API-Key": apiKey,
+    },
+  });
+  if (!geocodeRes.ok) return null;
+  const geocodeBody = await geocodeRes.json();
+  const first =
+    geocodeBody?.results?.[0] ||
+    geocodeBody?.items?.[0] ||
+    geocodeBody?.data?.[0] ||
+    null;
+  if (!first) return null;
+
+  const lat =
+    first.lat ??
+    first.latitude ??
+    first.location?.lat ??
+    first.location?.latitude ??
+    null;
+  const lon =
+    first.lon ??
+    first.lng ??
+    first.longitude ??
+    first.location?.lon ??
+    first.location?.lng ??
+    first.location?.longitude ??
+    null;
+  if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) return null;
+
+  const contextRes = await fetch("https://api.getcamino.ai/context", {
+    method: "POST",
+    headers: {
+      "X-API-Key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      location: {
+        lat: Number(lat),
+        lon: Number(lon),
+      },
+      radius,
+      context:
+        "commercial real estate investment evaluation: transit, grocery, restaurants, parks, neighborhood context, walkability",
+    }),
+  });
+  if (!contextRes.ok) return null;
+  return contextRes.json();
+}
 
 async function gatherPropertyInfo(input) {
   const propertyInfo = {
@@ -116,13 +173,24 @@ async function gatherPropertyInfo(input) {
     yearBuilt: toNumber(input.yearBuilt, null),
     sourceNotes: [],
   };
+  const contextRadius = Math.max(250, toNumber(input.locationRadiusMeters, 1000));
+  const caminoContext = await fetchCaminoContextByAddress({
+    address: input.address,
+    radius: contextRadius,
+  });
+  if (caminoContext) {
+    propertyInfo.locationContext = caminoContext;
+    propertyInfo.sourceNotes.push("Location context added via Camino API.");
+  }
 
   if (input.notes) {
     propertyInfo.sourceNotes.push(`Notes: ${input.notes}`);
   }
-  propertyInfo.sourceNotes.push(
-    "No direct MLS/Rentcast adapter configured in this repository; using provided inputs."
-  );
+  if (!caminoContext) {
+    propertyInfo.sourceNotes.push(
+      "No direct MLS/Rentcast adapter configured in this repository; using provided inputs."
+    );
+  }
   return propertyInfo;
 }
 
@@ -187,6 +255,7 @@ module.exports = {
       squareFeet: { type: "number" },
       yearBuilt: { type: "number" },
       notes: { type: "string" },
+      locationRadiusMeters: { type: "number" },
     },
   },
   outputSchema: {
