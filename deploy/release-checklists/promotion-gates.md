@@ -9,3 +9,5 @@
 - Rollback strategy documented and validated.
 - Release window approved.
 - Production approval logged by release owner.
+- Run `scripts/release/deploy-prod.sh <release-tag>` for preflight dry run.
+- Run `scripts/release/deploy-prod.sh <release-tag> --execute` during approved rollout window.
