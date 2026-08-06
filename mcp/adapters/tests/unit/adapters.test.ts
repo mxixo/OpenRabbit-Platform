@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MockMcpClient } from "../../../../packages/runtime-core/src/mocks/mock-mcp-client.js";
+import { MockMcpClient } from "@openrabbit/runtime-core";
 import {
   InMemoryMcpRegistryAdapter,
   RuntimeCoreMcpAdapter,

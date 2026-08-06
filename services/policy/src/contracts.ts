@@ -1,7 +1,7 @@
 import {
   ServiceOperationResult,
   ServiceReliabilitySnapshot
-} from "../../../packages/runtime-core/src/index.js";
+} from "@openrabbit/runtime-core";
 export interface ServiceDescriptor {
   serviceName: "policy";
   version: string;
