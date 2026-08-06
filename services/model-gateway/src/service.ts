@@ -6,7 +6,7 @@ import {
   ServiceReliabilitySnapshot,
   StructuredLogger,
   withRetry
-} from "../../../packages/runtime-core/src/index.js";
+} from "@openrabbit/runtime-core";
 import {
   ModelGatewayService,
   ModelInvocationInput,

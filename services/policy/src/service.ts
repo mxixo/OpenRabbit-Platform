@@ -4,7 +4,7 @@ import {
   ServiceOperationResult,
   ServiceReliabilitySnapshot,
   StructuredLogger
-} from "../../../packages/runtime-core/src/index.js";
+} from "@openrabbit/runtime-core";
 import {
   PolicyCheckInput,
   PolicyCheckOutput,

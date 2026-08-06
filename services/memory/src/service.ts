@@ -6,7 +6,7 @@ import {
   MemoryRecord,
   ServiceReliabilitySnapshot,
   StructuredLogger
-} from "../../../packages/runtime-core/src/index.js";
+} from "@openrabbit/runtime-core";
 import {
   DecisionProvenance,
   MemoryConsolidationRequest,

@@ -1,4 +1,4 @@
-import { MemoryRecord } from "../../../../packages/runtime-core/src/index.js";
+import { MemoryRecord } from "@openrabbit/runtime-core";
 import { MemoryPersistenceAdapter } from "../contracts.js";
 
 export class InMemoryPersistenceAdapter implements MemoryPersistenceAdapter {

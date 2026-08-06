@@ -1,9 +1,9 @@
-import type { McpClient } from "../../../packages/runtime-core/src/interfaces/mcp.js";
+import type { McpClient } from "@openrabbit/runtime-core";
 import type {
   McpRequestEnvelope,
   McpResponseEnvelope,
   McpToolDescriptor
-} from "../../contracts/src/index.js";
+} from "@openrabbit/mcp-contracts";
 
 export class RuntimeCoreMcpAdapter {
   constructor(private readonly client: McpClient) {}
