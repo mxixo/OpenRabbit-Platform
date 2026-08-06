@@ -1,4 +1,7 @@
 # Current Platform Overview
+
+> **Canonical product docs:** See `/docs/VISION.md`, `/docs/ARCHITECTURE.md`, and `/OPENRABBIT_CONTEXT.md`. This file is engineering history and yields on product-boundary conflicts.
+
 ## Overall platform purpose
 OpenRabbit is a TypeScript-first modular platform foundation for AI-powered orchestration, MCP interoperability, and domain workflow execution. The repository combines service scaffolds, a shared runtime core, deployment policies, and production rollout assets intended to evolve incrementally from in-process local implementations into production integrations.
 ## Repository map

@@ -30,3 +30,22 @@ If `CAMINO_API_KEY` is set, location context enrichment is included in `property
 ```bash
 npm test
 ```
+
+## Product documentation (source of truth)
+
+OpenRabbit is an **AI Operating Environment** (not a chatbot / single agent).
+
+**Start here:** [`OPENRABBIT_CONTEXT.md`](OPENRABBIT_CONTEXT.md)
+
+Canonical docs:
+
+- [`docs/VISION.md`](docs/VISION.md)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/PRINCIPLES.md`](docs/PRINCIPLES.md)
+- [`docs/RUNTIMES.md`](docs/RUNTIMES.md)
+- [`docs/AI_WORKERS.md`](docs/AI_WORKERS.md)
+- [`docs/INDUSTRY_PACKS.md`](docs/INDUSTRY_PACKS.md)
+- [`docs/ROADMAP.md`](docs/ROADMAP.md)
+
+AI tools (Warp, OpenClaw, Antigravity, ChatGPT, etc.) must read these before proposing architectural changes.
+
