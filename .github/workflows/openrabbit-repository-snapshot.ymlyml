@@ -1,0 +1,35 @@
+name: OpenRabbit Repository Snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  create-snapshot:
+    name: Create repository snapshot
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create snapshot archive
+        shell: bash
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          SNAPSHOT="OpenRabbit-Platform-${SHORT_SHA}.tar.gz"
+          tar             --exclude=".git"             --exclude="node_modules"             --exclude="*.env"             --exclude=".env*"             -czf "$SNAPSHOT" .
+          echo "SNAPSHOT=$SNAPSHOT" >> "$GITHUB_ENV"
+
+      - name: Upload snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenRabbit-Platform-${{ github.sha }}
+          path: ${{ env.SNAPSHOT }}
+          retention-days: 30
+          if-no-files-found: error
