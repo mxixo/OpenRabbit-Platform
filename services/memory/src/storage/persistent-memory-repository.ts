@@ -1,4 +1,4 @@
-import { MemoryQuery, MemoryRecord } from "../../../../packages/runtime-core/src/index.js";
+import { MemoryQuery, MemoryRecord } from "@openrabbit/runtime-core";
 import { MemoryPersistenceAdapter, MemoryRepository } from "../contracts.js";
 
 export class PersistentMemoryRepository implements MemoryRepository {

@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { MemoryRecord } from "../../../../packages/runtime-core/src/index.js";
+import { MemoryRecord } from "@openrabbit/runtime-core";
 import { MemoryPersistenceAdapter } from "../contracts.js";
 
 export class JsonFilePersistenceAdapter implements MemoryPersistenceAdapter {

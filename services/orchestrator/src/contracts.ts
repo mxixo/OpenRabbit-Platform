@@ -1,4 +1,4 @@
-import { ServiceReliabilitySnapshot } from "../../../packages/runtime-core/src/index.js";
+import { ServiceReliabilitySnapshot } from "@openrabbit/runtime-core";
 export interface ServiceDescriptor {
   serviceName: "orchestrator";
   version: string;

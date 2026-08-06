@@ -1,4 +1,4 @@
-import { MemoryQuery, MemoryRecord, ServiceReliabilitySnapshot } from "../../../packages/runtime-core/src/index.js";
+import { MemoryQuery, MemoryRecord, ServiceReliabilitySnapshot } from "@openrabbit/runtime-core";
 
 export interface ServiceDescriptor {
   serviceName: "memory";

@@ -1,4 +1,4 @@
-import type { McpRequestEnvelope } from "../../contracts/src/index.js";
+import type { McpRequestEnvelope } from "@openrabbit/mcp-contracts";
 
 export interface ValidationResult {
   valid: boolean;

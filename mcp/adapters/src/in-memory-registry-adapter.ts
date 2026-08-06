@@ -1,7 +1,7 @@
 import type {
   McpResourceDescriptor,
   McpToolDescriptor
-} from "../../contracts/src/index.js";
+} from "@openrabbit/mcp-contracts";
 
 export type RegistryToolHandler = (args?: Record<string, unknown>) => unknown | Promise<unknown>;
 export type RegistryResourceReader = () => string | Promise<string>;

@@ -2,7 +2,7 @@ import {
   InMemoryMcpRegistryAdapter,
   type RegistryResourceReader,
   type RegistryToolHandler
-} from "../../adapters/src/index.js";
+} from "@openrabbit/mcp-adapters";
 import type {
   McpInitializeResult,
   McpRequestEnvelope,
@@ -12,12 +12,12 @@ import type {
   McpServerDescriptor,
   McpToolCallResult,
   McpToolDescriptor
-} from "../../contracts/src/index.js";
+} from "@openrabbit/mcp-contracts";
 import {
   MCP_PROTOCOL_VERSION,
   MCP_SUPPORTED_PROTOCOL_VERSIONS,
   negotiateMcpProtocolVersion
-} from "../../contracts/src/index.js";
+} from "@openrabbit/mcp-contracts";
 
 export interface McpServer {
   descriptor(): McpServerDescriptor;
