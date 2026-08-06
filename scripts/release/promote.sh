@@ -21,3 +21,6 @@ esac
 
 echo "Promotion path validated: ${FROM_ENV} -> ${TO_ENV}"
 echo "Apply required gates from deploy/release-checklists/promotion-gates.md before rollout."
+if [ "${FROM_ENV}:${TO_ENV}" = "staging:prod" ]; then
+  echo "Run scripts/release/deploy-prod.sh <release-tag> before production rollout."
+fi

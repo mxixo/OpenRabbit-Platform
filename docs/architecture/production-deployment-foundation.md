@@ -4,6 +4,7 @@ Phase 9 establishes an initial production deployment configuration and environme
 ## Deployment configuration baseline
 - `deploy/production/rollout-strategy.yaml` defines preflight, canary, full rollout, post-verify, and rollback thresholds.
 - `deploy/production/services.yaml` defines service deployment order and minimum instance expectations.
+- `scripts/release/deploy-prod.sh` provides rollout preflight validation and stage execution simulation for controlled prod releases.
 ## IaC baseline
 - `infra/iac/environments/prod/main.tf` composes network, compute, and secrets module boundaries.
 - `infra/iac/environments/prod/variables.tf` defines environment, region, release channel, and tagging inputs.
