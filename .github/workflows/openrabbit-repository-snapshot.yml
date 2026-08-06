@@ -23,7 +23,7 @@ jobs:
         run: |
           SHORT_SHA="${GITHUB_SHA::7}"
           SNAPSHOT="OpenRabbit-Platform-${SHORT_SHA}.tar.gz"
-          tar             --exclude=".git"             --exclude="node_modules"             --exclude="*.env"             --exclude=".env*"             -czf "$SNAPSHOT" .
+          git archive --format=tar.gz --output="$SNAPSHOT" HEAD
           echo "SNAPSHOT=$SNAPSHOT" >> "$GITHUB_ENV"
 
       - name: Upload snapshot artifact
