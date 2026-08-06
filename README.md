@@ -30,3 +30,8 @@ If `CAMINO_API_KEY` is set, location context enrichment is included in `property
 ```bash
 npm test
 ```
+
+## Product architecture direction
+
+OpenRabbit is an **AI Operating Environment** (not a chatbot / single agent). See `docs/architecture/ai-operating-environment-vision.md` and the companion reset docs for Platform vs Runtime vs Workers vs Capabilities.
+

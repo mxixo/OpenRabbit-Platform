@@ -1,4 +1,15 @@
 # Current Platform Overview
+
+> **Architecture reset (authoritative product direction):** OpenRabbit is an AI Operating Environment (Platform · Runtime · Workers · Capabilities · Integrations), not a chatbot or single-agent product. Start with:
+>
+> - `docs/architecture/ai-operating-environment-vision.md`
+> - `docs/architecture/ai-operating-environment-gap-analysis.md`
+> - `docs/architecture/ai-operating-environment-target-architecture.md`
+> - `docs/architecture/ai-operating-environment-folder-structure.md`
+> - `docs/architecture/ai-operating-environment-roadmap.md`
+>
+> Older phase docs remain useful engineering history but yield to the reset on product boundaries.
+
 ## Overall platform purpose
 OpenRabbit is a TypeScript-first modular platform foundation for AI-powered orchestration, MCP interoperability, and domain workflow execution. The repository combines service scaffolds, a shared runtime core, deployment policies, and production rollout assets intended to evolve incrementally from in-process local implementations into production integrations.
 ## Repository map

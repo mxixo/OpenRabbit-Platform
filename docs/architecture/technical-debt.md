@@ -97,3 +97,9 @@ Estimated effort
 - Architecture debt is currently more operational and boundary-oriented than algorithmic.
 - Core patterns (contracts, lifecycle, deterministic errors, tests) are strong and should be preserved.
 - Highest ROI comes from CI coverage expansion, boundary hardening, and explicit workflow layering.
+
+## Architecture reset note
+- Product-direction debt is now tracked against the AI Operating Environment reset docs.
+- Highest product ROI: RuntimeProvider boundary, Worker model, capability/pack manifests, OpenClaw demotion.
+- Engineering ROI from earlier items (CI/boundaries/workflow layering) remains valid inside roadmap R1+.
+
