@@ -1,27 +1,34 @@
 # Capability: Real Estate
 
-Target home for real-estate domain functionality.
+This is the canonical home for real-estate domain functionality inside OpenRabbit.
 
-## Contract shape (example)
+## Implemented now
 
-```ts
-{
-  id: "real-estate",
-  version: "0.1.0",
-  name: "Real Estate",
-  tools: [{ name: "deal.underwrite" }],
-  workflows: [{ id: "commercial-investment", name: "Commercial investment analysis" }],
-  dependsOnCapabilities: ["crm"],
-  integrations: ["rentcast", "mls"]
-}
-```
+- `manifest.js` — concrete capability manifest
+- `workflows/commercial-investment-workflow.js` — canonical commercial investment screening/underwriting workflow
+- `index.js` — capability exports
+- `utils/schema.js` — capability-local validation helpers
 
-## Near-term migration source
+The legacy path under `src/skills/commercial-investment-workflow.skill.js` is now only a compatibility shim that re-exports the capability implementation.
 
-- OpenRabbit app commercial investment workflow skill
-- underwriting/analysis logic
-- MLS / Rentcast connectors via `integrations/`
+## Current manifest
+
+- id: `real-estate`
+- tool: `deal.underwrite`
+- workflow: `commercial-investment`
+- current required integrations: none
+- optional integrations recorded for later adapters: Camino, Rentcast, MLS
+
+Keeping optional integrations non-required lets the pack install and run with provided underwriting inputs today while preserving clear extension points for richer property data later.
+
+## Workflow scope
+
+1. Accept a commercial property address and deal assumptions.
+2. Gather provided property information and optional Camino location context.
+3. Estimate NOI, cap rate, debt service, DSCR, cash flow, and cash-on-cash return.
+4. Score the opportunity.
+5. Generate an investment summary, structured report, and investor outreach draft.
 
 ## Pack relationship
 
-`packs/real-estate` composes this capability with worker presets and CRM integrations.
+`packs/real-estate` composes this capability with Acquisitions Analyst and Research Analyst worker presets. New real-estate workflows should be added here rather than under product-edge skill directories.
