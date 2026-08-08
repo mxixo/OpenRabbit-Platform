@@ -34,7 +34,7 @@ class SkillRunnerOpenClawExecutor {
         ? {
             ...task.input,
             _runtime: {
-              providerId: "openclaw",
+              providerId: runtimeContext.runtimeProviderId,
               sessionId: runtimeContext.sessionId,
               orgId: runtimeContext.orgId,
               workerId: runtimeContext.workerId,
