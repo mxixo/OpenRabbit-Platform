@@ -1,4 +1,8 @@
-import type { WorkerTaskResult } from "@openrabbit/runtime-core";
+import type {
+  WorkerTaskActionKind,
+  WorkerTaskApproval,
+  WorkerTaskResult
+} from "@openrabbit/runtime-core";
 import type { ApiRequestEnvelope } from "./contracts.js";
 
 export interface PlatformWorkerSummary {
@@ -17,6 +21,8 @@ export interface PlatformApiBackend {
     taskId: string;
     taskType: string;
     input: unknown;
+    actionKind?: WorkerTaskActionKind;
+    approval?: WorkerTaskApproval;
   }): Promise<WorkerTaskResult>;
   getTaskResult(orgId: string, taskId: string): Promise<WorkerTaskResult | undefined>;
 }
@@ -66,6 +72,8 @@ export async function routePlatformApi(
       taskId: string;
       taskType: string;
       input: unknown;
+      actionKind: WorkerTaskActionKind;
+      approval: WorkerTaskApproval;
     }>;
     if (!body.taskId || !body.taskType) {
       return {
@@ -74,14 +82,29 @@ export async function routePlatformApi(
         error: { code: "INVALID_TASK_REQUEST", message: "taskId and taskType are required" }
       };
     }
+    if (body.actionKind && !["read", "write"].includes(body.actionKind)) {
+      return {
+        matched: true,
+        status: 400,
+        error: { code: "INVALID_ACTION_KIND", message: "actionKind must be read or write" }
+      };
+    }
     const result = await backend.submitWorkerTask({
       orgId,
       workerId: parts[4],
       taskId: body.taskId,
       taskType: body.taskType,
-      input: body.input
+      input: body.input,
+      actionKind: body.actionKind,
+      approval: body.approval
     });
-    return { matched: true, status: result.status === "rejected" ? 409 : 200, data: result };
+    const status =
+      result.status === "rejected"
+        ? 409
+        : result.status === "blocked"
+          ? 202
+          : 200;
+    return { matched: true, status, data: result };
   }
 
   if (
