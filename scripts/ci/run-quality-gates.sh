@@ -3,8 +3,8 @@ set -euo pipefail
 ACTIVE_TS_PACKAGES=(
   "packages/runtime-core"
   "mcp/contracts"
-  "mcp/servers"
   "mcp/adapters"
+  "mcp/servers"
   "services/orchestrator"
   "services/workflow-engine"
   "services/api-gateway"
