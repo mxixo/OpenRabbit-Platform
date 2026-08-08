@@ -1,11 +1,11 @@
 const dotenv = require("dotenv");
-const { createOpenClawSkillRunner, getSkillCatalog } = require("./src/skills");
+const { createSkillRunner, getSkillCatalog } = require("./src/skills");
 
 dotenv.config();
 
 function main() {
-  const runner = createOpenClawSkillRunner({
-    actor: "openclaw",
+  const runner = createSkillRunner({
+    actor: "platform",
     businessType: "real_estate",
   });
 
