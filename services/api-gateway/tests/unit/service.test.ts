@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { WorkerTaskResult } from "@openrabbit/runtime-core";
+import type { ApprovalRequest, WorkerTaskResult } from "@openrabbit/runtime-core";
 import { createApiGatewayService } from "../../src/service.js";
 import type { PlatformApiBackend } from "../../src/platform-api.js";
 
 function createBackend(): PlatformApiBackend {
   const results = new Map<string, WorkerTaskResult>();
+  const approvals = new Map<string, ApprovalRequest>();
   return {
     async installRealEstatePack(orgId) {
       return {
@@ -36,6 +37,21 @@ function createBackend(): PlatformApiBackend {
     },
     async getTaskResult(orgId, taskId) {
       return results.get(`${orgId}:${taskId}`);
+    },
+    async listApprovals(orgId) {
+      return [...approvals.values()].filter((approval) => approval.orgId === orgId);
+    },
+    async decideApproval(input) {
+      const current = approvals.get(input.approvalId);
+      if (!current) throw new Error(`Approval request not found: ${input.approvalId}`);
+      const approval: ApprovalRequest = {
+        ...current,
+        status: input.decision === "approve" ? "approved" : "denied",
+        decidedAt: new Date().toISOString(),
+        decidedBy: input.decidedBy
+      };
+      approvals.set(approval.id, approval);
+      return { approval };
     }
   };
 }
@@ -138,6 +154,62 @@ describe("api-gateway service infrastructure", () => {
     });
     expect(retrieved.ok).toBe(true);
     expect(retrieved.data?.result).toMatchObject({ taskId: "deal-1" });
+  });
+
+  it("routes approval listing and decisions", async () => {
+    const service = createApiGatewayService();
+    const backend = createBackend();
+    const approval: ApprovalRequest = {
+      id: "approval-1",
+      orgId: "org-1",
+      workerId: "worker-1",
+      taskId: "write-1",
+      taskType: "crm.create_contact",
+      input: { email: "investor@example.com" },
+      status: "pending",
+      policyId: "policy-1",
+      requestedAt: new Date().toISOString()
+    };
+    // Seed through the mock's structural methods by wrapping list/decision behavior.
+    const seeded: PlatformApiBackend = {
+      ...backend,
+      async listApprovals(orgId) {
+        return orgId === "org-1" ? [approval] : [];
+      },
+      async decideApproval(input) {
+        return {
+          approval: {
+            ...approval,
+            status: input.decision === "approve" ? "approved" : "denied",
+            decidedBy: input.decidedBy,
+            decidedAt: new Date().toISOString()
+          }
+        };
+      }
+    };
+    service.registerPlatformBackend(seeded);
+    await service.start();
+
+    const pending = await service.handleRequest({
+      requestId: "approval-list-1",
+      path: "/v1/orgs/org-1/approvals",
+      method: "GET"
+    });
+    expect(pending.ok).toBe(true);
+    expect(pending.data?.result).toEqual([
+      expect.objectContaining({ id: "approval-1", status: "pending" })
+    ]);
+
+    const approved = await service.handleRequest({
+      requestId: "approval-approve-1",
+      path: "/v1/orgs/org-1/approvals/approval-1/approve",
+      method: "POST",
+      body: { decidedBy: "user-1" }
+    });
+    expect(approved.ok).toBe(true);
+    expect(approved.data?.result).toMatchObject({
+      approval: { id: "approval-1", status: "approved", decidedBy: "user-1" }
+    });
   });
 
   it("rejects malformed task requests with a stable API error", async () => {
