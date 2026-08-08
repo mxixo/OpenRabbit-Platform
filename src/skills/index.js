@@ -11,7 +11,7 @@ function getSkillCatalog() {
   }));
 }
 
-function createOpenClawSkillRunner(context = {}) {
+function createSkillRunner(context = {}) {
   return {
     context,
     async run(skillName, input) {
@@ -32,7 +32,16 @@ function createOpenClawSkillRunner(context = {}) {
   };
 }
 
+/**
+ * @deprecated Use createSkillRunner() for product-edge code. OpenClaw-specific
+ * execution now belongs behind runtimes/openclaw.
+ */
+function createOpenClawSkillRunner(context = {}) {
+  return createSkillRunner(context);
+}
+
 module.exports = {
   getSkillCatalog,
+  createSkillRunner,
   createOpenClawSkillRunner,
 };
