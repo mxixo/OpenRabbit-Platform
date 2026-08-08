@@ -1,4 +1,8 @@
-import type { WorkerTaskResult } from "@openrabbit/runtime-core";
+import type {
+  WorkerTaskActionKind,
+  WorkerTaskApproval,
+  WorkerTaskResult
+} from "@openrabbit/runtime-core";
 import { bootstrapRealEstateOrg, RealEstateBootstrap } from "./bootstrap-real-estate.js";
 
 export interface RealEstatePlatformWorkerSummary {
@@ -17,6 +21,8 @@ export interface RealEstatePlatformBackendContract {
     taskId: string;
     taskType: string;
     input: unknown;
+    actionKind?: WorkerTaskActionKind;
+    approval?: WorkerTaskApproval;
   }): Promise<WorkerTaskResult>;
   getTaskResult(orgId: string, taskId: string): Promise<WorkerTaskResult | undefined>;
 }
@@ -76,6 +82,8 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
     taskId: string;
     taskType: string;
     input: unknown;
+    actionKind?: WorkerTaskActionKind;
+    approval?: WorkerTaskApproval;
   }): Promise<WorkerTaskResult> {
     const bootstrap = this.orgs.get(input.orgId);
     if (!bootstrap) {
@@ -95,7 +103,9 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
       workerId: input.workerId,
       taskId: input.taskId,
       taskType: input.taskType,
-      input: input.input
+      input: input.input,
+      actionKind: input.actionKind,
+      approval: input.approval
     });
 
     this.taskResults.set(this.taskKey(input.orgId, input.taskId), result);

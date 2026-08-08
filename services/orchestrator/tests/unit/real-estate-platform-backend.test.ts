@@ -74,4 +74,27 @@ describe("RealEstatePlatformBackend", () => {
 
     await backend.stopOrg("org-api-2");
   });
+
+  it("blocks write actions without approval before runtime execution", async () => {
+    const backend = new RealEstatePlatformBackend();
+    const installation = await backend.installRealEstatePack("org-api-3");
+    const acquisitionsWorkerId = installation.workerIds.find((id) =>
+      id.includes("acquisitions")
+    );
+    expect(acquisitionsWorkerId).toBeTruthy();
+
+    const blocked = await backend.submitWorkerTask({
+      orgId: "org-api-3",
+      workerId: acquisitionsWorkerId!,
+      taskId: "write-api-1",
+      taskType: "crm.create_contact",
+      actionKind: "write",
+      input: { email: "investor@example.com" }
+    });
+
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.error?.code).toBe("approval_required");
+
+    await backend.stopOrg("org-api-3");
+  });
 });

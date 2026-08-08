@@ -94,7 +94,28 @@ Workers must not read memory outside their scope and org. Cross-scope access req
 
 ---
 
-## 6. Goals, metrics, and reporting
+## 6. Human approval semantics
+
+`WorkerTaskRequest.actionKind` makes the side-effect boundary explicit:
+
+- `read` (default): analysis/research/compute-only task; may execute without approval.
+- `write`: consequential or side-effecting task; if the worker policy has `requiresApproval: true`, the orchestrator blocks execution unless `approval.granted === true`.
+
+Blocked write tasks return `status: "blocked"` with `error.code: "approval_required"` **before a RuntimeProvider is invoked**.
+
+Approved write tasks may include:
+
+- `approvalId`
+- `approvedBy`
+- `approvedAt`
+
+The orchestrator forwards these fields into runtime task metadata for downstream audit/event persistence. Durable approval records and dedicated approve/deny APIs remain a follow-up concern.
+
+This means an Acquisitions Analyst can freely underwrite a deal, while actions such as sending outreach, writing CRM records, publishing content, or executing another side effect can be approval-gated.
+
+---
+
+## 7. Goals, metrics, and reporting
 
 Workers should eventually track:
 
@@ -107,7 +128,7 @@ MVP path: task results + events. CEO dashboard APIs aggregate later (`docs/ROADM
 
 ---
 
-## 7. Lifecycle
+## 8. Lifecycle
 
 ```text
 preset (pack) → materialize → register → active
@@ -120,14 +141,15 @@ preset (pack) → materialize → register → active
 
 1. Resolve worker  
 2. Ensure active status  
-3. Choose runtime via preference  
-4. Project tools/capabilities into session  
-5. `runTask` and normalize result  
-6. Stop session on demand  
+3. Enforce approval boundary for consequential tasks  
+4. Choose runtime via preference  
+5. Project tools/capabilities into session  
+6. `runTask` and normalize result  
+7. Stop session on demand  
 
 ---
 
-## 8. Delegation
+## 9. Delegation
 
 Near term:
 
@@ -140,7 +162,7 @@ Later:
 
 ---
 
-## 9. Builtin role keys
+## 10. Builtin role keys
 
 ```text
 executive_assistant
@@ -157,17 +179,20 @@ Packs may introduce additional role strings; Core treats unknown roles as valid 
 
 ---
 
-## 10. Implementation status
+## 11. Implementation status
 
 | Item | Status |
 |---|---|
 | Worker contracts + presets | Done |
 | In-memory registry + validation | Done |
 | WorkerOrchestrator + tests | Done |
-| Service wiring (`services/orchestrator`) | Pending |
+| Service wiring (`services/orchestrator`) | Done |
+| Real Estate bootstrap / worker execution loop | Done |
+| Initial Platform API worker/task routes | Done |
+| Read-vs-write approval enforcement | Done (in-memory orchestration path) |
+| Durable approval records + approve/deny API | Pending |
 | Durable worker store | Pending |
-| CEO-facing worker APIs | Pending |
-| Full approval enforcement hooks | Partial (policy metadata today) |
+| Broader CEO dashboard APIs | Pending |
 
 ---
 

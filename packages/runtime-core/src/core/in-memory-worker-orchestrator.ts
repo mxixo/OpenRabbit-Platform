@@ -16,9 +16,7 @@ interface ActiveSession {
 
 /**
  * Reference WorkerOrchestrator:
- * resolve worker → pick RuntimeProvider → project allow-listed tools → run task.
- *
- * Approval policy is recorded in session metadata; enforcement hooks can wrap this later.
+ * resolve worker → enforce approval policy → pick RuntimeProvider → project allow-listed tools → run task.
  */
 export class InMemoryWorkerOrchestrator implements WorkerOrchestrator {
   private readonly sessionsByWorker = new Map<string, ActiveSession>();
@@ -97,6 +95,22 @@ export class InMemoryWorkerOrchestrator implements WorkerOrchestrator {
       };
     }
 
+    const actionKind = request.actionKind ?? "read";
+    const requiresApproval = worker.approvalPolicy.requiresApproval ?? false;
+    if (requiresApproval && actionKind === "write" && request.approval?.granted !== true) {
+      return {
+        workerId: worker.id,
+        taskId: request.taskId,
+        status: "blocked",
+        error: {
+          code: "approval_required",
+          message: `Human approval is required by policy ${worker.approvalPolicy.policyId}`,
+          retryable: false
+        },
+        completedAt: completedAt()
+      };
+    }
+
     try {
       let session: RuntimeSession;
       let runtimeProviderId: string;
@@ -134,7 +148,12 @@ export class InMemoryWorkerOrchestrator implements WorkerOrchestrator {
           workerId: worker.id,
           orgId: worker.orgId,
           allowedTools: worker.allowedTools,
-          allowedCapabilities: worker.allowedCapabilities
+          allowedCapabilities: worker.allowedCapabilities,
+          actionKind,
+          approvalPolicyId: worker.approvalPolicy.policyId,
+          approvalId: request.approval?.approvalId,
+          approvedBy: request.approval?.approvedBy,
+          approvedAt: request.approval?.approvedAt
         }
       });
 
