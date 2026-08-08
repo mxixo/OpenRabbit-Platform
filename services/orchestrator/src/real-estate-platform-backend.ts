@@ -1,7 +1,10 @@
-import type {
-  WorkerTaskActionKind,
-  WorkerTaskApproval,
-  WorkerTaskResult
+import {
+  InMemoryApprovalRequestStore,
+  type ApprovalRequest,
+  type ApprovalRequestStatus,
+  type WorkerTaskActionKind,
+  type WorkerTaskApproval,
+  type WorkerTaskResult
 } from "@openrabbit/runtime-core";
 import { bootstrapRealEstateOrg, RealEstateBootstrap } from "./bootstrap-real-estate.js";
 
@@ -10,6 +13,11 @@ export interface RealEstatePlatformWorkerSummary {
   role: string;
   displayName: string;
   status?: string;
+}
+
+export interface ApprovalDecisionResult {
+  approval: ApprovalRequest;
+  taskResult?: WorkerTaskResult;
 }
 
 export interface RealEstatePlatformBackendContract {
@@ -25,6 +33,13 @@ export interface RealEstatePlatformBackendContract {
     approval?: WorkerTaskApproval;
   }): Promise<WorkerTaskResult>;
   getTaskResult(orgId: string, taskId: string): Promise<WorkerTaskResult | undefined>;
+  listApprovals(orgId: string, status?: ApprovalRequestStatus): Promise<ApprovalRequest[]>;
+  decideApproval(input: {
+    orgId: string;
+    approvalId: string;
+    decision: "approve" | "deny";
+    decidedBy: string;
+  }): Promise<ApprovalDecisionResult>;
 }
 
 /**
@@ -36,6 +51,8 @@ export interface RealEstatePlatformBackendContract {
 export class RealEstatePlatformBackend implements RealEstatePlatformBackendContract {
   private readonly orgs = new Map<string, RealEstateBootstrap>();
   private readonly taskResults = new Map<string, WorkerTaskResult>();
+  private readonly approvals = new InMemoryApprovalRequestStore();
+  private readonly approvalIdByTask = new Map<string, string>();
 
   async installRealEstatePack(
     orgId: string
@@ -108,8 +125,23 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
       approval: input.approval
     });
 
-    this.taskResults.set(this.taskKey(input.orgId, input.taskId), result);
-    return result;
+    let finalResult = result;
+    if (result.status === "blocked" && result.error?.code === "approval_required") {
+      const approvalId = this.ensureApprovalRequest({
+        orgId: input.orgId,
+        workerId: input.workerId,
+        taskId: input.taskId,
+        taskType: input.taskType,
+        input: input.input
+      });
+      finalResult = {
+        ...result,
+        output: { approvalId }
+      };
+    }
+
+    this.taskResults.set(this.taskKey(input.orgId, input.taskId), finalResult);
+    return finalResult;
   }
 
   async getTaskResult(
@@ -119,6 +151,64 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
     return this.taskResults.get(this.taskKey(orgId, taskId));
   }
 
+  async listApprovals(
+    orgId: string,
+    status?: ApprovalRequestStatus
+  ): Promise<ApprovalRequest[]> {
+    return this.approvals.list(orgId, status ? { status } : undefined);
+  }
+
+  async decideApproval(input: {
+    orgId: string;
+    approvalId: string;
+    decision: "approve" | "deny";
+    decidedBy: string;
+  }): Promise<ApprovalDecisionResult> {
+    const current = this.approvals.get(input.approvalId);
+    if (!current || current.orgId !== input.orgId) {
+      throw new Error(`Approval request not found: ${input.approvalId}`);
+    }
+
+    if (input.decision === "deny") {
+      const approval = this.approvals.deny(input.approvalId, input.decidedBy);
+      const deniedResult: WorkerTaskResult = {
+        workerId: current.workerId,
+        taskId: current.taskId,
+        status: "cancelled",
+        error: {
+          code: "approval_denied",
+          message: `Approval denied by ${input.decidedBy}`,
+          retryable: false
+        },
+        completedAt: approval.decidedAt ?? new Date().toISOString()
+      };
+      this.taskResults.set(this.taskKey(input.orgId, current.taskId), deniedResult);
+      return { approval, taskResult: deniedResult };
+    }
+
+    const approval = this.approvals.approve(input.approvalId, input.decidedBy);
+    const bootstrap = this.orgs.get(input.orgId);
+    if (!bootstrap) {
+      throw new Error(`Real Estate Pack is not installed for org ${input.orgId}`);
+    }
+
+    const taskResult = await bootstrap.service.runWorkerTask({
+      workerId: current.workerId,
+      taskId: current.taskId,
+      taskType: current.taskType,
+      input: current.input,
+      actionKind: "write",
+      approval: {
+        granted: true,
+        approvalId: approval.id,
+        approvedBy: approval.decidedBy,
+        approvedAt: approval.decidedAt
+      }
+    });
+    this.taskResults.set(this.taskKey(input.orgId, current.taskId), taskResult);
+    return { approval, taskResult };
+  }
+
   async stopOrg(orgId: string): Promise<void> {
     const bootstrap = this.orgs.get(orgId);
     if (!bootstrap) {
@@ -126,6 +216,40 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
     }
     await bootstrap.service.stop();
     this.orgs.delete(orgId);
+  }
+
+  private ensureApprovalRequest(input: {
+    orgId: string;
+    workerId: string;
+    taskId: string;
+    taskType: string;
+    input: unknown;
+  }): string {
+    const taskKey = this.taskKey(input.orgId, input.taskId);
+    const existingId = this.approvalIdByTask.get(taskKey);
+    if (existingId) {
+      return existingId;
+    }
+
+    const approvalId = `approval-${input.orgId}-${input.taskId}`;
+    const bootstrap = this.orgs.get(input.orgId);
+    const worker = [bootstrap?.acquisitionsWorker, bootstrap?.researchWorker].find(
+      (candidate) => candidate?.id === input.workerId
+    );
+    const policyId = worker?.approvalPolicy.policyId ?? "unknown-policy";
+
+    this.approvals.create({
+      id: approvalId,
+      orgId: input.orgId,
+      workerId: input.workerId,
+      taskId: input.taskId,
+      taskType: input.taskType,
+      input: input.input,
+      policyId,
+      metadata: { actionKind: "write" }
+    });
+    this.approvalIdByTask.set(taskKey, approvalId);
+    return approvalId;
   }
 
   private taskKey(orgId: string, taskId: string): string {

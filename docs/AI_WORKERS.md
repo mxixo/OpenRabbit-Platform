@@ -103,13 +103,18 @@ Workers must not read memory outside their scope and org. Cross-scope access req
 
 Blocked write tasks return `status: "blocked"` with `error.code: "approval_required"` **before a RuntimeProvider is invoked**.
 
-Approved write tasks may include:
+The platform backend converts a blocked write task into an `ApprovalRequest` with `pending` status. A client can list pending approvals, approve one, or deny one:
+
+- approval → request becomes `approved` and the original task is re-submitted with approval audit context;
+- denial → request becomes `denied` and the task becomes `cancelled` with `approval_denied`.
+
+Approved write tasks may carry:
 
 - `approvalId`
 - `approvedBy`
 - `approvedAt`
 
-The orchestrator forwards these fields into runtime task metadata for downstream audit/event persistence. Durable approval records and dedicated approve/deny APIs remain a follow-up concern.
+The orchestrator forwards these fields into runtime task metadata for downstream audit/event persistence. The current approval store is in-memory; durable database persistence remains a production follow-up.
 
 This means an Acquisitions Analyst can freely underwrite a deal, while actions such as sending outreach, writing CRM records, publishing content, or executing another side effect can be approval-gated.
 
@@ -189,8 +194,9 @@ Packs may introduce additional role strings; Core treats unknown roles as valid 
 | Service wiring (`services/orchestrator`) | Done |
 | Real Estate bootstrap / worker execution loop | Done |
 | Initial Platform API worker/task routes | Done |
-| Read-vs-write approval enforcement | Done (in-memory orchestration path) |
-| Durable approval records + approve/deny API | Pending |
+| Read-vs-write approval enforcement | Done |
+| In-memory approval requests + approve/deny API | Done |
+| Durable approval persistence | Pending |
 | Durable worker store | Pending |
 | Broader CEO dashboard APIs | Pending |
 

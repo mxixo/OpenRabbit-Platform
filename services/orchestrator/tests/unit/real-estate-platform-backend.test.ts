@@ -75,7 +75,7 @@ describe("RealEstatePlatformBackend", () => {
     await backend.stopOrg("org-api-2");
   });
 
-  it("blocks write actions without approval before runtime execution", async () => {
+  it("creates an approval request for blocked write actions", async () => {
     const backend = new RealEstatePlatformBackend();
     const installation = await backend.installRealEstatePack("org-api-3");
     const acquisitionsWorkerId = installation.workerIds.find((id) =>
@@ -94,7 +94,91 @@ describe("RealEstatePlatformBackend", () => {
 
     expect(blocked.status).toBe("blocked");
     expect(blocked.error?.code).toBe("approval_required");
+    expect(blocked.output).toMatchObject({
+      approvalId: "approval-org-api-3-write-api-1"
+    });
+
+    const approvals = await backend.listApprovals("org-api-3", "pending");
+    expect(approvals).toEqual([
+      expect.objectContaining({
+        id: "approval-org-api-3-write-api-1",
+        taskId: "write-api-1",
+        status: "pending"
+      })
+    ]);
 
     await backend.stopOrg("org-api-3");
+  });
+
+  it("resumes a blocked task after approval", async () => {
+    const backend = new RealEstatePlatformBackend();
+    const installation = await backend.installRealEstatePack("org-api-4");
+    const acquisitionsWorkerId = installation.workerIds.find((id) =>
+      id.includes("acquisitions")
+    );
+    expect(acquisitionsWorkerId).toBeTruthy();
+
+    const blocked = await backend.submitWorkerTask({
+      orgId: "org-api-4",
+      workerId: acquisitionsWorkerId!,
+      taskId: "approval-resume-1",
+      taskType: "commercial_investment_workflow",
+      actionKind: "write",
+      input: {
+        address: "100 Market St, Phoenix, AZ",
+        purchasePrice: 1200000,
+        annualGrossIncome: 165000
+      }
+    });
+    expect(blocked.status).toBe("blocked");
+
+    const approvalId = (blocked.output as { approvalId: string }).approvalId;
+    const decision = await backend.decideApproval({
+      orgId: "org-api-4",
+      approvalId,
+      decision: "approve",
+      decidedBy: "user-1"
+    });
+
+    expect(decision.approval.status).toBe("approved");
+    expect(decision.taskResult?.status).toBe("completed");
+    expect(decision.taskResult?.runtimeProviderId).toBe("openclaw");
+
+    const retrieved = await backend.getTaskResult("org-api-4", "approval-resume-1");
+    expect(retrieved?.status).toBe("completed");
+
+    await backend.stopOrg("org-api-4");
+  });
+
+  it("turns a denied approval into a cancelled task result", async () => {
+    const backend = new RealEstatePlatformBackend();
+    const installation = await backend.installRealEstatePack("org-api-5");
+    const acquisitionsWorkerId = installation.workerIds.find((id) =>
+      id.includes("acquisitions")
+    );
+    expect(acquisitionsWorkerId).toBeTruthy();
+
+    const blocked = await backend.submitWorkerTask({
+      orgId: "org-api-5",
+      workerId: acquisitionsWorkerId!,
+      taskId: "approval-deny-1",
+      taskType: "commercial_investment_workflow",
+      actionKind: "write",
+      input: { address: "100 Market St, Phoenix, AZ" }
+    });
+    const approvalId = (blocked.output as { approvalId: string }).approvalId;
+
+    const decision = await backend.decideApproval({
+      orgId: "org-api-5",
+      approvalId,
+      decision: "deny",
+      decidedBy: "user-2"
+    });
+
+    expect(decision.approval.status).toBe("denied");
+    expect(decision.taskResult?.status).toBe("cancelled");
+    expect(decision.taskResult?.error?.code).toBe("approval_denied");
+
+    await backend.stopOrg("org-api-5");
   });
 });
