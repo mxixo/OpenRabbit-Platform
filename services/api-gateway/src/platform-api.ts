@@ -1,4 +1,5 @@
 import type {
+  ApprovalRequest,
   WorkerTaskActionKind,
   WorkerTaskApproval,
   WorkerTaskResult
@@ -10,6 +11,11 @@ export interface PlatformWorkerSummary {
   role: string;
   displayName: string;
   status?: string;
+}
+
+export interface PlatformApprovalDecisionResult {
+  approval: ApprovalRequest;
+  taskResult?: WorkerTaskResult;
 }
 
 export interface PlatformApiBackend {
@@ -25,6 +31,13 @@ export interface PlatformApiBackend {
     approval?: WorkerTaskApproval;
   }): Promise<WorkerTaskResult>;
   getTaskResult(orgId: string, taskId: string): Promise<WorkerTaskResult | undefined>;
+  listApprovals(orgId: string): Promise<ApprovalRequest[]>;
+  decideApproval(input: {
+    orgId: string;
+    approvalId: string;
+    decision: "approve" | "deny";
+    decidedBy: string;
+  }): Promise<PlatformApprovalDecisionResult>;
 }
 
 export type PlatformApiRouteResult =
@@ -60,6 +73,33 @@ export async function routePlatformApi(
 
   if (method === "GET" && parts.length === 4 && parts[3] === "workers") {
     return { matched: true, status: 200, data: await backend.listWorkers(orgId) };
+  }
+
+  if (method === "GET" && parts.length === 4 && parts[3] === "approvals") {
+    return { matched: true, status: 200, data: await backend.listApprovals(orgId) };
+  }
+
+  if (
+    method === "POST" &&
+    parts.length === 6 &&
+    parts[3] === "approvals" &&
+    ["approve", "deny"].includes(parts[5])
+  ) {
+    const body = (request.body ?? {}) as Partial<{ decidedBy: string }>;
+    if (!body.decidedBy?.trim()) {
+      return {
+        matched: true,
+        status: 400,
+        error: { code: "DECIDED_BY_REQUIRED", message: "decidedBy is required" }
+      };
+    }
+    const result = await backend.decideApproval({
+      orgId,
+      approvalId: parts[4],
+      decision: parts[5] === "approve" ? "approve" : "deny",
+      decidedBy: body.decidedBy
+    });
+    return { matched: true, status: 200, data: result };
   }
 
   if (
