@@ -180,8 +180,12 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
 
       try {
         const result = await registeredWorkerOrchestrator.runTask(input);
-        if (["completed", "blocked", "cancelled"].includes(result.status)) {
+        // Completed/cancelled tasks are terminal and safe to cache. Blocked tasks
+        // must remain resumable after an approval decision.
+        if (["completed", "cancelled"].includes(result.status)) {
           workerTaskResults.set(taskKey, result);
+          operationsSucceeded += 1;
+        } else if (result.status === "blocked") {
           operationsSucceeded += 1;
         } else {
           operationsFailed += 1;
