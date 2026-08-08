@@ -1,4 +1,10 @@
-import { ServiceReliabilitySnapshot } from "@openrabbit/runtime-core";
+import type {
+  ServiceReliabilitySnapshot,
+  WorkerOrchestrator,
+  WorkerTaskRequest,
+  WorkerTaskResult
+} from "@openrabbit/runtime-core";
+
 export interface ServiceDescriptor {
   serviceName: "orchestrator";
   version: string;
@@ -46,6 +52,8 @@ export interface OrchestratorService {
   getHealth(): ServiceHealth;
   getReliabilitySnapshot(): ServiceReliabilitySnapshot;
   intakeTask(input: TaskIntakeRequest): Promise<TaskIntakeResult>;
+  registerWorkerOrchestrator(orchestrator: WorkerOrchestrator): void;
+  runWorkerTask(input: WorkerTaskRequest): Promise<WorkerTaskResult>;
   registerMcpServer(server: {
     handleRequest(request: McpRequestInput): Promise<McpRequestOutput>;
   }): void;
