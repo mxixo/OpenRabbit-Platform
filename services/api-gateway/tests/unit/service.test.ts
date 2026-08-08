@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { WorkerTaskResult } from "@openrabbit/runtime-core";
 import { createApiGatewayService } from "../../src/service.js";
 import type { PlatformApiBackend } from "../../src/platform-api.js";
 
 function createBackend(): PlatformApiBackend {
-  const results = new Map<string, any>();
+  const results = new Map<string, WorkerTaskResult>();
   return {
     async installRealEstatePack(orgId) {
       return {
@@ -22,10 +23,10 @@ function createBackend(): PlatformApiBackend {
       ];
     },
     async submitWorkerTask(input) {
-      const result = {
+      const result: WorkerTaskResult = {
         workerId: input.workerId,
         taskId: input.taskId,
-        status: "completed" as const,
+        status: "completed",
         runtimeProviderId: "openclaw",
         output: { received: input.input },
         completedAt: new Date().toISOString()
