@@ -17,7 +17,8 @@ import {
   WorkerTaskRequest,
   WorkerTaskResult
 } from "@openrabbit/runtime-core";
-import { createOrchestratorService, OrchestratorService } from "./index.js";
+import type { OrchestratorService } from "./contracts.js";
+import { createOrchestratorService } from "./service.js";
 
 const require = createRequire(import.meta.url);
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -41,7 +42,9 @@ export interface RealEstateBootstrap {
   service: OrchestratorService;
   acquisitionsWorker: WorkerDefinition;
   researchWorker?: WorkerDefinition;
-  runUnderwriting(input: Omit<WorkerTaskRequest, "workerId" | "taskType">): Promise<WorkerTaskResult>;
+  runUnderwriting(
+    input: Omit<WorkerTaskRequest, "workerId" | "taskType">
+  ): Promise<WorkerTaskResult>;
 }
 
 function loadCapabilityManifest(): CapabilityModuleManifest {
