@@ -1,6 +1,5 @@
 "use strict";
 
-const RUNNABLE_SESSION_STATUSES = new Set(["ready", "busy"]);
 const TERMINAL_SESSION_STATUSES = new Set(["stopped", "failed"]);
 
 function nowIso() {
@@ -42,6 +41,7 @@ class OpenClawRuntimeProvider {
     ]);
     this.executor = options.executor;
     this.sessions = new Map();
+    this.sessionSequence = 0;
   }
 
   async startSession(input) {
@@ -58,7 +58,8 @@ class OpenClawRuntimeProvider {
       throw new Error("Runtime session workerId is required");
     }
 
-    const sessionId = `oc_${input.workerId}_${input.requestId}`;
+    this.sessionSequence += 1;
+    const sessionId = `oc_${input.workerId}_${input.requestId}_${this.sessionSequence}`;
     const session = {
       sessionId,
       runtimeProviderId: this.id,
@@ -105,7 +106,16 @@ class OpenClawRuntimeProvider {
       );
     }
 
-    if (!RUNNABLE_SESSION_STATUSES.has(state.session.status)) {
+    if (state.session.status === "busy") {
+      return this.failureResult(
+        input,
+        "session_busy",
+        "Runtime session is already executing a task",
+        true
+      );
+    }
+
+    if (state.session.status !== "ready") {
       return this.failureResult(
         input,
         "session_not_ready",
@@ -126,6 +136,7 @@ class OpenClawRuntimeProvider {
           metadata: input.metadata ? { ...input.metadata } : undefined,
         },
         {
+          runtimeProviderId: this.id,
           sessionId: state.session.sessionId,
           orgId: state.session.orgId,
           workerId: state.session.workerId,
