@@ -11,7 +11,10 @@ export function simulateLivingAgendaWeek(week: SimulatedLivingAgendaWeek): Simul
   let recoveries = 0;
   let protectedTimeChallenges = 0;
   let protectedTimePreserved = 0;
+  let protectedTimeOverridden = 0;
   let overrunMinutes = 0;
+  let paceIncreaseRequests = 0;
+  let paceDecreaseRequests = 0;
 
   for (const day of week.days) {
     plannedMinutes += day.plannedMinutes;
@@ -35,13 +38,18 @@ export function simulateLivingAgendaWeek(week: SimulatedLivingAgendaWeek): Simul
         case "recovered":
           recoveries += 1;
           break;
-        case "protected_time_challenged":
+        case "protected_time_challenged": {
           protectedTimeChallenges += 1;
           if (event.detail === "overridden") {
-            protectedTimePreserved = Math.max(0, protectedTimePreserved - (event.minutes ?? 0));
+            const overridden = event.minutes ?? 0;
+            protectedTimeOverridden += overridden;
+            protectedTimePreserved = Math.max(0, protectedTimePreserved - overridden);
           }
           break;
+        }
         case "user_pace_changed":
+          if (event.detail === "push_harder") paceIncreaseRequests += 1;
+          if (event.detail === "back_off_today") paceDecreaseRequests += 1;
           break;
       }
     }
@@ -63,8 +71,11 @@ export function simulateLivingAgendaWeek(week: SimulatedLivingAgendaWeek): Simul
   if (protectedTimeChallenges > 0 && protectedTimePreserved > 0) {
     observations.push("Protected time was challenged; preservation should be reviewed explicitly rather than silently refilled.");
   }
-  if (protectedTimePreserved < 0) {
-    failures.push("Protected time accounting became invalid.");
+  if (paceIncreaseRequests > 0 && paceDecreaseRequests > 0) {
+    observations.push("The user changed desired pace in both directions; recent explicit context should outrank a permanent productivity label.");
+  }
+  if (protectedTimeOverridden > 0) {
+    observations.push("Some protected time was explicitly overridden and should remain visible in review rather than being normalized as ordinary capacity.");
   }
 
   return {
@@ -77,7 +88,10 @@ export function simulateLivingAgendaWeek(week: SimulatedLivingAgendaWeek): Simul
       recoveries,
       protectedTimeChallenges,
       protectedTimePreserved,
+      protectedTimeOverridden,
       overrunMinutes,
+      paceIncreaseRequests,
+      paceDecreaseRequests,
       completionRatio,
     },
     observations,
