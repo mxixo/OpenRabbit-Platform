@@ -42,6 +42,7 @@ export * from "./core/living-agenda-priority.js";
 export * from "./core/living-agenda-generator.js";
 export * from "./core/living-agenda-reconciler.js";
 export * from "./core/in-memory-living-agenda-signal-store.js";
+export * from "./core/living-agenda-trust-evaluator.js";
 export * from "./core/in-memory-capability-catalog.js";
 export * from "./core/in-memory-capability-manager.js";
 export * from "./core/in-memory-integration-adapter-registry.js";
