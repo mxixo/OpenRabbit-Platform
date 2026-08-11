@@ -1,5 +1,6 @@
 import type {
   ApprovalRequest,
+  AuditRecord,
   WorkerTaskActionKind,
   WorkerTaskApproval,
   WorkerTaskResult
@@ -32,6 +33,7 @@ export interface PlatformApiBackend {
   }): Promise<WorkerTaskResult>;
   getTaskResult(orgId: string, taskId: string): Promise<WorkerTaskResult | undefined>;
   listApprovals(orgId: string): Promise<ApprovalRequest[]>;
+  listAudit(orgId: string): Promise<AuditRecord[]>;
   decideApproval(input: {
     orgId: string;
     approvalId: string;
@@ -77,6 +79,10 @@ export async function routePlatformApi(
 
   if (method === "GET" && parts.length === 4 && parts[3] === "approvals") {
     return { matched: true, status: 200, data: await backend.listApprovals(orgId) };
+  }
+
+  if (method === "GET" && parts.length === 4 && parts[3] === "audit") {
+    return { matched: true, status: 200, data: await backend.listAudit(orgId) };
   }
 
   if (
