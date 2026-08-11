@@ -37,7 +37,10 @@ export interface SimulatedWeekMetrics {
   recoveries: number;
   protectedTimeChallenges: number;
   protectedTimePreserved: number;
+  protectedTimeOverridden: number;
   overrunMinutes: number;
+  paceIncreaseRequests: number;
+  paceDecreaseRequests: number;
   completionRatio: number;
 }
 
