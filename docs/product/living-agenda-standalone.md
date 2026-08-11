@@ -14,6 +14,8 @@ Help people make more progress toward the life they choose, with greater clarity
 
 Productivity is the mechanism. Life improvement is the intended outcome.
 
+A successful Living Agenda may help a user accomplish more, but it may also help an overworked user accomplish the same meaningful outcomes in less time and reclaim time for rest, relationships, health, recreation, or other chosen priorities.
+
 ## What Living Agenda is
 
 Living Agenda is an execution coach and adaptive personal operating layer. It should continuously answer:
@@ -28,6 +30,7 @@ Living Agenda is an execution coach and adaptive personal operating layer. It sh
 - What is the user's current reliable capacity?
 - Is that capacity improving over time?
 - Is the current pace sustainable within the life and boundaries the user chose?
+- Could the same meaningful outcomes be achieved with less time, friction, context switching, or unnecessary work?
 
 It is not merely a calendar, task manager, streak tracker, or generic motivational coach.
 
@@ -118,7 +121,7 @@ The system records execution events rather than relying only on final task state
 
 ### Learn
 
-The system learns task-specific pace, adherence patterns, interruption patterns, recovery behavior, capacity, and recurring friction.
+The system learns task-specific pace, adherence patterns, interruption patterns, recovery behavior, capacity, recurring friction, and opportunities to reduce wasted time.
 
 ### Adapt
 
@@ -126,7 +129,7 @@ The remaining agenda is reconciled when reality changes.
 
 ### Grow
 
-The system can gradually challenge reliable capacity when evidence suggests the user can sustainably handle more.
+The system can gradually challenge reliable capacity when evidence suggests the user can sustainably handle more. Growth can also mean becoming more selective, reducing unnecessary work, improving recovery, or achieving the same outcomes with less time.
 
 ## Execution event model
 
@@ -217,6 +220,32 @@ The desired behavior resembles progressive overload: establish reliable capacity
 
 Speed is not itself the objective. Higher throughput with collapsing adherence or well-being is not necessarily progress.
 
+## Time freedom and overwork
+
+Living Agenda should be capable of helping an overworked user slow down without abandoning ambition.
+
+The system should search not only for ways to fit more work into available time, but also for opportunities to reduce the time required to achieve the user's chosen outcomes.
+
+Potential opportunities include:
+
+- eliminating low-value work
+- batching similar work to reduce context switching
+- delegating appropriate tasks
+- automating repetitive work
+- protecting focused work periods
+- identifying meetings or routines with low observed value
+- improving duration estimates so schedules stop overflowing
+- preserving recovery and rest before performance deteriorates
+- identifying when additional effort produces little additional strategic progress
+
+A useful optimization question is:
+
+> Can the user preserve or improve meaningful outcomes while spending less of their life on avoidable work?
+
+For some users, improvement means greater productive capacity. For others, improvement means maintaining output while reclaiming hours of personal time. Both are legitimate forms of progress.
+
+The planner should therefore consider a time-efficiency dimension alongside throughput. It should not automatically refill every hour that optimization frees.
+
 ## Well-being constraint
 
 Living Agenda should optimize for meaningful progress at a sustainable level of effort, not maximum output.
@@ -227,9 +256,27 @@ Planning and behavioral models should consider three simultaneous questions:
 2. Capacity: What can this person realistically execute now?
 3. Sustainability: Is this pace compatible with the life and boundaries they chose?
 
+A fourth optimization question may be useful:
+
+4. Efficiency: Can comparable outcomes be achieved with less avoidable time or friction?
+
 The product should not prescribe a universal definition of balance. Users define goals, constraints, relationships, rest, health, work, and other priorities that matter to them.
 
 Rest may itself be part of an intentional plan.
+
+## Anti-exploitation principle
+
+Behavioral intelligence exists to serve the person whose behavior is being modeled, not to extract maximum labor from them.
+
+Living Agenda and shared OpenRabbit execution intelligence must not be designed as covert worker-surveillance, coercive productivity scoring, or a mechanism for an employer to infer private personal behavior.
+
+Personal behavioral signals such as pace, recovery latency, missed personal goals, well-being constraints, private routines, and execution-maturity observations should remain private by default.
+
+Organization products may measure legitimate organization-owned workflow state, task outcomes, blockers, approvals, and operational latency, but should not silently convert personal Living Agenda telemetry into employee rankings or managerial surveillance.
+
+If personal information is ever shared across scopes, the user should understand what is shared, why it is shared, and be able to control that sharing where practical.
+
+Optimization should never interpret newly freed time as automatically available for additional employer-assigned work.
 
 ## Execution maturity instead of points
 
@@ -244,6 +291,7 @@ If a progression layer is introduced, prefer demonstrated execution maturity bas
 - realistic planning
 - follow-through
 - life alignment
+- ability to reduce unnecessary effort while preserving outcomes
 
 Levels should not reward task inflation, trivial busywork, excessive app opens, or unhealthy workload.
 
@@ -317,6 +365,9 @@ A person may begin with Living Agenda for personal execution and later adopt Ope
 8. Engagement metrics must not replace outcome quality.
 9. Enterprise-specific concepts must not leak into the consumer core unnecessarily.
 10. Shared execution intelligence should remain reusable by OpenRabbit organization products.
+11. Personal behavioral intelligence remains private by default and must not become covert employee-surveillance data.
+12. Time saved through optimization must not automatically be treated as capacity to refill with more work.
+13. Reducing unnecessary work while preserving outcomes is a valid success state.
 
 ## Near-term implementation implications
 
@@ -328,7 +379,7 @@ The current Living Agenda core work should continue toward:
 4. contextual duration observations and personalized estimates
 5. capacity/baseline models
 6. repeated deferral and behavioral drift detection
-7. well-being constraint contracts
+7. well-being and time-freedom constraint contracts
 8. execution maturity model as a later optional layer
 
 These should be implemented as reusable core capabilities before committing to a specific consumer UI framework.
