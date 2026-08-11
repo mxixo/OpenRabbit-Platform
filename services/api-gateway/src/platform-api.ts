@@ -1,6 +1,8 @@
 import type {
   ApprovalRequest,
   AuditRecord,
+  CalendarPlanItem,
+  DailyPlan,
   WorkerTaskActionKind,
   WorkerTaskApproval,
   WorkerTaskResult
@@ -40,6 +42,16 @@ export interface PlatformApiBackend {
     decision: "approve" | "deny";
     decidedBy: string;
   }): Promise<PlatformApprovalDecisionResult>;
+  getDailyPlan?(orgId: string, date: string): Promise<DailyPlan | undefined>;
+  listPlanItems?(orgId: string, date: string): Promise<CalendarPlanItem[]>;
+  saveDailyPlan?(input: {
+    orgId: string;
+    date: string;
+    timezone: string;
+    objective?: string;
+    itemIds: string[];
+    generatedBy?: string;
+  }): Promise<DailyPlan>;
 }
 
 export type PlatformApiRouteResult =
@@ -48,6 +60,17 @@ export type PlatformApiRouteResult =
 
 function segments(path: string): string[] {
   return path.split("?")[0].split("/").filter(Boolean);
+}
+
+function planningUnavailable(): PlatformApiRouteResult {
+  return {
+    matched: true,
+    status: 501,
+    error: {
+      code: "PLANNING_BACKEND_NOT_AVAILABLE",
+      message: "calendar planning backend is not available"
+    }
+  };
 }
 
 export async function routePlatformApi(
@@ -83,6 +106,65 @@ export async function routePlatformApi(
 
   if (method === "GET" && parts.length === 4 && parts[3] === "audit") {
     return { matched: true, status: 200, data: await backend.listAudit(orgId) };
+  }
+
+  if (method === "GET" && parts.length === 5 && parts[3] === "plans") {
+    if (!backend.getDailyPlan) return planningUnavailable();
+    const plan = await backend.getDailyPlan(orgId, parts[4]);
+    if (!plan) {
+      return {
+        matched: true,
+        status: 404,
+        error: { code: "DAILY_PLAN_NOT_FOUND", message: `Daily plan not found: ${parts[4]}` }
+      };
+    }
+    return { matched: true, status: 200, data: plan };
+  }
+
+  if (
+    method === "GET" &&
+    parts.length === 6 &&
+    parts[3] === "plans" &&
+    parts[5] === "items"
+  ) {
+    if (!backend.listPlanItems) return planningUnavailable();
+    return {
+      matched: true,
+      status: 200,
+      data: await backend.listPlanItems(orgId, parts[4])
+    };
+  }
+
+  if (method === "PUT" && parts.length === 5 && parts[3] === "plans") {
+    if (!backend.saveDailyPlan) return planningUnavailable();
+    const body = (request.body ?? {}) as Partial<{
+      timezone: string;
+      objective: string;
+      itemIds: string[];
+      generatedBy: string;
+    }>;
+    if (!body.timezone?.trim() || !Array.isArray(body.itemIds)) {
+      return {
+        matched: true,
+        status: 400,
+        error: {
+          code: "INVALID_DAILY_PLAN",
+          message: "timezone and itemIds are required"
+        }
+      };
+    }
+    return {
+      matched: true,
+      status: 200,
+      data: await backend.saveDailyPlan({
+        orgId,
+        date: parts[4],
+        timezone: body.timezone,
+        objective: body.objective,
+        itemIds: body.itemIds,
+        generatedBy: body.generatedBy
+      })
+    };
   }
 
   if (
