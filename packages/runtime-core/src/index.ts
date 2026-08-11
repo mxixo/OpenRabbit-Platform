@@ -18,6 +18,8 @@ export * from "./interfaces/approval.js";
 export * from "./interfaces/audit.js";
 export * from "./interfaces/calendar.js";
 export * from "./interfaces/goals.js";
+export * from "./interfaces/signals.js";
+export * from "./interfaces/trust.js";
 export * from "./interfaces/capability-module.js";
 export * from "./interfaces/integration-adapter.js";
 export * from "./interfaces/industry-pack.js";
