@@ -14,7 +14,15 @@ A user should be able to establish goals, explain constraints, revise plans, rep
 
 Do not begin by forcing the user through a long questionnaire or a sequence of predefined lifestyle categories.
 
-A preferred first-run experience is a guided AI conversation. The execution coach can begin with an open prompt such as:
+A preferred first-run experience is a guided AI conversation. One of the earliest onboarding questions should establish the user's preferred interaction mode and, where supported, offer foreground-ready voice interaction.
+
+Example:
+
+> Would you like Living Agenda to be ready for you to speak whenever the app is open? It will not listen when you leave the app, and you can change this anytime.
+
+If the user opts in and grants the required operating-system microphone permission, the application may automatically enter a ready-to-speak state while it is visibly in the foreground rather than requiring a microphone-button press for every turn.
+
+The execution coach can then begin with an open prompt such as:
 
 > Tell me what you want your life to look like, what you are trying to accomplish, and what currently gets in the way. We can figure out the plan together.
 
@@ -35,6 +43,24 @@ The AI should progressively extract structured information from natural conversa
 - desired coaching intensity
 
 The user should not need to understand the underlying schema.
+
+## Foreground-ready voice mode
+
+Living Agenda may offer an explicit setting such as `Ready to Speak While App Is Open`.
+
+When enabled:
+
+- voice input becomes ready automatically when the app is visibly active in the foreground
+- the user does not need to press a microphone button before every conversational turn
+- leaving/backgrounding the app ends or suspends active listening
+- returning to the foreground may restore the ready state according to the user's setting and platform permission state
+- the interface must provide a persistent, unmistakable visual indication whenever the microphone is active or ready to capture speech
+- the user must have an immediate mute/pause control
+- the setting can be disabled at any time
+
+This mode should be opt-in rather than silently enabled. Operating-system permission prompts and platform background/foreground rules remain authoritative.
+
+The product should distinguish `ready for speech` from `recording/transmitting speech` where the underlying platform permits that distinction, and the UI should communicate the actual state accurately.
 
 ## Progressive clarification
 
@@ -83,8 +109,42 @@ Examples:
 - "Why did you put this first?"
 - "I didn't do it because I was waiting on someone else."
 - "Undo that. I swiped the wrong way."
+- "That task was much harder than I expected."
+- "I figured out a faster way to do that next time."
 
 The application should convert conversational intent into normalized core operations and return a concise confirmation when state changes.
+
+## Optional task reflections
+
+A completion or non-completion response should never require the user to justify themselves. However, the user may voluntarily attach a reflection to any task by speaking, typing, or another supported modality.
+
+Examples include:
+
+- "It was more difficult than I imagined."
+- "The instructions were unclear."
+- "I was waiting on someone else."
+- "It only took 20 minutes."
+- "I was interrupted twice."
+- "I learned how to automate part of this."
+- "This probably does not need to be done every week."
+
+These reflections should be stored separately from the binary task outcome so the system can learn from them without treating subjective comments as objective facts.
+
+Useful normalized signals may include:
+
+- perceived difficulty
+- actual or estimated duration correction
+- blocker/dependency context
+- interruption context
+- emotional/energy context when voluntarily supplied
+- discovered efficiency
+- suggested process change
+- relevance/value reassessment
+- freeform note
+
+Reflections can improve future duration estimates, prioritization, automation/delegation suggestions, and coaching. They should not be required for ordinary check-ins.
+
+The system should distinguish user-authored observations from AI-derived interpretations and preserve provenance.
 
 ## Confirmation and authority
 
@@ -132,7 +192,9 @@ Accessibility should be treated as an architectural requirement, not a later UI 
 
 ## Ambient interaction boundary
 
-A future Living Agenda may support more ambient or hands-free experiences, but continuous listening should not be assumed.
+A future Living Agenda may support more ambient or hands-free experiences, but continuous background listening should not be assumed.
+
+Foreground-ready voice is intentionally different from always-listening behavior: the user explicitly enables it, the app is visibly open, microphone state is obvious, and leaving the app suspends the listening session.
 
 Microphone activation, recording, retention, transcription, and background behavior must be explicit, privacy-preserving, and understandable to the user. The product should minimize collection and avoid creating the impression that it is silently monitoring private life.
 
@@ -150,6 +212,8 @@ Examples of normalized operations include:
 - create/revise daily plan
 - complete/not-complete plan item
 - record execution timestamp/context
+- attach task reflection
+- correct/undo reflection or check-in
 - reschedule
 - mark blocked
 - change availability/boundary
@@ -176,8 +240,10 @@ Living Agenda then translates intention into an explainable proposed action and,
 
 1. Model interactions as modality-neutral intents; do not encode core behavior around buttons.
 2. Add conversational onboarding contracts that can incrementally populate goals, constraints, and preferences.
-3. Keep swipe/check-in events compatible with equivalent voice/text commands.
-4. Preserve explicit timestamps and corrections regardless of input modality.
-5. Build confirmations/approvals around action consequence, not whether the action originated from voice or touch.
-6. Keep microphone/audio handling outside the provider-neutral execution core.
-7. Treat accessibility and privacy as requirements of every interaction surface.
+3. Add an explicit foreground-ready voice preference separate from OS microphone permission.
+4. Keep swipe/check-in events compatible with equivalent voice/text commands.
+5. Add optional, provenance-preserving task reflection events.
+6. Preserve explicit timestamps and corrections regardless of input modality.
+7. Build confirmations/approvals around action consequence, not whether the action originated from voice or touch.
+8. Keep microphone/audio handling outside the provider-neutral execution core.
+9. Treat accessibility and privacy as requirements of every interaction surface.
