@@ -1,7 +1,10 @@
 import {
   InMemoryApprovalRequestStore,
+  InMemoryAuditStore,
   type ApprovalRequest,
   type ApprovalRequestStatus,
+  type AuditRecord,
+  type AuditRecordKind,
   type WorkerTaskActionKind,
   type WorkerTaskApproval,
   type WorkerTaskResult
@@ -34,6 +37,7 @@ export interface RealEstatePlatformBackendContract {
   }): Promise<WorkerTaskResult>;
   getTaskResult(orgId: string, taskId: string): Promise<WorkerTaskResult | undefined>;
   listApprovals(orgId: string, status?: ApprovalRequestStatus): Promise<ApprovalRequest[]>;
+  listAudit(orgId: string): Promise<AuditRecord[]>;
   decideApproval(input: {
     orgId: string;
     approvalId: string;
@@ -52,7 +56,9 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
   private readonly orgs = new Map<string, RealEstateBootstrap>();
   private readonly taskResults = new Map<string, WorkerTaskResult>();
   private readonly approvals = new InMemoryApprovalRequestStore();
+  private readonly audit = new InMemoryAuditStore();
   private readonly approvalIdByTask = new Map<string, string>();
+  private auditSequence = 0;
 
   async installRealEstatePack(
     orgId: string
@@ -102,9 +108,16 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
     actionKind?: WorkerTaskActionKind;
     approval?: WorkerTaskApproval;
   }): Promise<WorkerTaskResult> {
+    this.recordAudit(input.orgId, "task_requested", {
+      workerId: input.workerId,
+      taskId: input.taskId,
+      action: input.taskType,
+      metadata: { actionKind: input.actionKind ?? "read" }
+    });
+
     const bootstrap = this.orgs.get(input.orgId);
     if (!bootstrap) {
-      return {
+      const rejected: WorkerTaskResult = {
         workerId: input.workerId,
         taskId: input.taskId,
         status: "rejected",
@@ -114,6 +127,8 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
         },
         completedAt: new Date().toISOString()
       };
+      this.recordTaskOutcome(input.orgId, input.taskType, rejected);
+      return rejected;
     }
 
     const result = await bootstrap.service.runWorkerTask({
@@ -138,6 +153,15 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
         ...result,
         output: { approvalId }
       };
+      this.recordAudit(input.orgId, "task_blocked", {
+        workerId: input.workerId,
+        taskId: input.taskId,
+        approvalId,
+        action: input.taskType,
+        outcome: "approval_required"
+      });
+    } else {
+      this.recordTaskOutcome(input.orgId, input.taskType, finalResult);
     }
 
     this.taskResults.set(this.taskKey(input.orgId, input.taskId), finalResult);
@@ -158,6 +182,10 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
     return this.approvals.list(orgId, status ? { status } : undefined);
   }
 
+  async listAudit(orgId: string): Promise<AuditRecord[]> {
+    return this.audit.list(orgId);
+  }
+
   async decideApproval(input: {
     orgId: string;
     approvalId: string;
@@ -171,6 +199,15 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
 
     if (input.decision === "deny") {
       const approval = this.approvals.deny(input.approvalId, input.decidedBy);
+      this.recordAudit(input.orgId, "approval_denied", {
+        actorId: input.decidedBy,
+        workerId: current.workerId,
+        taskId: current.taskId,
+        approvalId: current.id,
+        action: current.taskType,
+        outcome: "denied",
+        metadata: { policyId: current.policyId }
+      });
       const deniedResult: WorkerTaskResult = {
         workerId: current.workerId,
         taskId: current.taskId,
@@ -183,10 +220,20 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
         completedAt: approval.decidedAt ?? new Date().toISOString()
       };
       this.taskResults.set(this.taskKey(input.orgId, current.taskId), deniedResult);
+      this.recordTaskOutcome(input.orgId, current.taskType, deniedResult, current.id);
       return { approval, taskResult: deniedResult };
     }
 
     const approval = this.approvals.approve(input.approvalId, input.decidedBy);
+    this.recordAudit(input.orgId, "approval_approved", {
+      actorId: input.decidedBy,
+      workerId: current.workerId,
+      taskId: current.taskId,
+      approvalId: current.id,
+      action: current.taskType,
+      outcome: "approved",
+      metadata: { policyId: current.policyId }
+    });
     const bootstrap = this.orgs.get(input.orgId);
     if (!bootstrap) {
       throw new Error(`Real Estate Pack is not installed for org ${input.orgId}`);
@@ -206,6 +253,7 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
       }
     });
     this.taskResults.set(this.taskKey(input.orgId, current.taskId), taskResult);
+    this.recordTaskOutcome(input.orgId, current.taskType, taskResult, current.id);
     return { approval, taskResult };
   }
 
@@ -249,7 +297,51 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
       metadata: { actionKind: "write" }
     });
     this.approvalIdByTask.set(taskKey, approvalId);
+    this.recordAudit(input.orgId, "approval_requested", {
+      workerId: input.workerId,
+      taskId: input.taskId,
+      approvalId,
+      action: input.taskType,
+      outcome: "pending",
+      metadata: { policyId }
+    });
     return approvalId;
+  }
+
+  private recordTaskOutcome(
+    orgId: string,
+    taskType: string,
+    result: WorkerTaskResult,
+    approvalId?: string
+  ): void {
+    const kind: AuditRecordKind =
+      result.status === "completed"
+        ? "task_completed"
+        : result.status === "cancelled"
+          ? "task_cancelled"
+          : "task_failed";
+    this.recordAudit(orgId, kind, {
+      workerId: result.workerId,
+      taskId: result.taskId,
+      approvalId,
+      action: taskType,
+      outcome: result.status,
+      metadata: result.error?.code ? { errorCode: result.error.code } : undefined
+    });
+  }
+
+  private recordAudit(
+    orgId: string,
+    kind: AuditRecordKind,
+    details: Omit<AuditRecord, "id" | "orgId" | "kind" | "timestamp">
+  ): void {
+    this.auditSequence += 1;
+    this.audit.append({
+      id: `audit-${this.auditSequence}`,
+      orgId,
+      kind,
+      ...details
+    });
   }
 
   private taskKey(orgId: string, taskId: string): string {
