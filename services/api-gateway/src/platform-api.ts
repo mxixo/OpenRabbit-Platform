@@ -21,6 +21,11 @@ export interface PlatformApprovalDecisionResult {
   taskResult?: WorkerTaskResult;
 }
 
+export interface PlatformPlanItemExecutionResult {
+  item: CalendarPlanItem;
+  taskResult: WorkerTaskResult;
+}
+
 export interface PlatformApiBackend {
   installRealEstatePack(orgId: string): Promise<{ packId: string; workerIds: string[] }>;
   listWorkers(orgId: string): Promise<PlatformWorkerSummary[]>;
@@ -52,6 +57,13 @@ export interface PlatformApiBackend {
     itemIds: string[];
     generatedBy?: string;
   }): Promise<DailyPlan>;
+  executePlanItem?(input: {
+    orgId: string;
+    itemId: string;
+    taskType: string;
+    taskInput: unknown;
+    actionKind?: WorkerTaskActionKind;
+  }): Promise<PlatformPlanItemExecutionResult>;
 }
 
 export type PlatformApiRouteResult =
@@ -164,6 +176,50 @@ export async function routePlatformApi(
         itemIds: body.itemIds,
         generatedBy: body.generatedBy
       })
+    };
+  }
+
+  if (
+    method === "POST" &&
+    parts.length === 8 &&
+    parts[3] === "plans" &&
+    parts[5] === "items" &&
+    parts[7] === "execute"
+  ) {
+    if (!backend.executePlanItem) return planningUnavailable();
+    const body = (request.body ?? {}) as Partial<{
+      taskType: string;
+      taskInput: unknown;
+      actionKind: WorkerTaskActionKind;
+    }>;
+    if (!body.taskType?.trim()) {
+      return {
+        matched: true,
+        status: 400,
+        error: {
+          code: "INVALID_PLAN_EXECUTION",
+          message: "taskType is required"
+        }
+      };
+    }
+    if (body.actionKind && !["read", "write"].includes(body.actionKind)) {
+      return {
+        matched: true,
+        status: 400,
+        error: { code: "INVALID_ACTION_KIND", message: "actionKind must be read or write" }
+      };
+    }
+    const result = await backend.executePlanItem({
+      orgId,
+      itemId: parts[6],
+      taskType: body.taskType,
+      taskInput: body.taskInput,
+      actionKind: body.actionKind
+    });
+    return {
+      matched: true,
+      status: result.taskResult.status === "blocked" ? 202 : 200,
+      data: result
     };
   }
 
