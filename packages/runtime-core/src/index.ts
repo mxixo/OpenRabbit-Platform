@@ -56,6 +56,7 @@ export * from "./core/living-agenda-now-state.js";
 export * from "./core/living-agenda-weekly-review.js";
 export * from "./core/living-agenda-now-presenter.js";
 export * from "./core/living-agenda-week-simulator.js";
+export * from "./core/living-agenda-simulation-review.js";
 export * from "./core/in-memory-capability-catalog.js";
 export * from "./core/in-memory-capability-manager.js";
 export * from "./core/in-memory-integration-adapter-registry.js";
