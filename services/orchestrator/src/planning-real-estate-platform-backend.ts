@@ -33,6 +33,10 @@ function appendNote(existing: string | undefined, next: string): string {
   return existing?.trim() ? `${existing.trim()}\n${next}` : next;
 }
 
+function planStatusForResult(result: WorkerTaskResult): CalendarPlanItemStatus {
+  return result.status === "completed" ? "completed" : "blocked";
+}
+
 export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend {
   private readonly planning = new InMemoryCalendarPlanStore();
   private planItemSequence = 0;
@@ -149,31 +153,54 @@ export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend
       actionKind: input.actionKind
     });
 
-    const status: CalendarPlanItemStatus =
-      taskResult.status === "completed"
-        ? "completed"
-        : taskResult.status === "blocked"
-          ? "blocked"
-          : "blocked";
-
-    const updated = this.planning.updateItem(input.orgId, input.itemId, {
-      status,
-      taskId,
-      notes: appendNote(item.notes, executionNote(taskResult)),
-      metadata: {
-        ...(item.metadata ?? {}),
-        executionTaskType: input.taskType,
-        executionActionKind: input.actionKind ?? "read",
-        executionStatus: taskResult.status,
-        ...(taskResult.error?.code ? { executionErrorCode: taskResult.error.code } : {}),
-        ...((taskResult.output as { approvalId?: string } | undefined)?.approvalId
-          ? {
-              approvalId: (taskResult.output as { approvalId: string }).approvalId
-            }
-          : {})
-      }
+    const updated = this.applyTaskResultToPlanItem(input.orgId, item, taskResult, {
+      executionTaskType: input.taskType,
+      executionActionKind: input.actionKind ?? "read"
     });
 
     return { item: updated, taskResult };
+  }
+
+  async decideApproval(input: {
+    orgId: string;
+    approvalId: string;
+    decision: "approve" | "deny";
+    decidedBy: string;
+  }) {
+    const decision = await super.decideApproval(input);
+    if (decision.taskResult) {
+      const linkedItems = this.planning.listItems(input.orgId, {
+        taskId: decision.taskResult.taskId
+      });
+      for (const item of linkedItems) {
+        this.applyTaskResultToPlanItem(input.orgId, item, decision.taskResult, {
+          approvalDecision: input.decision,
+          approvalId: input.approvalId,
+          approvalDecidedBy: input.decidedBy
+        });
+      }
+    }
+    return decision;
+  }
+
+  private applyTaskResultToPlanItem(
+    orgId: string,
+    item: CalendarPlanItem,
+    result: WorkerTaskResult,
+    metadata: Record<string, unknown>
+  ): CalendarPlanItem {
+    const approvalId = (result.output as { approvalId?: string } | undefined)?.approvalId;
+    return this.planning.updateItem(orgId, item.id, {
+      status: planStatusForResult(result),
+      taskId: result.taskId,
+      notes: appendNote(item.notes, executionNote(result)),
+      metadata: {
+        ...(item.metadata ?? {}),
+        ...metadata,
+        executionStatus: result.status,
+        ...(result.error?.code ? { executionErrorCode: result.error.code } : {}),
+        ...(approvalId ? { approvalId } : {})
+      }
+    });
   }
 }
