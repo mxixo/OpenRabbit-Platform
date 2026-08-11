@@ -45,6 +45,8 @@ The legacy `createOpenClawSkillRunner()` API remains available as a deprecated s
 - becoming the public product API
 - importing OpenClaw-specific execution details into Core services
 
-## Next integration step
+## Current integration state
 
-Wire `services/orchestrator` to the runtime-core `WorkerOrchestrator`, register `OpenClawRuntimeProvider`, and route new worker tasks through that path. A later transport can replace the compatibility executor with a live OpenClaw CLI/MCP/API bridge without changing the Platform-facing RuntimeProvider contract.
+`services/orchestrator` is now wired to the runtime-core `WorkerOrchestrator`, and the Real Estate platform backend routes worker tasks through the supported worker execution path. Human approval enforcement and the in-memory approval lifecycle are also available through Platform API routes.
+
+The next runtime-specific step is **not** another orchestration path. It is to replace or augment the compatibility executor with a live OpenClaw CLI/MCP/API transport behind the same `RuntimeProvider` contract when that transport is ready, while keeping Core and Platform APIs unchanged.
