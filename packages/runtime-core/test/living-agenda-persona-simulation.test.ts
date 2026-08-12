@@ -16,12 +16,17 @@ describe("Living Agenda persona simulations", () => {
     expect(result.recalibration.proposals.some((proposal) => proposal.id === "reduce-capacity")).toBe(false);
   });
 
-  it("protects a time reclaimer's life boundaries even when planned work is too high", () => {
+  it("distinguishes scheduled protected time from what was actually observed", () => {
     const result = simulateAndRecalibrate(timeReclaimerWeek);
     expect(timeReclaimerWeek.days).toHaveLength(7);
     expect(result.simulation.metrics.completionRatio).toBeLessThan(0.5);
     expect(result.simulation.metrics.protectedTimeChallenges).toBe(4);
-    expect(result.simulation.metrics.protectedTimePreserved).toBe(1440);
+    expect(result.simulation.metrics.scheduledProtectedMinutes).toBe(1440);
+    expect(result.simulation.metrics.observedProtectedMinutes).toBe(360);
+    expect(result.simulation.metrics.protectedTimePreserved).toBe(360);
+    expect(result.simulation.observations).toContain(
+      "Some scheduled protected time has no observed outcome yet and should not be assumed preserved or available for work.",
+    );
     expect(result.simulation.metrics.paceDecreaseRequests).toBe(1);
     expect(result.recalibration.proposals.some((proposal) => proposal.id === "reduce-capacity")).toBe(true);
   });
