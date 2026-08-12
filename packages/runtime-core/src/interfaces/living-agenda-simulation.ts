@@ -5,6 +5,7 @@ export type SimulatedEventKind =
   | "calendar_changed"
   | "blocked"
   | "recovered"
+  | "protected_time_observed"
   | "protected_time_challenged"
   | "user_pace_changed";
 
@@ -19,6 +20,7 @@ export interface SimulatedLivingAgendaEvent {
 export interface SimulatedLivingAgendaDay {
   date: string;
   plannedMinutes: number;
+  /** Protected time that was scheduled/intended for the day. */
   protectedMinutes: number;
   events: SimulatedLivingAgendaEvent[];
 }
@@ -35,7 +37,12 @@ export interface SimulatedWeekMetrics {
   skippedTasks: number;
   interruptions: number;
   recoveries: number;
+  /** Total protected time that was scheduled, whether or not it was actually preserved. */
+  scheduledProtectedMinutes: number;
+  /** Protected time with affirmative observation/evidence that it occurred. */
+  observedProtectedMinutes: number;
   protectedTimeChallenges: number;
+  /** Backward-compatible alias for observedProtectedMinutes. */
   protectedTimePreserved: number;
   protectedTimeOverridden: number;
   overrunMinutes: number;
