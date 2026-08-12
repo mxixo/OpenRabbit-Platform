@@ -9,8 +9,9 @@ export function simulateLivingAgendaWeek(week: SimulatedLivingAgendaWeek): Simul
   let skippedTasks = 0;
   let interruptions = 0;
   let recoveries = 0;
+  let scheduledProtectedMinutes = 0;
+  let observedProtectedMinutes = 0;
   let protectedTimeChallenges = 0;
-  let protectedTimePreserved = 0;
   let protectedTimeOverridden = 0;
   let overrunMinutes = 0;
   let paceIncreaseRequests = 0;
@@ -18,7 +19,7 @@ export function simulateLivingAgendaWeek(week: SimulatedLivingAgendaWeek): Simul
 
   for (const day of week.days) {
     plannedMinutes += day.plannedMinutes;
-    protectedTimePreserved += day.protectedMinutes;
+    scheduledProtectedMinutes += day.protectedMinutes;
 
     for (const event of day.events) {
       switch (event.kind) {
@@ -38,12 +39,16 @@ export function simulateLivingAgendaWeek(week: SimulatedLivingAgendaWeek): Simul
         case "recovered":
           recoveries += 1;
           break;
+        case "protected_time_observed":
+          observedProtectedMinutes += event.minutes ?? 0;
+          break;
         case "protected_time_challenged": {
           protectedTimeChallenges += 1;
+          if (event.detail === "preserved") {
+            observedProtectedMinutes += event.minutes ?? 0;
+          }
           if (event.detail === "overridden") {
-            const overridden = event.minutes ?? 0;
-            protectedTimeOverridden += overridden;
-            protectedTimePreserved = Math.max(0, protectedTimePreserved - overridden);
+            protectedTimeOverridden += event.minutes ?? 0;
           }
           break;
         }
@@ -54,6 +59,9 @@ export function simulateLivingAgendaWeek(week: SimulatedLivingAgendaWeek): Simul
       }
     }
   }
+
+  observedProtectedMinutes = Math.min(scheduledProtectedMinutes, observedProtectedMinutes);
+  protectedTimeOverridden = Math.min(scheduledProtectedMinutes, protectedTimeOverridden);
 
   const completionRatio = plannedMinutes === 0 ? 1 : Math.min(1, completedMinutes / plannedMinutes);
   const observations: string[] = [];
@@ -68,8 +76,11 @@ export function simulateLivingAgendaWeek(week: SimulatedLivingAgendaWeek): Simul
   if (overrunMinutes > 60) {
     observations.push("Task duration estimates produced more than one hour of cumulative overrun.");
   }
-  if (protectedTimeChallenges > 0 && protectedTimePreserved > 0) {
+  if (protectedTimeChallenges > 0 && observedProtectedMinutes > 0) {
     observations.push("Protected time was challenged; preservation should be reviewed explicitly rather than silently refilled.");
+  }
+  if (scheduledProtectedMinutes > observedProtectedMinutes + protectedTimeOverridden) {
+    observations.push("Some scheduled protected time has no observed outcome yet and should not be assumed preserved or available for work.");
   }
   if (paceIncreaseRequests > 0 && paceDecreaseRequests > 0) {
     observations.push("The user changed desired pace in both directions; recent explicit context should outrank a permanent productivity label.");
@@ -86,8 +97,10 @@ export function simulateLivingAgendaWeek(week: SimulatedLivingAgendaWeek): Simul
       skippedTasks,
       interruptions,
       recoveries,
+      scheduledProtectedMinutes,
+      observedProtectedMinutes,
       protectedTimeChallenges,
-      protectedTimePreserved,
+      protectedTimePreserved: observedProtectedMinutes,
       protectedTimeOverridden,
       overrunMinutes,
       paceIncreaseRequests,
