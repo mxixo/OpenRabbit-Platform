@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   DefaultLivingAgendaNowPresenter,
   InMemoryCalendarPlanStore,
@@ -68,8 +69,7 @@ function planStatusForResult(result: WorkerTaskResult): CalendarPlanItemStatus {
 
 export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend {
   private readonly planning: CalendarPlanStore;
-  private planItemSequence = 0;
-  private executionSequence = 0;
+   private executionSequence = 0;
   private readonly nowPresenter = new DefaultLivingAgendaNowPresenter();
 
   constructor(planning: CalendarPlanStore = new InMemoryCalendarPlanStore()) {
@@ -112,9 +112,8 @@ export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend
     source?: CalendarPlanItem["source"];
     metadata?: Record<string, unknown>;
   }): Promise<CalendarPlanItem> {
-    this.planItemSequence += 1;
     return this.planning.createItem({
-      id: `plan-item-${this.planItemSequence}`,
+      id: `plan-item-${randomUUID()}`,
       orgId: input.orgId,
       date: input.date,
       title: input.title,
