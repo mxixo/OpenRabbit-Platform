@@ -10,6 +10,9 @@ runtime/logs/
 runtime/cache/
 runtime/tmp/
 
+# Local durable state
+.openrabbit-data/
+
 # Local environment files
 .env
 
