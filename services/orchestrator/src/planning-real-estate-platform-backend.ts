@@ -1,8 +1,19 @@
 import {
+  DefaultLivingAgendaNowPresenter,
   InMemoryCalendarPlanStore,
+  generateLivingAgenda,
+  reconcileLivingAgenda,
+  resolveLivingAgendaNowState,
+  type AgendaChange,
+  type AgendaCandidate,
   type CalendarPlanItem,
   type CalendarPlanItemStatus,
   type DailyPlan,
+  type GeneratedLivingAgenda,
+  type LivingAgendaNowPresentation,
+  type LivingAgendaSurface,
+  type PriorityScoreInput,
+  type ReconciledLivingAgenda,
   type WorkerTaskActionKind,
   type WorkerTaskResult
 } from "@openrabbit/runtime-core";
@@ -11,6 +22,23 @@ import { RealEstatePlatformBackend } from "./real-estate-platform-backend.js";
 export interface PlanItemExecutionResult {
   item: CalendarPlanItem;
   taskResult: WorkerTaskResult;
+}
+
+export interface PlanningAgendaCandidateInput {
+  itemId: string;
+  estimatedMinutes: number;
+  fixed?: boolean;
+  priorityFactors?: PriorityScoreInput;
+}
+
+export interface GeneratedAgendaResult {
+  agenda: GeneratedLivingAgenda;
+  now: LivingAgendaNowPresentation;
+}
+
+export interface ReconciledAgendaResult {
+  reconciliation: ReconciledLivingAgenda;
+  now: LivingAgendaNowPresentation;
 }
 
 function executionNote(result: WorkerTaskResult): string {
@@ -41,6 +69,7 @@ export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend
   private readonly planning = new InMemoryCalendarPlanStore();
   private planItemSequence = 0;
   private executionSequence = 0;
+  private readonly nowPresenter = new DefaultLivingAgendaNowPresenter();
 
   async getDailyPlan(orgId: string, date: string): Promise<DailyPlan | undefined> {
     return this.planning.getDailyPlan(orgId, date);
@@ -109,6 +138,55 @@ export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend
       workerId: input.workerId,
       taskId: input.taskId
     });
+  }
+
+  async generateLivingAgenda(input: {
+    orgId: string;
+    date: string;
+    availableMinutes: number;
+    candidates: PlanningAgendaCandidateInput[];
+    surface?: LivingAgendaSurface;
+  }): Promise<GeneratedAgendaResult> {
+    const agenda = generateLivingAgenda({
+      date: input.date,
+      availableMinutes: input.availableMinutes,
+      candidates: this.resolveAgendaCandidates(
+        input.orgId,
+        input.date,
+        input.candidates
+      )
+    });
+    return {
+      agenda,
+      now: this.presentNow(agenda, input.surface ?? "mobile_app")
+    };
+  }
+
+  async reconcileLivingAgenda(input: {
+    orgId: string;
+    date: string;
+    availableMinutes: number;
+    candidates: PlanningAgendaCandidateInput[];
+    changes: AgendaChange[];
+    surface?: LivingAgendaSurface;
+  }): Promise<ReconciledAgendaResult> {
+    const reconciliation = reconcileLivingAgenda({
+      date: input.date,
+      availableMinutes: input.availableMinutes,
+      candidates: this.resolveAgendaCandidates(
+        input.orgId,
+        input.date,
+        input.candidates
+      ),
+      changes: input.changes
+    });
+    return {
+      reconciliation,
+      now: this.presentNow(
+        reconciliation.agenda,
+        input.surface ?? "mobile_app"
+      )
+    };
   }
 
   async executePlanItem(input: {
@@ -181,6 +259,44 @@ export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend
       }
     }
     return decision;
+  }
+
+  private resolveAgendaCandidates(
+    orgId: string,
+    date: string,
+    inputs: PlanningAgendaCandidateInput[]
+  ): AgendaCandidate[] {
+    return inputs.map((input) => {
+      const item = this.planning.getItem(orgId, input.itemId);
+      if (!item || item.date !== date) {
+        throw new Error(
+          `Calendar item not found for organization and date: ${input.itemId}`
+        );
+      }
+      return {
+        item,
+        estimatedMinutes: input.estimatedMinutes,
+        fixed: input.fixed,
+        priorityFactors: input.priorityFactors
+      };
+    });
+  }
+
+  private presentNow(
+    agenda: GeneratedLivingAgenda,
+    surface: LivingAgendaSurface
+  ): LivingAgendaNowPresentation {
+    const state = resolveLivingAgendaNowState(
+      agenda.items.map((item) => ({
+        itemId: item.itemId,
+        title: item.title,
+        estimatedMinutes: item.estimatedMinutes,
+        priorityScore: item.priority.score,
+        availableNow: true,
+        reasons: item.priority.reasons
+      }))
+    );
+    return this.nowPresenter.present(state, surface);
   }
 
   private applyTaskResultToPlanItem(
