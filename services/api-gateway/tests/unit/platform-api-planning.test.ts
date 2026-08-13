@@ -309,4 +309,182 @@ describe("platform API daily planning routes", () => {
     });
   });
 
+
+  it("generates a capacity-aware agenda with a Now recommendation", async () => {
+    let observed: unknown;
+    const backend: PlatformApiBackend = {
+      ...baseBackend(),
+      async generateLivingAgenda(input) {
+        observed = input;
+        return {
+          agenda: {
+            date: input.date,
+            availableMinutes: input.availableMinutes,
+            scheduledMinutes: 60,
+            items: [],
+            deferred: [],
+            explanation: ["All candidate work fit within the available capacity."]
+          },
+          now: {
+            surface: input.surface ?? "mobile_app",
+            headline: "NOW",
+            primaryText: "Review buyer outreach",
+            currentPlanItemId: "item-1",
+            actions: [],
+            generatedAt: "2026-08-13T00:00:00.000Z"
+          }
+        };
+      }
+    };
+
+    const result = await routePlatformApi(
+      {
+        requestId: "agenda-generate-1",
+        method: "POST",
+        path: "/v1/orgs/org-1/plans/2026-08-13/generate",
+        body: {
+          availableMinutes: 90,
+          surface: "widget",
+          candidates: [
+            {
+              itemId: "item-1",
+              estimatedMinutes: 60,
+              priorityFactors: { goalAlignment: 90, impact: 80 }
+            }
+          ]
+        }
+      },
+      backend
+    );
+
+    expect(result).toMatchObject({
+      matched: true,
+      status: 200,
+      data: {
+        agenda: { availableMinutes: 90 },
+        now: { surface: "widget", currentPlanItemId: "item-1" }
+      }
+    });
+    expect(observed).toMatchObject({
+      orgId: "org-1",
+      date: "2026-08-13",
+      availableMinutes: 90
+    });
+  });
+
+  it("reconciles execution changes and returns the revised Now recommendation", async () => {
+    let observed: unknown;
+    const backend: PlatformApiBackend = {
+      ...baseBackend(),
+      async reconcileLivingAgenda(input) {
+        observed = input;
+        return {
+          reconciliation: {
+            agenda: {
+              date: input.date,
+              availableMinutes: input.availableMinutes,
+              scheduledMinutes: 30,
+              items: [],
+              deferred: [],
+              explanation: []
+            },
+            changes: input.changes,
+            coachNotes: ["1 completed item removed from the remaining agenda."]
+          },
+          now: {
+            surface: "mobile_app",
+            headline: "NOW",
+            primaryText: "Call qualified investor",
+            currentPlanItemId: "item-2",
+            actions: [],
+            generatedAt: "2026-08-13T01:00:00.000Z"
+          }
+        };
+      }
+    };
+
+    const result = await routePlatformApi(
+      {
+        requestId: "agenda-reconcile-1",
+        method: "POST",
+        path: "/v1/orgs/org-1/plans/2026-08-13/reconcile",
+        body: {
+          availableMinutes: 45,
+          candidates: [
+            { itemId: "item-1", estimatedMinutes: 30 },
+            { itemId: "item-2", estimatedMinutes: 30 }
+          ],
+          changes: [
+            { kind: "completed", itemId: "item-1" },
+            { kind: "blocked", itemId: "item-3" }
+          ]
+        }
+      },
+      backend
+    );
+
+    expect(result).toMatchObject({
+      matched: true,
+      status: 200,
+      data: {
+        reconciliation: {
+          coachNotes: ["1 completed item removed from the remaining agenda."]
+        },
+        now: { currentPlanItemId: "item-2" }
+      }
+    });
+    expect(observed).toMatchObject({
+      orgId: "org-1",
+      changes: [
+        { kind: "completed", itemId: "item-1" },
+        { kind: "blocked", itemId: "item-3" }
+      ]
+    });
+  });
+
+  it("rejects malformed generation and reconciliation inputs", async () => {
+    const backend: PlatformApiBackend = {
+      ...baseBackend(),
+      async generateLivingAgenda() {
+        throw new Error("should not be called");
+      },
+      async reconcileLivingAgenda() {
+        throw new Error("should not be called");
+      }
+    };
+
+    const invalidGeneration = await routePlatformApi(
+      {
+        requestId: "agenda-generate-invalid",
+        method: "POST",
+        path: "/v1/orgs/org-1/plans/2026-08-13/generate",
+        body: {
+          availableMinutes: -1,
+          candidates: [{ itemId: "", estimatedMinutes: 0 }]
+        }
+      },
+      backend
+    );
+    expect(invalidGeneration).toMatchObject({
+      matched: true,
+      status: 400,
+      error: { code: "INVALID_AGENDA_GENERATION" }
+    });
+
+    const invalidReconciliation = await routePlatformApi(
+      {
+        requestId: "agenda-reconcile-invalid",
+        method: "POST",
+        path: "/v1/orgs/org-1/plans/2026-08-13/reconcile",
+        body: { availableMinutes: 60, candidates: [] }
+      },
+      backend
+    );
+    expect(invalidReconciliation).toMatchObject({
+      matched: true,
+      status: 400,
+      error: { code: "INVALID_AGENDA_RECONCILIATION" }
+    });
+  });
+
 });
