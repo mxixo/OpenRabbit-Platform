@@ -8,6 +8,7 @@ import {
   type AgendaCandidate,
   type CalendarPlanItem,
   type CalendarPlanItemStatus,
+  type CalendarPlanStore,
   type DailyPlan,
   type GeneratedLivingAgenda,
   type LivingAgendaNowPresentation,
@@ -66,10 +67,15 @@ function planStatusForResult(result: WorkerTaskResult): CalendarPlanItemStatus {
 }
 
 export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend {
-  private readonly planning = new InMemoryCalendarPlanStore();
+  private readonly planning: CalendarPlanStore;
   private planItemSequence = 0;
   private executionSequence = 0;
   private readonly nowPresenter = new DefaultLivingAgendaNowPresenter();
+
+  constructor(planning: CalendarPlanStore = new InMemoryCalendarPlanStore()) {
+    super();
+    this.planning = planning;
+  }
 
   async getDailyPlan(orgId: string, date: string): Promise<DailyPlan | undefined> {
     return this.planning.getDailyPlan(orgId, date);
