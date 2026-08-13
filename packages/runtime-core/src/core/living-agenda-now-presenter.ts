@@ -38,15 +38,15 @@ export class DefaultLivingAgendaNowPresenter implements LivingAgendaNowPresenter
     if (!state.current) {
       return {
         surface,
-        headline: state.status === "recovery" ? "RECOVER" : "NOW",
-        primaryText: state.message ?? "Nothing needs your attention right now.",
+        headline: "NOW",
+        primaryText: state.explanation[0] ?? "Nothing needs your attention right now.",
         actions: actionsFor(state).slice(0, policy.maxActions),
         generatedAt,
       };
     }
 
     const whySummary = policy.showWhySummary
-      ? state.current.explanation?.summary
+      ? state.explanation[0]
       : undefined;
 
     return {
@@ -54,8 +54,8 @@ export class DefaultLivingAgendaNowPresenter implements LivingAgendaNowPresenter
       headline: "NOW",
       primaryText: state.current.title,
       secondaryText: state.next ? `Next: ${state.next.title}` : undefined,
-      currentPlanItemId: state.current.planItemId,
-      nextPlanItemId: state.next?.planItemId,
+      currentPlanItemId: state.current.itemId,
+      nextPlanItemId: state.next?.itemId,
       whySummary,
       actions: actionsFor(state).slice(0, policy.maxActions),
       generatedAt,
