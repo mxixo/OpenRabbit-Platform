@@ -64,6 +64,195 @@ describe("PlanningRealEstatePlatformBackend", () => {
     expect(completed.notes).toBe("Analysis delivered");
   });
 
+  it("executes an assigned read task and automatically completes the plan item", async () => {
+    const backend = new PlanningRealEstatePlatformBackend();
+    const installation = await backend.installRealEstatePack("org-exec-1");
+    const acquisitionsWorkerId = installation.workerIds.find((id) =>
+      id.includes("acquisitions")
+    );
+    expect(acquisitionsWorkerId).toBeTruthy();
+
+    const item = await backend.createPlanItem({
+      orgId: "org-exec-1",
+      date: "2026-08-11",
+      title: "Underwrite 100 Market St",
+      workerId: acquisitionsWorkerId,
+      notes: "Priority acquisition review"
+    });
+
+    const execution = await backend.executePlanItem({
+      orgId: "org-exec-1",
+      itemId: item.id,
+      taskType: "commercial_investment_workflow",
+      actionKind: "read",
+      taskInput: {
+        address: "100 Market St, Phoenix, AZ",
+        purchasePrice: 1200000,
+        annualGrossIncome: 165000
+      }
+    });
+
+    expect(execution.taskResult.status).toBe("completed");
+    expect(execution.item.status).toBe("completed");
+    expect(execution.item.taskId).toMatch(/^plan-task-/);
+    expect(execution.item.notes).toContain("Priority acquisition review");
+    expect(execution.item.notes).toContain("completed");
+    expect(execution.item.metadata).toMatchObject({
+      executionTaskType: "commercial_investment_workflow",
+      executionActionKind: "read",
+      executionStatus: "completed"
+    });
+
+    await backend.stopOrg("org-exec-1");
+  });
+
+  it("blocks an assigned write task and records the approval on the plan item", async () => {
+    const backend = new PlanningRealEstatePlatformBackend();
+    const installation = await backend.installRealEstatePack("org-exec-2");
+    const acquisitionsWorkerId = installation.workerIds.find((id) =>
+      id.includes("acquisitions")
+    );
+    expect(acquisitionsWorkerId).toBeTruthy();
+
+    const item = await backend.createPlanItem({
+      orgId: "org-exec-2",
+      date: "2026-08-11",
+      title: "Prepare consequential acquisition action",
+      workerId: acquisitionsWorkerId
+    });
+
+    const execution = await backend.executePlanItem({
+      orgId: "org-exec-2",
+      itemId: item.id,
+      taskType: "commercial_investment_workflow",
+      actionKind: "write",
+      taskInput: { address: "100 Market St, Phoenix, AZ" }
+    });
+
+    expect(execution.taskResult.status).toBe("blocked");
+    expect(execution.taskResult.error?.code).toBe("approval_required");
+    expect(execution.item.status).toBe("blocked");
+    expect(execution.item.notes).toContain("pending human approval");
+    expect(execution.item.metadata?.approvalId).toBeTruthy();
+
+    await backend.stopOrg("org-exec-2");
+  });
+
+  it("moves a blocked plan item to completed after approval resumes the linked task", async () => {
+    const backend = new PlanningRealEstatePlatformBackend();
+    const installation = await backend.installRealEstatePack("org-exec-approval");
+    const acquisitionsWorkerId = installation.workerIds.find((id) =>
+      id.includes("acquisitions")
+    );
+    expect(acquisitionsWorkerId).toBeTruthy();
+
+    const item = await backend.createPlanItem({
+      orgId: "org-exec-approval",
+      date: "2026-08-11",
+      title: "Approved acquisition action",
+      workerId: acquisitionsWorkerId
+    });
+
+    const blocked = await backend.executePlanItem({
+      orgId: "org-exec-approval",
+      itemId: item.id,
+      taskType: "commercial_investment_workflow",
+      actionKind: "write",
+      taskInput: {
+        address: "100 Market St, Phoenix, AZ",
+        purchasePrice: 1200000,
+        annualGrossIncome: 165000
+      }
+    });
+    const approvalId = blocked.item.metadata?.approvalId as string;
+    expect(approvalId).toBeTruthy();
+
+    const decision = await backend.decideApproval({
+      orgId: "org-exec-approval",
+      approvalId,
+      decision: "approve",
+      decidedBy: "user-1"
+    });
+    expect(decision.taskResult?.status).toBe("completed");
+
+    const [reconciled] = await backend.listPlanItems(
+      "org-exec-approval",
+      "2026-08-11"
+    );
+    expect(reconciled.status).toBe("completed");
+    expect(reconciled.metadata).toMatchObject({
+      approvalDecision: "approve",
+      approvalId,
+      approvalDecidedBy: "user-1",
+      executionStatus: "completed"
+    });
+    expect(reconciled.notes).toContain("completed");
+
+    await backend.stopOrg("org-exec-approval");
+  });
+
+  it("keeps a denied linked task blocked and records the cancellation", async () => {
+    const backend = new PlanningRealEstatePlatformBackend();
+    const installation = await backend.installRealEstatePack("org-exec-deny");
+    const acquisitionsWorkerId = installation.workerIds.find((id) =>
+      id.includes("acquisitions")
+    );
+    expect(acquisitionsWorkerId).toBeTruthy();
+
+    const item = await backend.createPlanItem({
+      orgId: "org-exec-deny",
+      date: "2026-08-11",
+      title: "Denied acquisition action",
+      workerId: acquisitionsWorkerId
+    });
+
+    const blocked = await backend.executePlanItem({
+      orgId: "org-exec-deny",
+      itemId: item.id,
+      taskType: "commercial_investment_workflow",
+      actionKind: "write",
+      taskInput: { address: "100 Market St, Phoenix, AZ" }
+    });
+    const approvalId = blocked.item.metadata?.approvalId as string;
+
+    const decision = await backend.decideApproval({
+      orgId: "org-exec-deny",
+      approvalId,
+      decision: "deny",
+      decidedBy: "user-2"
+    });
+    expect(decision.taskResult?.status).toBe("cancelled");
+
+    const [reconciled] = await backend.listPlanItems("org-exec-deny", "2026-08-11");
+    expect(reconciled.status).toBe("blocked");
+    expect(reconciled.metadata).toMatchObject({
+      approvalDecision: "deny",
+      approvalId,
+      executionStatus: "cancelled"
+    });
+    expect(reconciled.notes).toContain("cancelled");
+
+    await backend.stopOrg("org-exec-deny");
+  });
+
+  it("rejects execution when a plan item has no assigned worker", async () => {
+    const backend = new PlanningRealEstatePlatformBackend();
+    const item = await backend.createPlanItem({
+      orgId: "org-exec-3",
+      date: "2026-08-11",
+      title: "Unassigned work"
+    });
+
+    await expect(
+      backend.executePlanItem({
+        orgId: "org-exec-3",
+        itemId: item.id,
+        taskType: "commercial_investment_workflow",
+        taskInput: { address: "100 Market St, Phoenix, AZ" }
+      })
+    ).rejects.toThrow("has no assigned worker");
+  });
+
   it("keeps planning state isolated by organization", async () => {
     const backend = new PlanningRealEstatePlatformBackend();
     await backend.createPlanItem({
