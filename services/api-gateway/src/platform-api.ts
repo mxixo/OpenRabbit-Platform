@@ -1,9 +1,15 @@
 import type {
+  AgendaChange,
   ApprovalRequest,
   AuditRecord,
   CalendarPlanItem,
   CalendarPlanItemStatus,
   DailyPlan,
+  GeneratedLivingAgenda,
+  LivingAgendaNowPresentation,
+  LivingAgendaSurface,
+  PriorityScoreInput,
+  ReconciledLivingAgenda,
   WorkerTaskActionKind,
   WorkerTaskApproval,
   WorkerTaskResult
@@ -25,6 +31,23 @@ export interface PlatformApprovalDecisionResult {
 export interface PlatformPlanItemExecutionResult {
   item: CalendarPlanItem;
   taskResult: WorkerTaskResult;
+}
+
+export interface PlatformAgendaCandidateInput {
+  itemId: string;
+  estimatedMinutes: number;
+  fixed?: boolean;
+  priorityFactors?: PriorityScoreInput;
+}
+
+export interface PlatformGeneratedAgendaResult {
+  agenda: GeneratedLivingAgenda;
+  now: LivingAgendaNowPresentation;
+}
+
+export interface PlatformReconciledAgendaResult {
+  reconciliation: ReconciledLivingAgenda;
+  now: LivingAgendaNowPresentation;
 }
 
 export interface PlatformApiBackend {
@@ -79,6 +102,21 @@ export interface PlatformApiBackend {
     itemIds: string[];
     generatedBy?: string;
   }): Promise<DailyPlan>;
+  generateLivingAgenda?(input: {
+    orgId: string;
+    date: string;
+    availableMinutes: number;
+    candidates: PlatformAgendaCandidateInput[];
+    surface?: LivingAgendaSurface;
+  }): Promise<PlatformGeneratedAgendaResult>;
+  reconcileLivingAgenda?(input: {
+    orgId: string;
+    date: string;
+    availableMinutes: number;
+    candidates: PlatformAgendaCandidateInput[];
+    changes: AgendaChange[];
+    surface?: LivingAgendaSurface;
+  }): Promise<PlatformReconciledAgendaResult>;
   executePlanItem?(input: {
     orgId: string;
     itemId: string;
@@ -197,6 +235,112 @@ export async function routePlatformApi(
         objective: body.objective,
         itemIds: body.itemIds,
         generatedBy: body.generatedBy
+      })
+    };
+  }
+
+  if (
+    method === "POST" &&
+    parts.length === 6 &&
+    parts[3] === "plans" &&
+    parts[5] === "generate"
+  ) {
+    if (!backend.generateLivingAgenda) return planningUnavailable();
+    const body = (request.body ?? {}) as Partial<{
+      availableMinutes: number;
+      candidates: PlatformAgendaCandidateInput[];
+      surface: LivingAgendaSurface;
+    }>;
+    const invalidCandidate = body.candidates?.some(
+      (candidate) =>
+        !candidate.itemId?.trim() ||
+        !Number.isFinite(candidate.estimatedMinutes) ||
+        candidate.estimatedMinutes <= 0
+    );
+    const surfaces: LivingAgendaSurface[] = [
+      "mobile_app",
+      "lock_screen",
+      "live_activity",
+      "watch",
+      "voice",
+      "widget"
+    ];
+    if (
+      !Number.isFinite(body.availableMinutes) ||
+      (body.availableMinutes ?? -1) < 0 ||
+      !Array.isArray(body.candidates) ||
+      invalidCandidate ||
+      (body.surface && !surfaces.includes(body.surface))
+    ) {
+      return {
+        matched: true,
+        status: 400,
+        error: {
+          code: "INVALID_AGENDA_GENERATION",
+          message:
+            "availableMinutes must be non-negative and candidates must contain itemId and positive estimatedMinutes"
+        }
+      };
+    }
+    return {
+      matched: true,
+      status: 200,
+      data: await backend.generateLivingAgenda({
+        orgId,
+        date: parts[4],
+        availableMinutes: body.availableMinutes!,
+        candidates: body.candidates,
+        surface: body.surface
+      })
+    };
+  }
+
+  if (
+    method === "POST" &&
+    parts.length === 6 &&
+    parts[3] === "plans" &&
+    parts[5] === "reconcile"
+  ) {
+    if (!backend.reconcileLivingAgenda) return planningUnavailable();
+    const body = (request.body ?? {}) as Partial<{
+      availableMinutes: number;
+      candidates: PlatformAgendaCandidateInput[];
+      changes: AgendaChange[];
+      surface: LivingAgendaSurface;
+    }>;
+    const invalidCandidate = body.candidates?.some(
+      (candidate) =>
+        !candidate.itemId?.trim() ||
+        !Number.isFinite(candidate.estimatedMinutes) ||
+        candidate.estimatedMinutes <= 0
+    );
+    if (
+      !Number.isFinite(body.availableMinutes) ||
+      (body.availableMinutes ?? -1) < 0 ||
+      !Array.isArray(body.candidates) ||
+      invalidCandidate ||
+      !Array.isArray(body.changes)
+    ) {
+      return {
+        matched: true,
+        status: 400,
+        error: {
+          code: "INVALID_AGENDA_RECONCILIATION",
+          message:
+            "availableMinutes, valid candidates, and changes are required"
+        }
+      };
+    }
+    return {
+      matched: true,
+      status: 200,
+      data: await backend.reconcileLivingAgenda({
+        orgId,
+        date: parts[4],
+        availableMinutes: body.availableMinutes!,
+        candidates: body.candidates,
+        changes: body.changes,
+        surface: body.surface
       })
     };
   }
