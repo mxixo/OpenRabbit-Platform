@@ -264,4 +264,123 @@ describe("PlanningRealEstatePlatformBackend", () => {
     expect(await backend.listPlanItems("org-2", "2026-08-11")).toEqual([]);
     expect(await backend.getDailyPlan("org-2", "2026-08-11")).toBeUndefined();
   });
+
+  it("generates by priority within capacity and exposes the current recommendation", async () => {
+    const backend = new PlanningRealEstatePlatformBackend();
+    const strategic = await backend.createPlanItem({
+      orgId: "org-agenda",
+      date: "2026-08-13",
+      title: "Contact qualified multifamily buyers"
+    });
+    const urgentLowValue = await backend.createPlanItem({
+      orgId: "org-agenda",
+      date: "2026-08-13",
+      title: "Clean up low-value notes"
+    });
+
+    const result = await backend.generateLivingAgenda({
+      orgId: "org-agenda",
+      date: "2026-08-13",
+      availableMinutes: 60,
+      surface: "widget",
+      candidates: [
+        {
+          itemId: strategic.id,
+          estimatedMinutes: 60,
+          priorityFactors: { goalAlignment: 95, impact: 90, urgency: 60 }
+        },
+        {
+          itemId: urgentLowValue.id,
+          estimatedMinutes: 30,
+          priorityFactors: { goalAlignment: 10, impact: 10, urgency: 95 }
+        }
+      ]
+    });
+
+    expect(result.agenda.items.map((item) => item.itemId)).toEqual([strategic.id]);
+    expect(result.agenda.deferred.map((item) => item.itemId)).toEqual([
+      urgentLowValue.id
+    ]);
+    expect(result.now).toMatchObject({
+      surface: "widget",
+      primaryText: "Contact qualified multifamily buyers",
+      currentPlanItemId: strategic.id
+    });
+  });
+
+  it("reconciles completed, skipped, and blocked work out of the executable agenda", async () => {
+    const backend = new PlanningRealEstatePlatformBackend();
+    const completed = await backend.createPlanItem({
+      orgId: "org-reconcile",
+      date: "2026-08-13",
+      title: "Completed task"
+    });
+    const skipped = await backend.createPlanItem({
+      orgId: "org-reconcile",
+      date: "2026-08-13",
+      title: "Skipped task"
+    });
+    const blocked = await backend.createPlanItem({
+      orgId: "org-reconcile",
+      date: "2026-08-13",
+      title: "Blocked task"
+    });
+    const remaining = await backend.createPlanItem({
+      orgId: "org-reconcile",
+      date: "2026-08-13",
+      title: "Remaining priority"
+    });
+
+    const result = await backend.reconcileLivingAgenda({
+      orgId: "org-reconcile",
+      date: "2026-08-13",
+      availableMinutes: 45,
+      candidates: [completed, skipped, blocked, remaining].map((item) => ({
+        itemId: item.id,
+        estimatedMinutes: 30,
+        priorityFactors: { goalAlignment: item.id === remaining.id ? 90 : 50 }
+      })),
+      changes: [
+        { kind: "completed", itemId: completed.id },
+        { kind: "skipped", itemId: skipped.id },
+        { kind: "blocked", itemId: blocked.id }
+      ]
+    });
+
+    expect(result.reconciliation.agenda.items.map((item) => item.itemId)).toEqual([
+      remaining.id
+    ]);
+    expect(result.reconciliation.coachNotes.join(" ")).toContain("completed");
+    expect(result.reconciliation.coachNotes.join(" ")).toContain("blocked");
+    expect(result.reconciliation.coachNotes.join(" ")).toContain("skipped");
+    expect(result.now.currentPlanItemId).toBe(remaining.id);
+  });
+
+  it("rejects agenda candidates from another organization or date", async () => {
+    const backend = new PlanningRealEstatePlatformBackend();
+    const foreign = await backend.createPlanItem({
+      orgId: "org-private",
+      date: "2026-08-14",
+      title: "Private organization task"
+    });
+
+    await expect(
+      backend.generateLivingAgenda({
+        orgId: "org-other",
+        date: "2026-08-14",
+        availableMinutes: 60,
+        candidates: [{ itemId: foreign.id, estimatedMinutes: 30 }]
+      })
+    ).rejects.toThrow("not found for organization and date");
+
+    await expect(
+      backend.generateLivingAgenda({
+        orgId: "org-private",
+        date: "2026-08-13",
+        availableMinutes: 60,
+        candidates: [{ itemId: foreign.id, estimatedMinutes: 30 }]
+      })
+    ).rejects.toThrow("not found for organization and date");
+  });
+
 });
