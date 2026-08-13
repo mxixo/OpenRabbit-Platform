@@ -2,6 +2,7 @@ import type {
   ApprovalRequest,
   AuditRecord,
   CalendarPlanItem,
+  CalendarPlanItemStatus,
   DailyPlan,
   WorkerTaskActionKind,
   WorkerTaskApproval,
@@ -49,6 +50,27 @@ export interface PlatformApiBackend {
   }): Promise<PlatformApprovalDecisionResult>;
   getDailyPlan?(orgId: string, date: string): Promise<DailyPlan | undefined>;
   listPlanItems?(orgId: string, date: string): Promise<CalendarPlanItem[]>;
+  createPlanItem?(input: {
+    orgId: string;
+    date: string;
+    title: string;
+    startAt?: string;
+    endAt?: string;
+    priority?: number;
+    workerId?: string;
+    taskId?: string;
+    notes?: string;
+    source?: CalendarPlanItem["source"];
+    metadata?: Record<string, unknown>;
+  }): Promise<CalendarPlanItem>;
+  updatePlanItem?(input: {
+    orgId: string;
+    itemId: string;
+    status?: CalendarPlanItemStatus;
+    notes?: string;
+    workerId?: string;
+    taskId?: string;
+  }): Promise<CalendarPlanItem>;
   saveDailyPlan?(input: {
     orgId: string;
     date: string;
@@ -175,6 +197,109 @@ export async function routePlatformApi(
         objective: body.objective,
         itemIds: body.itemIds,
         generatedBy: body.generatedBy
+      })
+    };
+  }
+
+  if (
+    method === "POST" &&
+    parts.length === 6 &&
+    parts[3] === "plans" &&
+    parts[5] === "items"
+  ) {
+    if (!backend.createPlanItem) return planningUnavailable();
+    const body = (request.body ?? {}) as Partial<{
+      title: string;
+      startAt: string;
+      endAt: string;
+      priority: number;
+      workerId: string;
+      taskId: string;
+      notes: string;
+      source: CalendarPlanItem["source"];
+      metadata: Record<string, unknown>;
+    }>;
+    if (!body.title?.trim()) {
+      return {
+        matched: true,
+        status: 400,
+        error: { code: "PLAN_ITEM_TITLE_REQUIRED", message: "title is required" }
+      };
+    }
+    return {
+      matched: true,
+      status: 201,
+      data: await backend.createPlanItem({
+        orgId,
+        date: parts[4],
+        title: body.title.trim(),
+        startAt: body.startAt,
+        endAt: body.endAt,
+        priority: body.priority,
+        workerId: body.workerId,
+        taskId: body.taskId,
+        notes: body.notes,
+        source: body.source,
+        metadata: body.metadata
+      })
+    };
+  }
+
+  if (
+    method === "PATCH" &&
+    parts.length === 7 &&
+    parts[3] === "plans" &&
+    parts[5] === "items"
+  ) {
+    if (!backend.updatePlanItem) return planningUnavailable();
+    const body = (request.body ?? {}) as Partial<{
+      status: CalendarPlanItemStatus;
+      notes: string;
+      workerId: string;
+      taskId: string;
+    }>;
+    const statuses: CalendarPlanItemStatus[] = [
+      "planned",
+      "in_progress",
+      "completed",
+      "skipped",
+      "blocked"
+    ];
+    if (body.status && !statuses.includes(body.status)) {
+      return {
+        matched: true,
+        status: 400,
+        error: {
+          code: "INVALID_PLAN_ITEM_STATUS",
+          message: "status must be planned, in_progress, completed, skipped, or blocked"
+        }
+      };
+    }
+    if (
+      body.status === undefined &&
+      body.notes === undefined &&
+      body.workerId === undefined &&
+      body.taskId === undefined
+    ) {
+      return {
+        matched: true,
+        status: 400,
+        error: {
+          code: "EMPTY_PLAN_ITEM_UPDATE",
+          message: "at least one update field is required"
+        }
+      };
+    }
+    return {
+      matched: true,
+      status: 200,
+      data: await backend.updatePlanItem({
+        orgId,
+        itemId: parts[6],
+        status: body.status,
+        notes: body.notes,
+        workerId: body.workerId,
+        taskId: body.taskId
       })
     };
   }
