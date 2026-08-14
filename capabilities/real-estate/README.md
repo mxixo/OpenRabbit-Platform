@@ -54,6 +54,18 @@ and organization, so callers cannot supply their own identity or cross tenant
 boundaries. This is a narrow deployment bridge, not a replacement for the
 future multi-user identity provider. Store its token in a managed secret store,
 never source control or a frontend bundle.
+
+## Runnable service
+
+`npm run start:real-estate-api` composes the Supabase state repository, durable
+underwriting service, controlled outreach executor, product routes,
+authentication, and HTTP server. Startup fails closed when required tenant or
+secret configuration is missing. The server binds to `127.0.0.1` by default;
+put TLS and internet-facing protections at a reverse proxy or managed edge.
+
+`deploy/real-estate-api/Dockerfile` packages the same process for a container or
+VPS. The container runs as the unprivileged `node` user and includes a health
+check. Required variables are documented in the root `.env.example`.
 - current required integrations: none
 - optional integrations recorded for later adapters: Camino, Rentcast, MLS
 
