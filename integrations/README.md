@@ -11,3 +11,7 @@ Kinds include: `mcp`, `rest`, `graphql`, `webhook`, `oauth`, `custom`.
 
 MCP is one integration family — not the product identity.
 Existing `mcp/*` packages are the first concrete integration stack.
+
+Concrete adapters:
+
+- `whatsapp-business/` — verified inbound webhook ingestion and read-only urgent-message review.
