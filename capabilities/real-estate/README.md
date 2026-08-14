@@ -36,6 +36,17 @@ schema is in `integrations/supabase/real-estate-state/schema.sql`.
 The Supabase tables are not granted to `anon` or `authenticated`. Until the
 platform authentication model is wired, they are backend-only and every query
 must include `org_id`. Never expose a Supabase secret key to a frontend.
+
+## Minimal product API and controlled outreach
+
+`product-api/` exposes the narrow deal workflow through a transport-neutral API
+handler: create/get a deal, run/list underwriting versions, request and decide
+an outreach approval, execute the approved action, and read approvals/audit.
+
+The first outreach transport is intentionally controlled-test only. It accepts
+only an explicit recipient allowlist, re-checks the persisted tenant-matched
+approval during execution, and uses an idempotency key to prevent duplicate
+delivery. It does not send real email or messages.
 - current required integrations: none
 - optional integrations recorded for later adapters: Camino, Rentcast, MLS
 
