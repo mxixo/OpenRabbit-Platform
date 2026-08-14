@@ -29,5 +29,5 @@ ALTER TABLE whatsapp_messages ENABLE ROW LEVEL SECURITY;
 
 -- The deployment adapter must set `app.current_org_id` for every transaction.
 CREATE POLICY whatsapp_messages_org_isolation ON whatsapp_messages
-  USING (org_id = current_setting('app.current_org_id', true))
-  WITH CHECK (org_id = current_setting('app.current_org_id', true));
+  USING (org_id = (SELECT current_setting('app.current_org_id', true)))
+  WITH CHECK (org_id = (SELECT current_setting('app.current_org_id', true)));
