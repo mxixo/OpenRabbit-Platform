@@ -27,4 +27,10 @@ npm run test:whatsapp
 4. Subscribe the Meta app/WABA to the `messages` webhook field.
 5. Register `reviewRecentMessages` as a read-only, org-scoped OpenRabbit tool.
 
+The deployable Supabase Edge Function entrypoint is at
+`supabase/functions/whatsapp-webhook/index.ts`. It intentionally requires
+`META_VERIFY_TOKEN`, `META_APP_SECRET`, and `OPENRABBIT_ORG_ID` as private
+function secrets. JWT verification must be disabled for this webhook because
+Meta authenticates requests with the HMAC signature instead.
+
 Never log message bodies, raw webhook payloads, app secrets, or access tokens. Sending remains a separate approval-controlled tool.
