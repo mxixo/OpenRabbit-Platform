@@ -24,6 +24,18 @@ target price and explicit approval boundaries for consequential next actions.
 
 Analysis and outreach drafting are read-only. CRM writes, sending outreach, and
 contacting a listing broker are proposed actions that remain approval-gated.
+
+## Durable vertical-slice state
+
+`persistence/` provides an async repository boundary for deal records,
+versioned underwriting reports, task idempotency, canonical approval records,
+and audit events. The default test adapter is in-memory with an injectable
+backing store. The Supabase adapter uses server-only secret-key access; its
+schema is in `integrations/supabase/real-estate-state/schema.sql`.
+
+The Supabase tables are not granted to `anon` or `authenticated`. Until the
+platform authentication model is wired, they are backend-only and every query
+must include `org_id`. Never expose a Supabase secret key to a frontend.
 - current required integrations: none
 - optional integrations recorded for later adapters: Camino, Rentcast, MLS
 
