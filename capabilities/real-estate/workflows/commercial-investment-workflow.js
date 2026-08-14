@@ -11,28 +11,76 @@ function clamp(num, min, max) {
   return Math.max(min, Math.min(max, num));
 }
 
+function requireNumber(input, field, options = {}) {
+  const value = input[field];
+  if (value === undefined || value === null || value === "") {
+    throw new Error(`input.${field} is required`);
+  }
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    throw new Error(`input.${field} must be a finite number`);
+  }
+  if (options.exclusiveMin !== undefined && number <= options.exclusiveMin) {
+    throw new Error(`input.${field} must be greater than ${options.exclusiveMin}`);
+  }
+  if (options.min !== undefined && number < options.min) {
+    throw new Error(`input.${field} must be at least ${options.min}`);
+  }
+  if (options.max !== undefined && number > options.max) {
+    throw new Error(`input.${field} must be no greater than ${options.max}`);
+  }
+  return number;
+}
+
+function optionalNumber(input, field, options = {}) {
+  if (input[field] === undefined || input[field] === null || input[field] === "") {
+    return options.fallback ?? null;
+  }
+  return requireNumber(input, field, options);
+}
+
+function validateInputs(input) {
+  return {
+    purchasePrice: requireNumber(input, "purchasePrice", { exclusiveMin: 0 }),
+    annualGrossIncome: requireNumber(input, "annualGrossIncome", { exclusiveMin: 0 }),
+    occupancyRate: optionalNumber(input, "occupancyRate", { min: 0, max: 1, fallback: 0.9 }),
+    operatingExpenseRatio: optionalNumber(input, "operatingExpenseRatio", {
+      min: 0,
+      max: 0.95,
+      fallback: 0.35,
+    }),
+    downPaymentPct: optionalNumber(input, "downPaymentPct", { min: 0, max: 1, fallback: 0.25 }),
+    interestRatePct: optionalNumber(input, "interestRatePct", { min: 0, max: 30, fallback: 6.5 }),
+    amortizationYears: optionalNumber(input, "amortizationYears", { min: 1, max: 50, fallback: 25 }),
+    targetCapRatePct: optionalNumber(input, "targetCapRatePct", {
+      exclusiveMin: 0,
+      max: 100,
+      fallback: 7.5,
+    }),
+  };
+}
+
 function yearlyDebtService({ loanAmount, interestRatePct, amortizationYears }) {
   if (!loanAmount || loanAmount <= 0) return 0;
   const monthlyRate = interestRatePct / 100 / 12;
   const periods = amortizationYears * 12;
-  if (monthlyRate <= 0 || periods <= 0) return 0;
+  if (periods <= 0) return 0;
+  if (monthlyRate === 0) return (loanAmount / periods) * 12;
   const factor = Math.pow(1 + monthlyRate, periods);
   const monthlyPayment = (loanAmount * monthlyRate * factor) / (factor - 1);
   return monthlyPayment * 12;
 }
 
-function estimateMetrics(input) {
-  const purchasePrice = toNumber(input.purchasePrice, 0);
-  const annualGrossIncome = toNumber(input.annualGrossIncome, 0);
-  const occupancyRate = clamp(toNumber(input.occupancyRate, 0.9), 0, 1);
-  const operatingExpenseRatio = clamp(
-    toNumber(input.operatingExpenseRatio, 0.35),
-    0,
-    1
-  );
-  const downPaymentPct = clamp(toNumber(input.downPaymentPct, 0.25), 0, 1);
-  const interestRatePct = toNumber(input.interestRatePct, 6.5);
-  const amortizationYears = Math.max(1, toNumber(input.amortizationYears, 25));
+function estimateMetrics(assumptions) {
+  const {
+    purchasePrice,
+    annualGrossIncome,
+    occupancyRate,
+    operatingExpenseRatio,
+    downPaymentPct,
+    interestRatePct,
+    amortizationYears,
+  } = assumptions;
 
   const effectiveGrossIncome = annualGrossIncome * occupancyRate;
   const operatingExpenses = effectiveGrossIncome * operatingExpenseRatio;
@@ -53,11 +101,12 @@ function estimateMetrics(input) {
     assumptions: {
       purchasePrice,
       annualGrossIncome,
-      occupancyRate,
-      operatingExpenseRatio,
-      downPaymentPct,
-      interestRatePct,
+      occupancyRate: Number(occupancyRate.toFixed(4)),
+      operatingExpenseRatio: Number(operatingExpenseRatio.toFixed(4)),
+      downPaymentPct: Number(downPaymentPct.toFixed(4)),
+      interestRatePct: Number(interestRatePct.toFixed(4)),
       amortizationYears,
+      targetCapRatePct: assumptions.targetCapRatePct,
     },
     values: {
       effectiveGrossIncome: Math.round(effectiveGrossIncome),
@@ -69,6 +118,104 @@ function estimateMetrics(input) {
       cashOnCash: Number(cashOnCash.toFixed(2)),
       dscr: Number(dscr.toFixed(2)),
     },
+  };
+}
+
+function buildScenarios(baseAssumptions) {
+  const definitions = {
+    downside: {
+      ...baseAssumptions,
+      occupancyRate: clamp(baseAssumptions.occupancyRate - 0.1, 0.5, 1),
+      operatingExpenseRatio: clamp(baseAssumptions.operatingExpenseRatio + 0.05, 0, 0.95),
+      interestRatePct: baseAssumptions.interestRatePct + 1,
+    },
+    base: { ...baseAssumptions },
+    upside: {
+      ...baseAssumptions,
+      occupancyRate: clamp(baseAssumptions.occupancyRate + 0.05, 0, 1),
+      operatingExpenseRatio: clamp(baseAssumptions.operatingExpenseRatio - 0.03, 0, 0.95),
+      interestRatePct: Math.max(0, baseAssumptions.interestRatePct - 0.5),
+    },
+  };
+
+  return Object.fromEntries(
+    Object.entries(definitions).map(([name, assumptions]) => {
+      const bundle = estimateMetrics(assumptions);
+      return [name, { assumptions: bundle.assumptions, investmentMetrics: bundle.values }];
+    })
+  );
+}
+
+const SOURCE_TYPES = new Set([
+  "user",
+  "broker",
+  "public_record",
+  "third_party",
+  "estimate",
+]);
+
+function buildDataQuality(input, assumptions) {
+  const suppliedSources = input.inputSources && typeof input.inputSources === "object"
+    ? input.inputSources
+    : {};
+  const importantFields = [
+    "purchasePrice",
+    "annualGrossIncome",
+    "occupancyRate",
+    "operatingExpenseRatio",
+    "downPaymentPct",
+    "interestRatePct",
+    "amortizationYears",
+  ];
+  const provenance = {};
+  const warnings = [];
+  let sourcedCount = 0;
+
+  for (const field of importantFields) {
+    const supplied = suppliedSources[field];
+    const type = supplied?.type || (input[field] === undefined ? "estimate" : "user");
+    if (!SOURCE_TYPES.has(type)) {
+      throw new Error(`input.inputSources.${field}.type is invalid`);
+    }
+    provenance[field] = {
+      type,
+      label: supplied?.label || (type === "estimate" ? "OpenRabbit default assumption" : "Operator-provided input"),
+      observedAt: supplied?.observedAt || null,
+    };
+    if (supplied) sourcedCount += 1;
+    if (type === "estimate") warnings.push(`${field} uses a default estimate and should be verified.`);
+  }
+
+  if (!input.rentRollProvided) warnings.push("Current rent roll has not been confirmed.");
+  if (!input.trailingFinancialsProvided) warnings.push("Trailing operating statements have not been confirmed.");
+  if (!input.debtQuoteProvided) warnings.push("Financing terms are assumptions, not a lender quote.");
+
+  const diligenceItems = [
+    !input.rentRollProvided && "Obtain and reconcile the current rent roll.",
+    !input.trailingFinancialsProvided && "Obtain trailing 12-month income and operating expenses.",
+    !input.debtQuoteProvided && "Obtain a lender quote and rerun debt-service assumptions.",
+    !input.propertyConditionReviewed && "Review property condition, deferred maintenance, and capital needs.",
+  ].filter(Boolean);
+
+  const sourceCoveragePct = Math.round((sourcedCount / importantFields.length) * 100);
+  if (sourceCoveragePct === 0) {
+    warnings.push("No field-level source metadata was supplied for the financial inputs.");
+  }
+  const confidence = warnings.length >= 4
+    ? "low"
+    : warnings.length <= 1 && sourceCoveragePct >= 70
+      ? "high"
+      : "medium";
+  return {
+    confidence,
+    sourceCoveragePct,
+    provenance,
+    warnings,
+    diligenceItems,
+    defaultAssumptionsUsed: Object.keys(provenance).filter(
+      (field) => provenance[field].type === "estimate"
+    ),
+    evaluatedAssumptions: assumptions,
   };
 }
 
@@ -94,6 +241,31 @@ function scoreOpportunity(metrics) {
 
 function buildSummary({ address, metrics, score }) {
   return `Property at ${address} shows estimated NOI of $${metrics.noi.toLocaleString()} with cap rate ${metrics.capRate}% and DSCR ${metrics.dscr}. Overall opportunity is ${score.band} (${score.score}/100).`;
+}
+
+function buildDecision({ metrics, score, dataQuality, targetCapRatePct }) {
+  const targetPurchasePrice = Math.round(metrics.noi / (targetCapRatePct / 100));
+  let recommendation = "reject";
+  if (dataQuality.confidence === "low") recommendation = "request_information";
+  else if (score.band === "strong") recommendation = "pursue_diligence";
+  else if (score.band === "watch") recommendation = "pursue_below_target_price";
+
+  const rationale = [
+    `Opportunity score is ${score.score}/100 (${score.band}).`,
+    `Base DSCR is ${metrics.dscr} and annual pre-tax cash flow is $${metrics.annualCashFlowBeforeTax.toLocaleString()}.`,
+    `Data confidence is ${dataQuality.confidence}.`,
+  ];
+
+  return {
+    recommendation,
+    targetPurchasePrice,
+    targetCapRatePct,
+    rationale,
+    suggestedNextActions: dataQuality.diligenceItems.length
+      ? dataQuality.diligenceItems
+      : ["Confirm investment criteria with the operator before external outreach."],
+    approvalRequiredFor: ["crm_write", "send_investor_outreach", "contact_listing_broker"],
+  };
 }
 
 function buildOutreachDraft({ address, metrics, score }) {
@@ -201,9 +373,18 @@ async function runCommercialInvestmentWorkflow(input) {
   assertObject(input, "input");
   assertRequiredString(input.address, "input.address");
 
+  const validatedAssumptions = validateInputs(input);
   const propertyInfo = await gatherPropertyInfo(input);
-  const metricBundle = estimateMetrics(input);
+  const metricBundle = estimateMetrics(validatedAssumptions);
+  const scenarios = buildScenarios(validatedAssumptions);
   const score = scoreOpportunity(metricBundle.values);
+  const dataQuality = buildDataQuality(input, metricBundle.assumptions);
+  const decision = buildDecision({
+    metrics: metricBundle.values,
+    score,
+    dataQuality,
+    targetCapRatePct: validatedAssumptions.targetCapRatePct,
+  });
   const investmentSummary = buildSummary({
     address: input.address,
     metrics: metricBundle.values,
@@ -222,6 +403,9 @@ async function runCommercialInvestmentWorkflow(input) {
     investmentMetrics: metricBundle.values,
     investmentSummary,
     opportunityScore: score,
+    scenarios,
+    dataQuality,
+    decision,
     investorOutreachDraft,
     report: {
       generatedAt: new Date().toISOString(),
@@ -230,6 +414,9 @@ async function runCommercialInvestmentWorkflow(input) {
       assumptions: metricBundle.assumptions,
       investmentMetrics: metricBundle.values,
       opportunityScore: score,
+      scenarios,
+      dataQuality,
+      decision,
       investmentSummary,
       investorOutreachDraft,
     },
@@ -239,10 +426,10 @@ async function runCommercialInvestmentWorkflow(input) {
 module.exports = {
   name: "commercial_investment_workflow",
   description:
-    "Runs a minimal commercial property investment workflow from address intake to scored investment report.",
+    "Runs a commercial property underwriting workflow with validated inputs, scenario analysis, provenance, diligence, and a decision-ready report.",
   inputSchema: {
     type: "object",
-    required: ["address"],
+    required: ["address", "purchasePrice", "annualGrossIncome"],
     properties: {
       address: { type: "string" },
       propertyType: { type: "string" },
@@ -253,11 +440,17 @@ module.exports = {
       downPaymentPct: { type: "number" },
       interestRatePct: { type: "number" },
       amortizationYears: { type: "number" },
+      targetCapRatePct: { type: "number" },
       units: { type: "number" },
       squareFeet: { type: "number" },
       yearBuilt: { type: "number" },
       notes: { type: "string" },
       locationRadiusMeters: { type: "number" },
+      inputSources: { type: "object" },
+      rentRollProvided: { type: "boolean" },
+      trailingFinancialsProvided: { type: "boolean" },
+      debtQuoteProvided: { type: "boolean" },
+      propertyConditionReviewed: { type: "boolean" },
     },
   },
   outputSchema: {
@@ -269,6 +462,9 @@ module.exports = {
       investmentMetrics: { type: "object" },
       investmentSummary: { type: "string" },
       opportunityScore: { type: "object" },
+      scenarios: { type: "object" },
+      dataQuality: { type: "object" },
+      decision: { type: "object" },
       investorOutreachDraft: { type: "string" },
       report: { type: "object" },
     },
