@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "test": "node tests/skills.test.js && node tests/openclaw-runtime-provider.test.js && node tests/real-estate-pack.test.js",
+    "test": "node tests/skills.test.js && node tests/openclaw-runtime-provider.test.js && node tests/real-estate-pack.test.js && node tests/underwriting-quality.test.js",
     "workflow:commercial": "node scripts/run-commercial-workflow.js",
     "ci:quality-gates": "bash ./scripts/ci/run-quality-gates.sh",
     "ci:quick": "bash ./scripts/bootstrap/check-env.sh"
