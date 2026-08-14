@@ -47,6 +47,13 @@ The first outreach transport is intentionally controlled-test only. It accepts
 only an explicit recipient allowlist, re-checks the persisted tenant-matched
 approval during execution, and uses an idempotency key to prevent duplicate
 delivery. It does not send real email or messages.
+
+`product-api/http-server.js` provides a minimal Node HTTP binding. Its initial
+authentication adapter maps one server-managed bearer token to a fixed actor
+and organization, so callers cannot supply their own identity or cross tenant
+boundaries. This is a narrow deployment bridge, not a replacement for the
+future multi-user identity provider. Store its token in a managed secret store,
+never source control or a frontend bundle.
 - current required integrations: none
 - optional integrations recorded for later adapters: Camino, Rentcast, MLS
 
