@@ -2,6 +2,7 @@
 
 const crypto = require("crypto");
 const workflow = require("../workflows/commercial-investment-workflow");
+const { CONTRACT_VERSION } = require("../contracts/underwriting-contract");
 
 class DurableUnderwritingService {
   constructor({ repository, executeUnderwriting = (input) => workflow.run(input) }) {
@@ -30,7 +31,15 @@ class DurableUnderwritingService {
     if (!deal) throw new Error(`Deal not found: ${dealId}`);
 
     const workflowInput = { ...input, address: input.address || deal.address, propertyType: input.propertyType || deal.propertyType };
-    const output = await this.executeUnderwriting(workflowInput);
+    const rawOutput = await this.executeUnderwriting(workflowInput);
+    const output = {
+      ...rawOutput,
+      contractVersion: CONTRACT_VERSION,
+      report: {
+        ...rawOutput.report,
+        contractVersion: CONTRACT_VERSION,
+      },
+    };
     const result = { orgId, dealId, taskId, status: "completed", output };
 
     await this.repository.saveUnderwritingRun({
