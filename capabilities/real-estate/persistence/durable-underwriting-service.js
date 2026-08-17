@@ -33,7 +33,7 @@ class DurableUnderwritingService {
     return existing.length ? Math.max(...existing.map((record) => record.attempt)) + 1 : 1;
   }
 
-  async recordUnderwritingTelemetry({ orgId, dealId, taskId, status, telemetry = {}, error }) {
+  async recordUnderwritingTelemetry({ orgId, dealId, taskId, actorId, status, telemetry = {}, error }) {
     if (!this.telemetryStore) return;
     const attempt = await this.resolveTelemetryAttempt(orgId, taskId, telemetry);
     await this.telemetryStore.append({
@@ -52,11 +52,12 @@ class DurableUnderwritingService {
       metadata: {
         ...telemetry.metadata,
         dealId,
+        ...(actorId ? { actorId } : {}),
       },
     });
   }
 
-  async runUnderwriting({ orgId, dealId, taskId, input, telemetry = {} }) {
+  async runUnderwriting({ orgId, dealId, taskId, actorId, input, telemetry = {} }) {
     const existing = await this.repository.getTaskResult(orgId, taskId);
     if (existing) return { ...existing.result, duplicate: true };
 
@@ -72,6 +73,7 @@ class DurableUnderwritingService {
         orgId,
         dealId,
         taskId,
+        actorId,
         status: "failed",
         telemetry,
         error,
@@ -102,6 +104,7 @@ class DurableUnderwritingService {
       id: `audit-${crypto.randomUUID()}`,
       orgId,
       kind: "task_completed",
+      actorId,
       taskId,
       action: "commercial_investment_workflow",
       outcome: "completed",
@@ -111,6 +114,7 @@ class DurableUnderwritingService {
       orgId,
       dealId,
       taskId,
+      actorId,
       status: "succeeded",
       telemetry,
     });
@@ -123,6 +127,7 @@ class DurableUnderwritingService {
       id: `audit-${crypto.randomUUID()}`,
       orgId: input.orgId,
       kind: "approval_requested",
+      actorId: input.requestedBy,
       workerId: input.workerId,
       taskId: input.taskId,
       approvalId: input.id,
