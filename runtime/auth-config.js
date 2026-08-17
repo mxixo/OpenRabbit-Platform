@@ -5,6 +5,15 @@ function required(value, name) {
   return value.trim();
 }
 
+function normalizeScopes(input, index) {
+  if (input === undefined) return ["*"];
+  if (!Array.isArray(input) || !input.length) {
+    throw new Error(`credential ${index + 1} scopes must be a non-empty array`);
+  }
+  const scopes = input.map((scope, scopeIndex) => required(scope, `credential ${index + 1} scope ${scopeIndex + 1}`));
+  return [...new Set(scopes)];
+}
+
 function validateCredential(input, index) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new Error(`OPENRABBIT_API_CREDENTIALS_JSON credential ${index + 1} must be an object`);
@@ -15,6 +24,7 @@ function validateCredential(input, index) {
     token,
     actorId: required(input.actorId, `credential ${index + 1} actorId`),
     orgId: required(input.orgId, `credential ${index + 1} orgId`),
+    scopes: normalizeScopes(input.scopes, index),
   };
 }
 
@@ -44,7 +54,8 @@ function loadApiCredentials(env = process.env) {
     token,
     actorId: required(env.OPENRABBIT_ACTOR_ID, "OPENRABBIT_ACTOR_ID"),
     orgId: required(env.OPENRABBIT_ORG_ID, "OPENRABBIT_ORG_ID"),
+    scopes: ["*"],
   }];
 }
 
-module.exports = { loadApiCredentials, validateCredential };
+module.exports = { loadApiCredentials, validateCredential, normalizeScopes };
