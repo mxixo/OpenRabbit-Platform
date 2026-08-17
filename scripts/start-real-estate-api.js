@@ -8,6 +8,9 @@ const {
   DurableUnderwritingService,
 } = require("../capabilities/real-estate/persistence/durable-underwriting-service");
 const {
+  InMemoryExecutionTelemetryStore,
+} = require("../runtime/execution-telemetry");
+const {
   ControlledOutreachTransport,
   ApprovalEnforcedOutreachService,
 } = require("../capabilities/real-estate/product-api/approval-enforced-outreach");
@@ -54,7 +57,8 @@ function createApplication(config, options = {}) {
     projectUrl: config.supabaseUrl,
     secretKey: config.supabaseSecretKey,
   });
-  const durableService = new DurableUnderwritingService({ repository });
+  const telemetryStore = options.telemetryStore || new InMemoryExecutionTelemetryStore();
+  const durableService = new DurableUnderwritingService({ repository, telemetryStore });
   const transport = options.transport || new ControlledOutreachTransport({
     allowedRecipients: config.allowedRecipients,
   });
@@ -70,7 +74,7 @@ function createApplication(config, options = {}) {
     orgId: config.orgId,
   });
   const server = createRealEstateHttpServer({ api, authenticate });
-  return { server, repository, transport };
+  return { server, repository, transport, telemetryStore };
 }
 
 async function startApplication(config, options = {}) {
