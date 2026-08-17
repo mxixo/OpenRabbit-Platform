@@ -77,6 +77,11 @@ async function runTests() {
   assert.strictEqual(response.data.underwriting.runCount, 2);
   assert.strictEqual(response.data.underwriting.latestReport.assumptions.purchasePrice, 1450000);
   assert.deepStrictEqual(response.data.underwriting.versions.map((item) => item.version), [1, 2]);
+  assert.strictEqual(response.data.underwriting.versions[0].assumptions.purchasePrice, 1600000);
+  assert.strictEqual(response.data.underwriting.versions[1].assumptions.purchasePrice, 1450000);
+  assert.ok(Number.isFinite(response.data.underwriting.versions[1].investmentMetrics.noi));
+  assert.ok(response.data.underwriting.versions[1].recommendation);
+  assert.ok(response.data.underwriting.versions[1].confidence);
   assert.strictEqual(response.data.approvals.length, 1);
   assert.strictEqual(response.data.actions.pendingApprovalCount, 1);
   assert.strictEqual(response.data.actions.canRequestOutreachApproval, false);
