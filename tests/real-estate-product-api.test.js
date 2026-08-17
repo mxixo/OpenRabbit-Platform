@@ -38,6 +38,15 @@ async function runTests() {
   assert.strictEqual(response.status, 201);
   assert.ok(response.data.output.report.decision);
 
+  response = await first.api.handle({
+    method: "POST", path: "/v1/orgs/org-maico/deals/deal-1/underwriting-runs",
+    body: { taskId: "underwrite-invalid", input: { annualGrossIncome: 260000 } },
+  });
+  assert.strictEqual(response.status, 400);
+  assert.strictEqual(response.error.code, "VALIDATION_ERROR");
+  assert.strictEqual(response.error.field, "input.purchasePrice");
+  assert.strictEqual(response.error.retryable, false);
+
   const restarted = buildApi(backing, deliveries);
   response = await restarted.api.handle({ method: "GET", path: "/v1/orgs/org-maico/deals/deal-1/underwriting-runs" });
   assert.strictEqual(response.data.length, 1);
@@ -54,6 +63,8 @@ async function runTests() {
 
   response = await restarted.api.handle({ method: "POST", path: "/v1/orgs/org-maico/approvals/approval-1/execute" });
   assert.strictEqual(response.status, 409);
+  assert.strictEqual(response.error.code, "APPROVAL_REQUIRED");
+  assert.strictEqual(response.error.retryable, false);
   assert.strictEqual(deliveries.size, 0);
 
   response = await restarted.api.handle({
@@ -61,6 +72,7 @@ async function runTests() {
     body: { decision: "approve" },
   });
   assert.strictEqual(response.status, 404);
+  assert.strictEqual(response.error.code, "RESOURCE_NOT_FOUND");
 
   response = await restarted.api.handle({
     method: "POST", path: "/v1/orgs/org-maico/approvals/approval-1/decision", actorId: "maico",
