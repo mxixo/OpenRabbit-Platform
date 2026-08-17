@@ -31,6 +31,25 @@ async function runTests() {
   });
   assert.strictEqual(response.status, 201);
 
+  await first.api.handle({
+    method: "POST", path: "/v1/orgs/org-maico/deals",
+    body: { id: "deal-2", address: "100 N Central Ave, Phoenix, AZ", propertyType: "commercial" },
+  });
+  await first.api.handle({
+    method: "POST", path: "/v1/orgs/other-org/deals",
+    body: { id: "private-deal", address: "Other tenant property", propertyType: "commercial" },
+  });
+
+  response = await first.api.handle({ method: "GET", path: "/v1/orgs/org-maico/deals" });
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(response.data.length, 2);
+  assert.deepStrictEqual(new Set(response.data.map((deal) => deal.id)), new Set(["deal-1", "deal-2"]));
+  assert.ok(response.data.every((deal) => deal.orgId === "org-maico"));
+
+  response = await first.api.handle({ method: "GET", path: "/v1/orgs/other-org/deals" });
+  assert.strictEqual(response.data.length, 1);
+  assert.strictEqual(response.data[0].id, "private-deal");
+
   response = await first.api.handle({
     method: "POST", path: "/v1/orgs/org-maico/deals/deal-1/underwriting-runs",
     body: { taskId: "underwrite-1", input: { purchasePrice: 1600000, annualGrossIncome: 260000 } },
