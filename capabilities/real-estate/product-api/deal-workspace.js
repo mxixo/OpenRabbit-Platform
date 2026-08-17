@@ -20,6 +20,22 @@ function buildActionState({ latestRun, approvals }) {
   };
 }
 
+function buildVersionSummary(run) {
+  const report = run.report || {};
+  return {
+    version: run.version,
+    taskId: run.taskId,
+    status: run.status,
+    createdAt: run.createdAt,
+    contractVersion: report.contractVersion || null,
+    assumptions: report.assumptions || null,
+    investmentMetrics: report.investmentMetrics || null,
+    recommendation: report.decision?.recommendation || null,
+    targetPurchasePrice: report.decision?.targetPurchasePrice || null,
+    confidence: report.dataQuality?.confidence || null,
+  };
+}
+
 async function buildDealWorkspace({ repository, durableService, orgId, dealId }) {
   const deal = await durableService.getDeal(orgId, dealId);
   if (!deal) throw new Error(`Deal not found: ${dealId}`);
@@ -46,13 +62,7 @@ async function buildDealWorkspace({ repository, durableService, orgId, dealId })
       latestRun,
       latestReport: latestRun?.report || null,
       runCount: runs.length,
-      versions: runs.map((run) => ({
-        version: run.version,
-        taskId: run.taskId,
-        status: run.status,
-        createdAt: run.createdAt,
-        contractVersion: run.report?.contractVersion || null,
-      })),
+      versions: runs.map(buildVersionSummary),
     },
     approvals: dealApprovals,
     actions: buildActionState({ latestRun, approvals: dealApprovals }),
@@ -60,4 +70,4 @@ async function buildDealWorkspace({ repository, durableService, orgId, dealId })
   };
 }
 
-module.exports = { buildDealWorkspace, buildActionState };
+module.exports = { buildDealWorkspace, buildActionState, buildVersionSummary };
