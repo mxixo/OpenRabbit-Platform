@@ -2,6 +2,7 @@
 
 const crypto = require("crypto");
 const http = require("http");
+const { requiredScopeForRequest, hasScope } = require("../../../runtime/authorization-policy");
 
 function required(value, name) {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${name} is required`);
@@ -21,6 +22,7 @@ function normalizeCredential(input, index = 0) {
     principal: {
       actorId: required(input.actorId, `credential ${index + 1} actorId`),
       orgId: required(input.orgId, `credential ${index + 1} orgId`),
+      scopes: Array.isArray(input.scopes) && input.scopes.length ? [...new Set(input.scopes)] : ["*"],
     },
   };
 }
@@ -30,7 +32,7 @@ function createTokenSetAuthenticator(credentials) {
   const principalsByDigest = new Map();
   credentials.map(normalizeCredential).forEach(({ digest: tokenDigest, principal }) => {
     if (principalsByDigest.has(tokenDigest)) throw new Error("duplicate credential token");
-    principalsByDigest.set(tokenDigest, Object.freeze({ ...principal }));
+    principalsByDigest.set(tokenDigest, Object.freeze({ ...principal, scopes: Object.freeze([...principal.scopes]) }));
   });
   return async function authenticate(request) {
     const authorization = request.headers.authorization || "";
@@ -40,8 +42,8 @@ function createTokenSetAuthenticator(credentials) {
   };
 }
 
-function createStaticTokenAuthenticator({ token, actorId, orgId }) {
-  return createTokenSetAuthenticator([{ token, actorId, orgId }]);
+function createStaticTokenAuthenticator({ token, actorId, orgId, scopes = ["*"] }) {
+  return createTokenSetAuthenticator([{ token, actorId, orgId, scopes }]);
 }
 
 function orgFromPath(path) {
@@ -101,6 +103,12 @@ function createRealEstateHttpServer({ api, authenticate, maxBodyBytes = 1024 * 1
       const requestedOrg = orgFromPath(request.url || "");
       if (!requestedOrg || requestedOrg !== principal.orgId) {
         return sendJson(response, 403, { error: { code: "TENANT_FORBIDDEN", message: "Organization access denied" } });
+      }
+      const requiredScope = requiredScopeForRequest(request.method, request.url || "");
+      if (!hasScope(principal, requiredScope)) {
+        return sendJson(response, 403, {
+          error: { code: "SCOPE_FORBIDDEN", message: "Credential is not authorized for this action", requiredScope },
+        });
       }
       const body = await readJson(request, maxBodyBytes);
       const result = await api.handle({
