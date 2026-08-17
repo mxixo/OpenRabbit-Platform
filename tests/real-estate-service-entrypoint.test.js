@@ -47,6 +47,12 @@ async function runTests() {
     });
     assert.strictEqual(response.status, 201);
     assert.ok((await response.json()).data.output.report.decision);
+
+    const telemetry = await application.telemetryStore.listByExecution("org-maico", "entrypoint-run-1");
+    assert.strictEqual(telemetry.length, 1);
+    assert.strictEqual(telemetry[0].workflowId, "commercial-underwriting");
+    assert.strictEqual(telemetry[0].status, "succeeded");
+    assert.strictEqual(telemetry[0].metadata.dealId, "deal-entrypoint");
   } finally {
     await new Promise((resolve, reject) => application.server.close((error) => error ? reject(error) : resolve()));
   }

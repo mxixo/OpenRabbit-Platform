@@ -4,10 +4,13 @@ const crypto = require("crypto");
 const workflow = require("../workflows/commercial-investment-workflow");
 const { CONTRACT_VERSION } = require("../contracts/underwriting-contract");
 
+const UNDERWRITING_WORKFLOW_ID = "commercial-underwriting";
+
 class DurableUnderwritingService {
-  constructor({ repository, executeUnderwriting = (input) => workflow.run(input) }) {
+  constructor({ repository, telemetryStore, executeUnderwriting = (input) => workflow.run(input) }) {
     if (!repository) throw new Error("repository is required");
     this.repository = repository;
+    this.telemetryStore = telemetryStore;
     this.executeUnderwriting = executeUnderwriting;
   }
 
@@ -23,7 +26,37 @@ class DurableUnderwritingService {
     return this.repository.listUnderwritingRuns(orgId, dealId);
   }
 
-  async runUnderwriting({ orgId, dealId, taskId, input }) {
+  async resolveTelemetryAttempt(orgId, taskId, telemetry = {}) {
+    if (telemetry.attempt !== undefined) return telemetry.attempt;
+    if (!this.telemetryStore || typeof this.telemetryStore.listByExecution !== "function") return 1;
+    const existing = await this.telemetryStore.listByExecution(orgId, taskId);
+    return existing.length ? Math.max(...existing.map((record) => record.attempt)) + 1 : 1;
+  }
+
+  async recordUnderwritingTelemetry({ orgId, dealId, taskId, status, telemetry = {}, error }) {
+    if (!this.telemetryStore) return;
+    const attempt = await this.resolveTelemetryAttempt(orgId, taskId, telemetry);
+    await this.telemetryStore.append({
+      executionId: taskId,
+      tenantId: orgId,
+      workflowId: UNDERWRITING_WORKFLOW_ID,
+      attempt,
+      status,
+      agentId: telemetry.agentId,
+      provider: telemetry.provider,
+      model: telemetry.model,
+      usage: telemetry.usage,
+      costs: telemetry.costs,
+      completedAt: new Date().toISOString(),
+      errorCode: error && (error.code || error.name || "UNDERWRITING_FAILED"),
+      metadata: {
+        ...telemetry.metadata,
+        dealId,
+      },
+    });
+  }
+
+  async runUnderwriting({ orgId, dealId, taskId, input, telemetry = {} }) {
     const existing = await this.repository.getTaskResult(orgId, taskId);
     if (existing) return { ...existing.result, duplicate: true };
 
@@ -31,7 +64,21 @@ class DurableUnderwritingService {
     if (!deal) throw new Error(`Deal not found: ${dealId}`);
 
     const workflowInput = { ...input, address: input.address || deal.address, propertyType: input.propertyType || deal.propertyType };
-    const rawOutput = await this.executeUnderwriting(workflowInput);
+    let rawOutput;
+    try {
+      rawOutput = await this.executeUnderwriting(workflowInput);
+    } catch (error) {
+      await this.recordUnderwritingTelemetry({
+        orgId,
+        dealId,
+        taskId,
+        status: "failed",
+        telemetry,
+        error,
+      });
+      throw error;
+    }
+
     const output = {
       ...rawOutput,
       contractVersion: CONTRACT_VERSION,
@@ -59,6 +106,13 @@ class DurableUnderwritingService {
       action: "commercial_investment_workflow",
       outcome: "completed",
       metadata: { dealId },
+    });
+    await this.recordUnderwritingTelemetry({
+      orgId,
+      dealId,
+      taskId,
+      status: "succeeded",
+      telemetry,
     });
     return result;
   }
@@ -100,4 +154,4 @@ class DurableUnderwritingService {
   }
 }
 
-module.exports = { DurableUnderwritingService };
+module.exports = { DurableUnderwritingService, UNDERWRITING_WORKFLOW_ID };
