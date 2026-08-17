@@ -1,5 +1,7 @@
 "use strict";
 
+const { buildDealWorkspace } = require("./deal-workspace");
+
 function parts(path) {
   return path.split("?")[0].split("/").filter(Boolean).map(decodeURIComponent);
 }
@@ -78,6 +80,17 @@ class RealEstateProductApi {
         return deal
           ? { status: 200, data: deal }
           : { status: 404, error: { code: "DEAL_NOT_FOUND", message: `Deal not found: ${route[4]}`, retryable: false } };
+      }
+      if (verb === "GET" && route.length === 6 && route[3] === "deals" && route[5] === "workspace") {
+        return {
+          status: 200,
+          data: await buildDealWorkspace({
+            repository: this.repository,
+            durableService: this.durableService,
+            orgId,
+            dealId: route[4],
+          }),
+        };
       }
       if (verb === "POST" && route.length === 6 && route[3] === "deals" && route[5] === "underwriting-runs") {
         return { status: 201, data: await this.durableService.runUnderwriting({ orgId, dealId: route[4], ...body }) };
