@@ -10,6 +10,7 @@ const {
 const {
   SupabaseExecutionTelemetryStore,
 } = require("../integrations/supabase/execution-telemetry/store");
+const { loadApiCredentials } = require("../runtime/auth-config");
 const {
   ControlledOutreachTransport,
   ApprovalEnforcedOutreachService,
@@ -18,7 +19,7 @@ const {
   RealEstateProductApi,
 } = require("../capabilities/real-estate/product-api/product-api");
 const {
-  createStaticTokenAuthenticator,
+  createTokenSetAuthenticator,
   createRealEstateHttpServer,
 } = require("../capabilities/real-estate/product-api/http-server");
 
@@ -33,8 +34,6 @@ function loadConfig(env = process.env) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error("OPENRABBIT_API_PORT must be an integer from 0 to 65535");
   }
-  const token = required(env, "OPENRABBIT_API_TOKEN");
-  if (Buffer.byteLength(token) < 32) throw new Error("OPENRABBIT_API_TOKEN must be at least 32 bytes");
   const allowedRecipients = (env.OPENRABBIT_ALLOWED_OUTREACH_RECIPIENTS || "test-recipient@openrabbit.local")
     .split(",")
     .map((value) => value.trim().toLowerCase())
@@ -43,9 +42,7 @@ function loadConfig(env = process.env) {
   return {
     host: env.OPENRABBIT_API_HOST || "127.0.0.1",
     port,
-    token,
-    actorId: required(env, "OPENRABBIT_ACTOR_ID"),
-    orgId: required(env, "OPENRABBIT_ORG_ID"),
+    credentials: loadApiCredentials(env),
     supabaseUrl: required(env, "SUPABASE_URL"),
     supabaseSecretKey: required(env, "SUPABASE_SECRET_KEY"),
     allowedRecipients,
@@ -71,11 +68,7 @@ function createApplication(config, options = {}) {
     transport,
   });
   const api = new RealEstateProductApi({ durableService, repository, outreachService });
-  const authenticate = createStaticTokenAuthenticator({
-    token: config.token,
-    actorId: config.actorId,
-    orgId: config.orgId,
-  });
+  const authenticate = createTokenSetAuthenticator(config.credentials);
   const server = createRealEstateHttpServer({ api, authenticate });
   return { server, repository, transport, telemetryStore };
 }
