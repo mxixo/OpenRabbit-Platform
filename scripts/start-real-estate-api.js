@@ -8,8 +8,8 @@ const {
   DurableUnderwritingService,
 } = require("../capabilities/real-estate/persistence/durable-underwriting-service");
 const {
-  InMemoryExecutionTelemetryStore,
-} = require("../runtime/execution-telemetry");
+  SupabaseExecutionTelemetryStore,
+} = require("../integrations/supabase/execution-telemetry/store");
 const {
   ControlledOutreachTransport,
   ApprovalEnforcedOutreachService,
@@ -57,7 +57,10 @@ function createApplication(config, options = {}) {
     projectUrl: config.supabaseUrl,
     secretKey: config.supabaseSecretKey,
   });
-  const telemetryStore = options.telemetryStore || new InMemoryExecutionTelemetryStore();
+  const telemetryStore = options.telemetryStore || new SupabaseExecutionTelemetryStore({
+    projectUrl: config.supabaseUrl,
+    secretKey: config.supabaseSecretKey,
+  });
   const durableService = new DurableUnderwritingService({ repository, telemetryStore });
   const transport = options.transport || new ControlledOutreachTransport({
     allowedRecipients: config.allowedRecipients,
