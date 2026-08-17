@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node index.js",
     "start:real-estate-api": "node scripts/start-real-estate-api.js",
-    "test": "node tests/skills.test.js && node tests/openclaw-runtime-provider.test.js && node tests/real-estate-pack.test.js && node tests/underwriting-quality.test.js && node tests/underwriting-contract.test.js && node tests/durable-underwriting-state.test.js && node tests/underwriting-telemetry-retry.test.js && node tests/first-complete-loop.test.js && node tests/real-estate-product-api.test.js && node tests/deal-workspace.test.js && node tests/deal-workspace-actions.test.js && node tests/execution-telemetry.test.js && node tests/supabase-execution-telemetry.test.js && node tests/real-estate-http-server.test.js && node tests/real-estate-service-entrypoint.test.js",
+    "test": "node tests/skills.test.js && node tests/openclaw-runtime-provider.test.js && node tests/real-estate-pack.test.js && node tests/underwriting-quality.test.js && node tests/underwriting-contract.test.js && node tests/durable-underwriting-state.test.js && node tests/underwriting-telemetry-retry.test.js && node tests/first-complete-loop.test.js && node tests/real-estate-product-api.test.js && node tests/deal-workspace.test.js && node tests/deal-workspace-actions.test.js && node tests/execution-telemetry.test.js && node tests/supabase-execution-telemetry.test.js && node tests/database-migrations.test.js && node tests/real-estate-http-server.test.js && node tests/real-estate-service-entrypoint.test.js",
     "workflow:commercial": "node scripts/run-commercial-workflow.js",
     "ci:quality-gates": "bash ./scripts/ci/run-quality-gates.sh",
     "ci:quick": "bash ./scripts/bootstrap/check-env.sh"
