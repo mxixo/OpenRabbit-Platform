@@ -26,13 +26,21 @@ class DurableUnderwritingService {
     return this.repository.listUnderwritingRuns(orgId, dealId);
   }
 
+  async resolveTelemetryAttempt(orgId, taskId, telemetry = {}) {
+    if (telemetry.attempt !== undefined) return telemetry.attempt;
+    if (!this.telemetryStore || typeof this.telemetryStore.listByExecution !== "function") return 1;
+    const existing = await this.telemetryStore.listByExecution(orgId, taskId);
+    return existing.length ? Math.max(...existing.map((record) => record.attempt)) + 1 : 1;
+  }
+
   async recordUnderwritingTelemetry({ orgId, dealId, taskId, status, telemetry = {}, error }) {
     if (!this.telemetryStore) return;
+    const attempt = await this.resolveTelemetryAttempt(orgId, taskId, telemetry);
     await this.telemetryStore.append({
       executionId: taskId,
       tenantId: orgId,
       workflowId: UNDERWRITING_WORKFLOW_ID,
-      attempt: telemetry.attempt || 1,
+      attempt,
       status,
       agentId: telemetry.agentId,
       provider: telemetry.provider,
