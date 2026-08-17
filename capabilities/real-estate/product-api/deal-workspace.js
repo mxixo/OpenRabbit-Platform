@@ -13,7 +13,9 @@ function buildActionState({ latestRun, approvals }) {
     pendingApprovalCount: pendingApprovals.length,
     approvedApprovalCount: approvedApprovals.length,
     canRequestOutreachApproval: Boolean(
-      latestRun && decision?.approvalRequiredFor?.includes("send_investor_outreach")
+      latestRun &&
+      pendingApprovals.length === 0 &&
+      decision?.approvalRequiredFor?.includes("send_investor_outreach")
     ),
   };
 }
