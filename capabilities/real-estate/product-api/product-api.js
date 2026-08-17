@@ -4,11 +4,55 @@ function parts(path) {
   return path.split("?")[0].split("/").filter(Boolean).map(decodeURIComponent);
 }
 
-function errorStatus(error) {
+function extractField(message) {
+  const match = String(message || "").match(/\b(input\.[A-Za-z0-9_.]+|message\.[A-Za-z0-9_.]+)\b/);
+  return match ? match[1] : undefined;
+}
+
+function normalizeProductError(error) {
   const message = error instanceof Error ? error.message : "Request failed";
-  if (message.includes("not found") || message.includes("not allowed")) return 404;
-  if (message.includes("requires approved") || message.includes("already")) return 409;
-  return 400;
+  const lower = message.toLowerCase();
+  const field = extractField(message);
+
+  if (lower.includes("not found")) {
+    return { status: 404, error: { code: "RESOURCE_NOT_FOUND", message, retryable: false } };
+  }
+  if (lower.includes("not allowed")) {
+    return { status: 403, error: { code: "ACTION_FORBIDDEN", message, retryable: false } };
+  }
+  if (lower.includes("requires approved")) {
+    return { status: 409, error: { code: "APPROVAL_REQUIRED", message, retryable: false } };
+  }
+  if (lower.includes("already")) {
+    return { status: 409, error: { code: "STATE_CONFLICT", message, retryable: false } };
+  }
+  if (
+    lower.includes("required") ||
+    lower.includes("must be") ||
+    lower.includes("is invalid") ||
+    lower.includes("must be greater") ||
+    lower.includes("must be at least") ||
+    lower.includes("must be no greater")
+  ) {
+    return {
+      status: 400,
+      error: {
+        code: "VALIDATION_ERROR",
+        message,
+        ...(field ? { field } : {}),
+        retryable: false,
+      },
+    };
+  }
+
+  return {
+    status: 500,
+    error: {
+      code: "INTERNAL_ERROR",
+      message: "Request failed",
+      retryable: true,
+    },
+  };
 }
 
 class RealEstateProductApi {
@@ -22,7 +66,7 @@ class RealEstateProductApi {
     const route = parts(path);
     const verb = String(method || "").toUpperCase();
     if (route[0] !== "v1" || route[1] !== "orgs" || !route[2]) {
-      return { status: 404, error: { code: "ROUTE_NOT_FOUND", message: "Route not found" } };
+      return { status: 404, error: { code: "ROUTE_NOT_FOUND", message: "Route not found", retryable: false } };
     }
     const orgId = route[2];
     try {
@@ -33,7 +77,7 @@ class RealEstateProductApi {
         const deal = await this.durableService.getDeal(orgId, route[4]);
         return deal
           ? { status: 200, data: deal }
-          : { status: 404, error: { code: "DEAL_NOT_FOUND", message: `Deal not found: ${route[4]}` } };
+          : { status: 404, error: { code: "DEAL_NOT_FOUND", message: `Deal not found: ${route[4]}`, retryable: false } };
       }
       if (verb === "POST" && route.length === 6 && route[3] === "deals" && route[5] === "underwriting-runs") {
         return { status: 201, data: await this.durableService.runUnderwriting({ orgId, dealId: route[4], ...body }) };
@@ -64,17 +108,11 @@ class RealEstateProductApi {
       if (verb === "GET" && route.length === 4 && route[3] === "audit") {
         return { status: 200, data: await this.repository.listAudit(orgId) };
       }
-      return { status: 404, error: { code: "ROUTE_NOT_FOUND", message: "Route not found" } };
+      return { status: 404, error: { code: "ROUTE_NOT_FOUND", message: "Route not found", retryable: false } };
     } catch (error) {
-      return {
-        status: errorStatus(error),
-        error: {
-          code: "PRODUCT_API_ERROR",
-          message: error instanceof Error ? error.message : "Request failed",
-        },
-      };
+      return normalizeProductError(error);
     }
   }
 }
 
-module.exports = { RealEstateProductApi };
+module.exports = { RealEstateProductApi, normalizeProductError };
