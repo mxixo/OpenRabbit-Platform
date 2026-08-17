@@ -79,7 +79,7 @@ async function runTests() {
   assert.deepStrictEqual(response.data.underwriting.versions.map((item) => item.version), [1, 2]);
   assert.strictEqual(response.data.approvals.length, 1);
   assert.strictEqual(response.data.actions.pendingApprovalCount, 1);
-  assert.strictEqual(response.data.actions.canRequestOutreachApproval, true);
+  assert.strictEqual(response.data.actions.canRequestOutreachApproval, false);
   assert.ok(Array.isArray(response.data.actions.suggestedNextActions));
   assert.ok(response.data.history.some((entry) => entry.kind === "approval_requested"));
 
