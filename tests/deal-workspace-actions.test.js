@@ -40,24 +40,24 @@ async function runTests() {
 
   response = await api.handle({ method: "GET", path: "/v1/orgs/org-ui/deals/deal-ui/workspace" });
   const firstWorkspace = response.data;
-  assert.strictEqual(firstWorkspace.summary.runCount, 1);
-  assert.strictEqual(firstWorkspace.latestReport.assumptions.purchasePrice, 1600000);
+  assert.strictEqual(firstWorkspace.underwriting.runCount, 1);
+  assert.strictEqual(firstWorkspace.underwriting.latestReport.assumptions.purchasePrice, 1600000);
 
   response = await api.handle({
     method: "POST",
     path: "/v1/orgs/org-ui/deals/deal-ui/underwriting-runs",
     body: {
       taskId: "underwrite-ui-2",
-      input: { ...firstWorkspace.latestReport.assumptions, purchasePrice: 1450000, annualGrossIncome: 275000 },
+      input: { ...firstWorkspace.underwriting.latestReport.assumptions, purchasePrice: 1450000, annualGrossIncome: 275000 },
     },
   });
   assert.strictEqual(response.status, 201);
 
   response = await api.handle({ method: "GET", path: "/v1/orgs/org-ui/deals/deal-ui/workspace" });
   const revised = response.data;
-  assert.strictEqual(revised.summary.runCount, 2);
-  assert.strictEqual(revised.latestReport.assumptions.purchasePrice, 1450000);
-  assert.strictEqual(revised.latestReport.assumptions.annualGrossIncome, 275000);
+  assert.strictEqual(revised.underwriting.runCount, 2);
+  assert.strictEqual(revised.underwriting.latestReport.assumptions.purchasePrice, 1450000);
+  assert.strictEqual(revised.underwriting.latestReport.assumptions.annualGrossIncome, 275000);
 
   response = await api.handle({
     method: "POST",
@@ -70,7 +70,7 @@ async function runTests() {
       message: {
         recipient: "test-recipient@openrabbit.local",
         subject: "Investment review",
-        body: revised.latestReport.investorOutreachDraft,
+        body: revised.underwriting.latestReport.investorOutreachDraft,
       },
     },
   });
@@ -78,8 +78,8 @@ async function runTests() {
   assert.strictEqual(response.data.status, "pending");
 
   response = await api.handle({ method: "GET", path: "/v1/orgs/org-ui/deals/deal-ui/workspace" });
-  assert.strictEqual(response.data.summary.pendingApprovalCount, 1);
-  assert.strictEqual(response.data.nextActions.canRequestOutreachApproval, false);
+  assert.strictEqual(response.data.actions.pendingApprovalCount, 1);
+  assert.strictEqual(response.data.actions.canRequestOutreachApproval, false);
 
   response = await api.handle({
     method: "POST",
@@ -110,7 +110,7 @@ async function runTests() {
       message: {
         recipient: "test-recipient@openrabbit.local",
         subject: "Second investment review",
-        body: revised.latestReport.investorOutreachDraft,
+        body: revised.underwriting.latestReport.investorOutreachDraft,
       },
     },
   });
@@ -134,9 +134,9 @@ async function runTests() {
   assert.strictEqual(deliveries.size, 1);
 
   response = await api.handle({ method: "GET", path: "/v1/orgs/org-ui/deals/deal-ui/workspace" });
-  assert.strictEqual(response.data.summary.approvedApprovalCount, 1);
-  assert.ok(response.data.audit.some((entry) => entry.action === "send_investor_outreach" && entry.outcome === "completed"));
-  assert.ok(response.data.audit.some((entry) => entry.kind === "approval_denied"));
+  assert.strictEqual(response.data.actions.approvedApprovalCount, 1);
+  assert.ok(response.data.history.some((entry) => entry.action === "send_investor_outreach" && entry.outcome === "completed"));
+  assert.ok(response.data.history.some((entry) => entry.kind === "approval_denied"));
 
   console.log("Deal workspace action tests passed.");
 }
