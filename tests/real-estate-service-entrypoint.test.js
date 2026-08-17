@@ -5,6 +5,7 @@ const {
   createInMemoryStateBacking,
   InMemoryRealEstateStateRepository,
 } = require("../capabilities/real-estate/persistence/state-repository");
+const { InMemoryExecutionTelemetryStore } = require("../runtime/execution-telemetry");
 const { loadConfig, startApplication } = require("../scripts/start-real-estate-api");
 
 async function runTests() {
@@ -19,7 +20,8 @@ async function runTests() {
     SUPABASE_SECRET_KEY: "server-only-test-key",
   });
   const repository = new InMemoryRealEstateStateRepository(createInMemoryStateBacking());
-  const application = await startApplication(config, { repository });
+  const telemetryStore = new InMemoryExecutionTelemetryStore();
+  const application = await startApplication(config, { repository, telemetryStore });
   const address = application.server.address();
   const baseUrl = `http://127.0.0.1:${address.port}`;
   try {
