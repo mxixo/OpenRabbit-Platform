@@ -93,7 +93,10 @@ class RealEstateProductApi {
         };
       }
       if (verb === "POST" && route.length === 6 && route[3] === "deals" && route[5] === "underwriting-runs") {
-        return { status: 201, data: await this.durableService.runUnderwriting({ orgId, dealId: route[4], ...body }) };
+        return {
+          status: 201,
+          data: await this.durableService.runUnderwriting({ orgId, dealId: route[4], actorId, ...body }),
+        };
       }
       if (verb === "GET" && route.length === 6 && route[3] === "deals" && route[5] === "underwriting-runs") {
         return { status: 200, data: await this.durableService.listRuns(orgId, route[4]) };
