@@ -118,7 +118,7 @@ async function runTests() {
     message: {
       recipient,
       subject: `Investment review — ${deal.address}`,
-      body: revisedRun.output.outreachDraft,
+      body: revisedRun.output.investorOutreachDraft,
     },
   });
   assert.strictEqual(approval.status, "pending");
