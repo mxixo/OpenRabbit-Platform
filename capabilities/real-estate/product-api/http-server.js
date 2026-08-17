@@ -9,20 +9,39 @@ function required(value, name) {
 }
 
 function digest(value) {
-  return crypto.createHash("sha256").update(value).digest();
+  return crypto.createHash("sha256").update(value).digest("hex");
 }
 
-function createStaticTokenAuthenticator({ token, actorId, orgId }) {
-  const normalizedToken = required(token, "token");
-  if (Buffer.byteLength(normalizedToken) < 32) throw new Error("token must be at least 32 bytes");
-  const expected = digest(normalizedToken);
-  const principal = { actorId: required(actorId, "actorId"), orgId: required(orgId, "orgId") };
+function normalizeCredential(input, index = 0) {
+  if (!input || typeof input !== "object") throw new Error(`credential ${index + 1} is required`);
+  const token = required(input.token, `credential ${index + 1} token`);
+  if (Buffer.byteLength(token) < 32) throw new Error(`credential ${index + 1} token must be at least 32 bytes`);
+  return {
+    digest: digest(token),
+    principal: {
+      actorId: required(input.actorId, `credential ${index + 1} actorId`),
+      orgId: required(input.orgId, `credential ${index + 1} orgId`),
+    },
+  };
+}
+
+function createTokenSetAuthenticator(credentials) {
+  if (!Array.isArray(credentials) || !credentials.length) throw new Error("at least one credential is required");
+  const principalsByDigest = new Map();
+  credentials.map(normalizeCredential).forEach(({ digest: tokenDigest, principal }) => {
+    if (principalsByDigest.has(tokenDigest)) throw new Error("duplicate credential token");
+    principalsByDigest.set(tokenDigest, Object.freeze({ ...principal }));
+  });
   return async function authenticate(request) {
     const authorization = request.headers.authorization || "";
     const supplied = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
-    if (!supplied || !crypto.timingSafeEqual(digest(supplied), expected)) return undefined;
-    return principal;
+    if (!supplied) return undefined;
+    return principalsByDigest.get(digest(supplied));
   };
+}
+
+function createStaticTokenAuthenticator({ token, actorId, orgId }) {
+  return createTokenSetAuthenticator([{ token, actorId, orgId }]);
 }
 
 function orgFromPath(path) {
@@ -103,4 +122,9 @@ function createRealEstateHttpServer({ api, authenticate, maxBodyBytes = 1024 * 1
   });
 }
 
-module.exports = { createStaticTokenAuthenticator, createRealEstateHttpServer };
+module.exports = {
+  normalizeCredential,
+  createTokenSetAuthenticator,
+  createStaticTokenAuthenticator,
+  createRealEstateHttpServer,
+};

@@ -1,12 +1,8 @@
 "use strict";
 
-const REQUIRED_ENV = [
-  "OPENRABBIT_API_TOKEN",
-  "OPENRABBIT_ACTOR_ID",
-  "OPENRABBIT_ORG_ID",
-  "SUPABASE_URL",
-  "SUPABASE_SECRET_KEY",
-];
+const { loadApiCredentials } = require("../runtime/auth-config");
+
+const REQUIRED_ENV = ["SUPABASE_URL", "SUPABASE_SECRET_KEY"];
 
 const REQUIRED_TABLES = [
   "real_estate_deals",
@@ -20,9 +16,7 @@ const REQUIRED_TABLES = [
 function validateEnvironment(env = process.env) {
   const missing = REQUIRED_ENV.filter((name) => typeof env[name] !== "string" || !env[name].trim());
   if (missing.length) throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
-  if (Buffer.byteLength(env.OPENRABBIT_API_TOKEN.trim()) < 32) {
-    throw new Error("OPENRABBIT_API_TOKEN must be at least 32 bytes");
-  }
+  const credentials = loadApiCredentials(env);
   let url;
   try {
     url = new URL(env.SUPABASE_URL.trim());
@@ -31,6 +25,7 @@ function validateEnvironment(env = process.env) {
   }
   if (url.protocol !== "https:") throw new Error("SUPABASE_URL must use HTTPS");
   return {
+    credentials,
     supabaseUrl: url.toString().replace(/\/$/, ""),
     supabaseSecretKey: env.SUPABASE_SECRET_KEY.trim(),
   };
@@ -66,6 +61,7 @@ async function runPreflight({ env = process.env, fetchImpl = fetch } = {}) {
   return {
     status: "ready",
     environment: "ok",
+    authentication: { credentials: config.credentials.length },
     database: "ok",
     tables: checks.map((check) => check.table),
   };
