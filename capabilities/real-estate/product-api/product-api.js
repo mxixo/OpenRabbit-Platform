@@ -72,6 +72,9 @@ class RealEstateProductApi {
     }
     const orgId = route[2];
     try {
+      if (verb === "GET" && route.length === 4 && route[3] === "deals") {
+        return { status: 200, data: await this.repository.listDeals(orgId) };
+      }
       if (verb === "POST" && route.length === 4 && route[3] === "deals") {
         return { status: 201, data: await this.durableService.createDeal({ ...body, orgId }) };
       }
