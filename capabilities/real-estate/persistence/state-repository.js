@@ -50,6 +50,13 @@ class InMemoryRealEstateStateRepository {
     return clone(this.backing.deals.get(this.key(orgId, dealId)));
   }
 
+  async listDeals(orgId) {
+    return [...this.backing.deals.values()]
+      .filter((deal) => deal.orgId === orgId)
+      .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
+      .map(clone);
+  }
+
   async saveTaskResult(input) {
     const key = this.key(input.orgId, input.taskId);
     if (this.backing.tasks.has(key)) return clone(this.backing.tasks.get(key));
@@ -102,7 +109,7 @@ class InMemoryRealEstateStateRepository {
     const current = this.backing.approvals.get(key);
     if (!current) throw new Error(`Approval request not found: ${approvalId}`);
     if (current.status !== "pending") throw new Error(`Approval request ${approvalId} is already ${current.status}`);
-    if (!['approve', 'deny'].includes(decision)) throw new Error("decision must be approve or deny");
+    if (!["approve", "deny"].includes(decision)) throw new Error("decision must be approve or deny");
     required(decidedBy, "decidedBy");
     const next = {
       ...current,
@@ -194,6 +201,14 @@ class SupabaseRealEstateStateRepository {
     return rows[0] ? mapDeal(rows[0]) : undefined;
   }
 
+  async listDeals(orgId) {
+    const rows = await this.request(
+      `real_estate_deals?org_id=eq.${encodeURIComponent(orgId)}&order=updated_at.desc`,
+      { method: "GET" }
+    );
+    return rows.map(mapDeal);
+  }
+
   async saveTaskResult(input) {
     const rows = await this.request("real_estate_task_results?on_conflict=org_id,task_id", {
       method: "POST",
@@ -266,7 +281,7 @@ class SupabaseRealEstateStateRepository {
   }
 
   async decideApproval(orgId, approvalId, decision, decidedBy) {
-    if (!['approve', 'deny'].includes(decision)) throw new Error("decision must be approve or deny");
+    if (!["approve", "deny"].includes(decision)) throw new Error("decision must be approve or deny");
     required(decidedBy, "decidedBy");
     const rows = await this.request(
       `real_estate_approval_requests?org_id=eq.${encodeURIComponent(orgId)}&id=eq.${encodeURIComponent(approvalId)}&status=eq.pending`,
