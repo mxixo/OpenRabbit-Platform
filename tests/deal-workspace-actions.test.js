@@ -99,9 +99,44 @@ async function runTests() {
   assert.strictEqual(response.data.status, "completed");
   assert.strictEqual(deliveries.size, 1);
 
+  response = await api.handle({
+    method: "POST",
+    path: "/v1/orgs/org-ui/deals/deal-ui/outreach-approvals",
+    actorId: "operator-ui",
+    body: {
+      taskId: "outreach-ui-2",
+      approvalId: "approval-ui-2",
+      workerId: "workspace-operator",
+      message: {
+        recipient: "test-recipient@openrabbit.local",
+        subject: "Second investment review",
+        body: revised.latestReport.investorOutreachDraft,
+      },
+    },
+  });
+  assert.strictEqual(response.status, 201);
+
+  response = await api.handle({
+    method: "POST",
+    path: "/v1/orgs/org-ui/approvals/approval-ui-2/decision",
+    actorId: "operator-ui",
+    body: { decision: "deny" },
+  });
+  assert.strictEqual(response.status, 200);
+  assert.strictEqual(response.data.status, "denied");
+
+  response = await api.handle({
+    method: "POST",
+    path: "/v1/orgs/org-ui/approvals/approval-ui-2/execute",
+    actorId: "operator-ui",
+  });
+  assert.strictEqual(response.status, 409);
+  assert.strictEqual(deliveries.size, 1);
+
   response = await api.handle({ method: "GET", path: "/v1/orgs/org-ui/deals/deal-ui/workspace" });
   assert.strictEqual(response.data.summary.approvedApprovalCount, 1);
   assert.ok(response.data.audit.some((entry) => entry.action === "send_investor_outreach" && entry.outcome === "completed"));
+  assert.ok(response.data.audit.some((entry) => entry.kind === "approval_denied"));
 
   console.log("Deal workspace action tests passed.");
 }
