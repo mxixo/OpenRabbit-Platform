@@ -78,7 +78,6 @@ export async function routeEmailApi(
       startAt: body.startAt,
       endAt: body.endAt,
       notes: body.notes ?? `Scheduled from email ${message.id}`,
-      source: "user",
       metadata: {
         emailMessageId: message.id,
         emailProvider: message.provider,
