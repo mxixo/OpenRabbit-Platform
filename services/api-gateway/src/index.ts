@@ -15,6 +15,7 @@ export * from "./oauth-providers.js";
 export * from "./oauth-state.js";
 export * from "./provider-authorization-service.js";
 export * from "./provider-sync.js";
+export * from "./provider-sync-scheduler.js";
 export * from "./provider-sync-api.js";
 export * from "./email-drafts.js";
 export * from "./provider-api.js";
