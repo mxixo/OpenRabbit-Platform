@@ -23,6 +23,8 @@ export * from "./social-api.js";
 export * from "./context-graph.js";
 export * from "./context-auto-link.js";
 export * from "./context-api.js";
+export * from "./entity-resolution.js";
+export * from "./entity-resolution-api.js";
 export * from "./environment-agent.js";
 export * from "./environment-agent-api.js";
 export * from "./service.js";
