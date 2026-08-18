@@ -34,6 +34,8 @@ import { InMemoryContextGraphStore } from "./context-graph.js";
 import { routeContextApi } from "./context-api.js";
 import { EnvironmentAgentService } from "./environment-agent.js";
 import { routeEnvironmentAgentApi } from "./environment-agent-api.js";
+import { EntityResolutionService } from "./entity-resolution.js";
+import { routeEntityResolutionApi } from "./entity-resolution-api.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -50,6 +52,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
   const propertyStore = new InMemoryPropertyStore();
   const socialStore = new InMemorySocialStore();
   const contextGraph = new InMemoryContextGraphStore();
+  const entityResolver = new EntityResolutionService(emailStore, nativeCrm, propertyStore, contextGraph);
 
   permissionManager.addPolicy({ id: "allow-api-requests", effect: "allow", actions: ["read", "write"], resources: ["api-request"] });
 
@@ -69,7 +72,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
       "email-calendar-linkage-v1", "provider-connections-v1", "provider-oauth-bootstrap-v1",
       "email-drafts-v1", "property-map-v1", "social-queue-v1", "social-autonomy-policy-v1",
       "context-graph-v1", "environment-actions-v1", "environment-agent-planner-v1",
-      "environment-agent-executor-v1", "automatic-context-linking-v1"
+      "environment-agent-executor-v1", "automatic-context-linking-v1", "entity-resolution-v1"
     ]
   };
 
@@ -87,7 +90,8 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           { name: "email-normalizer", status: "up" }, { name: "provider-connection-registry", status: "up" },
           { name: "provider-authorization", status: "up" }, { name: "email-draft-queue", status: "up" },
           { name: "property-map-normalizer", status: "up" }, { name: "social-queue", status: "up" },
-          { name: "context-graph", status: "up" }, { name: "environment-agent", status: "up" },
+          { name: "context-graph", status: "up" }, { name: "entity-resolution", status: "up" },
+          { name: "environment-agent", status: "up" },
           ...(platformBackend ? [{ name: "platform-backend", status: "up" as const }] : [])
         ]
       };
@@ -118,8 +122,9 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
         if (!platformBackend) { operationsFailed += 1; lastErrorCode = "PLATFORM_BACKEND_NOT_REGISTERED"; return { ok: false, error: { code: "PLATFORM_BACKEND_NOT_REGISTERED", message: "platform API backend is not registered", retryable: true } }; }
         try {
           const crmRoute = await routeNativeCrmApi(request, nativeCrm, contextGraph);
-          const emailRoute = crmRoute.matched ? crmRoute : await routeEmailApi(request, emailStore, platformBackend, contextGraph);
-          const providerRoute = emailRoute.matched ? emailRoute : await routeProviderApi(request, providerConnections, emailDrafts, providerAuthorization);
+          const emailRoute = crmRoute.matched ? crmRoute : await routeEmailApi(request, emailStore, platformBackend, contextGraph, entityResolver);
+          const resolutionRoute = emailRoute.matched ? emailRoute : await routeEntityResolutionApi(request, entityResolver);
+          const providerRoute = resolutionRoute.matched ? resolutionRoute : await routeProviderApi(request, providerConnections, emailDrafts, providerAuthorization);
           const mapRoute = providerRoute.matched ? providerRoute : await routeMapApi(request, propertyStore, contextGraph);
           const socialRoute = mapRoute.matched ? mapRoute : await routeSocialApi(request, socialStore, contextGraph);
           const agentRoute = socialRoute.matched ? socialRoute : await routeEnvironmentAgentApi(request, environmentAgent);
