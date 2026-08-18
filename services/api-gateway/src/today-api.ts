@@ -30,7 +30,7 @@ function isoDate(value: unknown): string | undefined {
   return value.slice(0, 10);
 }
 
-function recordTimestamp(value: unknown): string | undefined {
+function recordDate(value: unknown): string | undefined {
   if (!value || typeof value !== "object") return undefined;
   const record = value as Record<string, unknown>;
   return (
@@ -60,7 +60,7 @@ export async function routeTodayApi(
 
   const orgId = parts[2];
   const date = requestedDate ?? new Date().toISOString().slice(0, 10);
-  const [workers, approvals, audit, planItems] = await Promise.all([
+  const [workers, approvals, allAudit, planItems] = await Promise.all([
     backend.listWorkers(orgId),
     backend.listApprovals(orgId),
     backend.listAudit(orgId),
@@ -68,8 +68,10 @@ export async function routeTodayApi(
   ]);
 
   const pendingApprovals = approvals.filter((approval) => approval.status === "pending");
-  const agentActionsToday = audit.filter((record) => recordTimestamp(record) === date).length;
-  const activeWorkers = workers.filter((worker) => worker.status === undefined || worker.status === "active").length;
+  const audit = allAudit.filter((record) => recordDate(record) === date);
+  const activeWorkers = workers.filter(
+    (worker) => worker.status === undefined || worker.status === "active"
+  ).length;
 
   const data: TodaySurfaceSummary = {
     date,
@@ -80,7 +82,7 @@ export async function routeTodayApi(
     planItems,
     summary: {
       pendingApprovals: pendingApprovals.length,
-      agentActionsToday,
+      agentActionsToday: audit.length,
       scheduledItems: planItems.length,
       activeWorkers
     }
