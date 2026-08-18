@@ -67,6 +67,9 @@ Current routes:
 - `PATCH /v1/orgs/:orgId/email/drafts/:draftId`
 - `GET /v1/orgs/:orgId/connections`
 - `PUT /v1/orgs/:orgId/connections/:provider`
+- `POST /v1/orgs/:orgId/connections/:provider/authorize`
+- `POST /v1/orgs/:orgId/connections/:provider/callback`
+- `DELETE /v1/orgs/:orgId/connections/:provider`
 
 Provider imports are idempotent by provider + external message ID. Normalized messages can carry `relationshipId` and `propertyId`, allowing the same email to remain linked to CRM and Map/property context.
 
@@ -74,11 +77,17 @@ The scheduling route converts an email with scheduling intent into an OpenRabbit
 
 When Email is focused, `email-ui.js` exposes the first cross-interface action: a recognized scheduling email can be given a start/end time and added to Calendar from inside the Email surface. This is the first concrete implementation of the intended **Email → CRM/context → Calendar → Today** operating loop.
 
-### Delegated provider connection boundary
+### Delegated provider connection and OAuth bootstrap
 
-`DelegatedAuthorizationAdapter` defines the OAuth/delegated authorization boundary for Google, Microsoft, and future providers. The connection registry stores only user-visible status, granted capability/scopes metadata, account label, and sync health. **Access and refresh tokens are deliberately excluded** and belong in a dedicated encrypted credential service.
+`DelegatedAuthorizationAdapter` defines the OAuth/delegated authorization boundary for Google, Microsoft, and future providers. Google and Microsoft adapter factories now implement standards-based authorization URL construction, capability-to-scope mapping, PKCE, one-time authorization state, token exchange through an injectable HTTP client, and credential handoff through a dedicated secret-store boundary.
 
-Connections can declare granular capabilities such as `email.read`, `email.draft`, `email.send`, `calendar.read`, and `calendar.write`. This is the basis for onboarding choices like “read + draft email, but require approval to send.”
+The connection registry stores only user-visible status, granted capability/scope metadata, account label, and sync health. **Access and refresh tokens are deliberately excluded** from connection records and workspace APIs.
+
+`ProviderCredentialStore` is the secret-bearing boundary. The included in-memory implementation is for tests/development only and is explicitly not encrypted at rest or durable. Production should use KMS/HSM-backed envelope encryption or a managed secret store. This separation lets OpenRabbit expose connection health without leaking credentials into logs, browser payloads, or normal platform state.
+
+Connections declare granular capabilities such as `email.read`, `email.draft`, `email.send`, `calendar.read`, and `calendar.write`. This supports onboarding choices such as “read + draft email, but require approval to send.”
+
+OAuth begin/callback/revoke routes operate only when a provider authorization adapter has been registered with the API gateway. Unconfigured providers fail closed with `PROVIDER_AUTH_NOT_CONFIGURED` rather than pretending a connection exists.
 
 ### Draft/reply safety boundary
 
@@ -86,7 +95,7 @@ Connections can declare granular capabilities such as `email.read`, `email.draft
 
 `CalendarAdapter` is defined separately from OpenRabbit's planning kernel. Google/Microsoft calendars can synchronize selected plan items, while the OpenRabbit timeline remains the provider-neutral operating model.
 
-Like native CRM, the current normalized email, draft, and provider-connection stores are in-memory development storage. Actual Google/Microsoft OAuth clients, encrypted token custody, provider pagination/delta sync, webhook/watch subscriptions, and outbound delivery remain future work.
+Like native CRM, the current normalized email, draft, connection, and development credential stores are in-memory. Provider pagination/delta sync, webhook/watch subscriptions, production encrypted credential custody, and provider-native outbound delivery remain future work.
 
 ## Social autonomy template
 
