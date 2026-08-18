@@ -3,6 +3,8 @@ export * from "./platform-api.js";
 export * from "./today-api.js";
 export * from "./workspace-contracts.js";
 export * from "./workspace-api.js";
+export * from "./app-bootstrap.js";
+export * from "./app-bootstrap-api.js";
 export * from "./crm-adapter.js";
 export * from "./native-crm.js";
 export * from "./crm-api.js";
