@@ -6,6 +6,7 @@ const SLOT_ORDER = ["left", "right-top", "right-bottom", "bottom"];
 const PANEL_ORDER = ["calendar", "email", "crm", "social", "map"];
 const workspace = document.getElementById("adaptiveWorkspace");
 let workspaceModel = null;
+window.__openrabbitWorkspaceModel = null;
 
 function escapeHtml(value){return String(value??"").replace(/[&<>'"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]))}
 function validFocus(value){return PANEL_ORDER.includes(value)?value:DEFAULT_FOCUS}
@@ -26,8 +27,8 @@ const TEMPLATES = {
   },
   email: {
     title: "Email", sub: "Professional communication + agent triage",
-    compact(){const rows=items("email");if(!rows.length)return empty(surface("email").message||"Connect email to activate triage.");const action=rows.filter((x)=>x.needsAction).length;return `<div class="list"><div class="item"><strong>Needs action · ${action}</strong><span class="small muted">Across ${rows.length} normalized messages</span></div>${rows.slice(0,2).map((x)=>`<div class="item"><strong>${escapeHtml(x.subject)}</strong><span class="small muted">${escapeHtml(x.summary||x.from||x.actionType||"")}</span></div>`).join("")}</div>`},
-    focus(){const rows=items("email");if(!rows.length)return empty(surface("email").message||"Connect Gmail, Microsoft, or another supported provider.");const unread=rows.filter((x)=>x.unread).length, action=rows.filter((x)=>x.needsAction).length;return `<div class="metric-row"><div class="metric"><span class="small muted">Messages</span><b>${rows.length}</b></div><div class="metric"><span class="small muted">Unread</span><b>${unread}</b></div><div class="metric"><span class="small muted">Needs action</span><b>${action}</b></div></div><div style="height:12px"></div><div class="list">${rows.map((x)=>`<div class="item"><strong>${escapeHtml(x.subject)}</strong><span class="small muted">${escapeHtml(x.from||"")}${x.actionType?` · ${escapeHtml(x.actionType)}`:""}${x.summary?` · ${escapeHtml(x.summary)}`:""}</span></div>`).join("")}</div>`}
+    compact(){const rows=items("email");if(!rows.length)return empty(surface("email").message||"Connect email to activate triage.");const action=rows.filter((x)=>x.needsAction).length;return `<div class="list"><div class="item"><strong>Needs action · ${action}</strong><span class="small muted">Across ${rows.length} normalized messages</span></div>${rows.slice(0,2).map((x)=>`<div class="item" data-email-id="${escapeHtml(x.id)}"><strong>${escapeHtml(x.subject)}</strong><span class="small muted">${escapeHtml(x.summary||x.from||x.actionType||"")}</span></div>`).join("")}</div>`},
+    focus(){const rows=items("email");if(!rows.length)return empty(surface("email").message||"Connect Gmail, Microsoft, or another supported provider.");const unread=rows.filter((x)=>x.unread).length, action=rows.filter((x)=>x.needsAction).length;return `<div class="metric-row"><div class="metric"><span class="small muted">Messages</span><b>${rows.length}</b></div><div class="metric"><span class="small muted">Unread</span><b>${unread}</b></div><div class="metric"><span class="small muted">Needs action</span><b>${action}</b></div></div><div style="height:12px"></div><div class="list">${rows.map((x)=>`<div class="item" data-email-id="${escapeHtml(x.id)}"><strong>${escapeHtml(x.subject)}</strong><span class="small muted">${escapeHtml(x.from||"")}${x.actionType?` · ${escapeHtml(x.actionType)}`:""}${x.summary?` · ${escapeHtml(x.summary)}`:""}</span></div>`).join("")}</div>`}
   },
   crm: {
     title: "CRM", sub: "Relationships, leads, pipeline, follow-up intelligence",
@@ -53,7 +54,8 @@ function renderWorkspace(focus=loadFocus()){
     const template=TEMPLATES[id], isFocused=id===selected, slot=isFocused?"focus":slots.get(id);
     return `<section class="workspace-panel ${isFocused?"focused":""}" data-panel="${id}" data-slot="${slot}"><header class="panel-head"><div><div class="panel-title">${template.title}</div><div class="panel-sub">${template.sub}</div></div><button class="focus-btn" data-focus="${id}" aria-label="Focus ${template.title}">${isFocused?"Focused":"Expand"}</button></header><div class="panel-body">${isFocused?template.focus():template.compact()}</div><div class="footer-note">${isFocused?`Primary workspace · ${statusNote(id)}`:`Live preview · ${statusNote(id)}`}</div></section>`;
   }).join("");
-  document.querySelectorAll("[data-focus]").forEach((button)=>button.addEventListener("click",()=>{const next=button.dataset.focus;if(!next||next===selected)return;saveFocus(next);renderWorkspace(next)}));
+  document.querySelectorAll("[data-focus]").forEach((button)=>button.addEventListener("click",()=>{const next=button.dataset.focus;if(!next||next===selected)return;saveFocus(next);renderWorkspace(next);window.dispatchEvent(new CustomEvent("openrabbit:workspace-rendered",{detail:{focus:next}}))}));
+  window.dispatchEvent(new CustomEvent("openrabbit:workspace-rendered",{detail:{focus:selected}}));
 }
 
 function updateTodayStrip(){const s=workspaceModel?.summary||{};document.getElementById("todayApprovals").textContent=`Approvals ${s.pendingApprovals??0}`;document.getElementById("todayActions").textContent=`Agent actions ${s.agentActionsToday??0}`;document.getElementById("todaySchedule").textContent=`Scheduled ${s.scheduledItems??0}`}
@@ -66,10 +68,12 @@ async function loadWorkspaceModel(){
     if(!response.ok)throw new Error("workspace API unavailable");
     const payload=await response.json();
     workspaceModel=payload?.data?.result??payload?.data??payload;
+    window.__openrabbitWorkspaceModel=workspaceModel;
+    window.dispatchEvent(new CustomEvent("openrabbit:workspace-model",{detail:workspaceModel}));
     updateTodayStrip();
-    const stored=loadFocus();
-    renderWorkspace(stored||workspaceModel?.focusRecommendation||DEFAULT_FOCUS);
+    renderWorkspace(loadFocus());
   }catch{
+    window.__openrabbitWorkspaceModel=null;
     updateTodayStrip();
     renderWorkspace(loadFocus());
   }
