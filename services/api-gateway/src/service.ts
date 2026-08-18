@@ -16,6 +16,7 @@ import {
   ValidationResult
 } from "./contracts.js";
 import { PlatformApiBackend, routePlatformApi } from "./platform-api.js";
+import { routeTodayApi } from "./today-api.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -51,7 +52,8 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
       "health",
       "request-validation",
       "request-handling",
-      "platform-api-v1"
+      "platform-api-v1",
+      "today-surface-v1"
     ]
   };
 
@@ -194,7 +196,10 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
         }
 
         try {
-          const routed = await routePlatformApi(request, platformBackend);
+          const todayRoute = await routeTodayApi(request, platformBackend);
+          const routed = todayRoute.matched
+            ? todayRoute
+            : await routePlatformApi(request, platformBackend);
           if (!routed.matched) {
             operationsFailed += 1;
             lastErrorCode = "ROUTE_NOT_FOUND";
