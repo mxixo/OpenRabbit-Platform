@@ -7,6 +7,7 @@ const { DurableUnderwritingService } = require("./persistence/durable-underwriti
 const productApi = require("./product-api/product-api");
 const outreach = require("./product-api/approval-enforced-outreach");
 const httpServer = require("./product-api/http-server");
+const capabilityProvider = require("./capability-provider-adapter");
 
 module.exports = {
   manifest,
@@ -22,4 +23,5 @@ module.exports = {
     ...outreach,
     ...httpServer,
   },
+  capabilityProvider,
 };
