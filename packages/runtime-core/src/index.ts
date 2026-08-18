@@ -30,6 +30,7 @@ export * from "./interfaces/living-agenda-goal-conflict.js";
 export * from "./interfaces/living-agenda-next-week.js";
 export * from "./interfaces/living-agenda-coaching-feedback.js";
 export * from "./interfaces/capability-module.js";
+export * from "./interfaces/capability-resolution.js";
 export * from "./interfaces/integration-adapter.js";
 export * from "./interfaces/industry-pack.js";
 
@@ -65,6 +66,7 @@ export * from "./core/living-agenda-next-week.js";
 export * from "./core/living-agenda-coaching-feedback.js";
 export * from "./core/in-memory-capability-catalog.js";
 export * from "./core/in-memory-capability-manager.js";
+export * from "./core/registry-capability-resolver.js";
 export * from "./core/in-memory-integration-adapter-registry.js";
 export * from "./core/in-memory-industry-pack-catalog.js";
 export * from "./core/in-memory-industry-pack-installer.js";
