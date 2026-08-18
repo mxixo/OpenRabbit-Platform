@@ -142,7 +142,7 @@ export class EnvironmentAgentService {
             orgId, date: startAt.slice(0, 10), title: String(step.input.title), startAt,
             endAt: typeof step.input.endAt === "string" ? step.input.endAt : undefined,
             notes: typeof step.input.notes === "string" ? step.input.notes : undefined,
-            source: "worker", metadata: { environmentActionId: actionId }
+            metadata: { environmentActionId: actionId }
           });
           results.push({ stepId: step.id, kind: step.kind, resourceId: item.id });
         }
