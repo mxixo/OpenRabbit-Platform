@@ -59,27 +59,37 @@ OpenRabbit may maintain an increasingly useful operational model of goals, prefe
 A broad capability surface is acceptable; presenting every capability to every user is not. Keep the experience **complex underneath, simple on the surface, adaptive by default**. Advanced configuration should remain available without becoming a prerequisite for value.
 
 ### 1.14 Evolution must be evidence-driven
-OpenRabbit should move quickly without chasing novelty. Candidate replacements or additions should be evaluated against measurable improvement in:
-
-- capability and quality
-- speed and latency
-- reliability
-- cost and efficiency
-- security and privacy
-- maintainability
-- interoperability and portability
-- user experience
-- migration risk
+OpenRabbit should move quickly without chasing novelty. Candidate replacements or additions should be evaluated against measurable improvement in capability/quality, speed/latency, reliability, cost/efficiency, security/privacy, maintainability, interoperability/portability, user experience, and migration risk.
 
 Where practical, benchmark representative OpenRabbit workloads before broad adoption. A new technology does not replace an existing component merely because it is newer.
 
 ### 1.15 Anti-obsolescence is an architectural requirement
 OpenRabbit must retain the ability to modernize itself without becoming the rigid legacy system it was created to overcome. Architecture that unnecessarily makes a replaceable technology permanent creates strategic debt and should be challenged.
 
-### 1.16 Auditability is a feature
-Important actions leave a durable, queryable trail. Important adaptive changes should also be explainable: what changed, why, and under what authority.
+### 1.16 Evolve without trapping the user
+OpenRabbit updates should be **tested, versioned, observable, staged, and reversible when practical**. Platform evolution must not silently redefine a user's operating environment.
 
-### 1.17 GitHub is the source of truth
+For non-critical changes, preserve meaningful user choice: supported known-good versions, staged rollout, explicit update channels, and rollback where technically safe and compatible. Release notes should explain material changes, benefits, compatibility impact, and migration considerations.
+
+Security, legal/compliance, provider deprecation, or hard compatibility requirements may make some updates mandatory or make indefinite rollback impossible. In those cases, explain the requirement, preserve user configuration and behavior where possible, provide migration tooling, and minimize disruption.
+
+### 1.17 Separate platform evolution from user configuration
+Treat these as distinct versioned concerns:
+
+1. **Platform version** — OpenRabbit core/control-plane behavior.
+2. **Component versions** — models, runtimes, plugins, adapters, providers, capability modules, and infrastructure implementations.
+3. **Industry Pack/workflow versions** — reusable domain behavior and process definitions.
+4. **User environment configuration** — selected capabilities, permissions, layouts, preferences, workflows, and operating context.
+
+Upgrading a component should not unnecessarily alter the user's CRM workflows, permissions, dashboard layout, business rules, or stored context.
+
+### 1.18 Continuity is a product requirement
+OpenRabbit should move quickly while protecting continuity. The user's business must not become collateral damage of platform evolution. Rollback mechanisms must protect data integrity and security and should restore compatible known-good implementations/configuration rather than blindly reverse irreversible external actions or unsafe data migrations.
+
+### 1.19 Auditability is a feature
+Important actions leave a durable, queryable trail. Important adaptive changes and platform updates should also be explainable: what changed, why, under what authority, and which version produced the action.
+
+### 1.20 GitHub is the source of truth
 Repository docs and code review—not chat memory—govern architecture. AI tools must read `OPENRABBIT_CONTEXT.md` and `/docs` before proposing structural changes.
 
 ---
@@ -133,13 +143,22 @@ Preserve working behavior. Use shims and adapters. Every phase leaves `main` shi
 ### 2.12 Benchmark before strategic replacement
 For material technology substitutions, maintain representative workloads and compare relevant quality, performance, reliability, security, and cost characteristics. Route different workload classes to different implementations when that produces a superior system.
 
-### 2.13 Test the contracts
-New abstractions ship with unit tests around registries, allow-lists, install lifecycle, permission boundaries, adaptation decisions, provider replacement, and failure modes.
+### 2.13 Version components independently
+Where practical, version platform APIs, runtimes, adapters, capability modules, Industry Packs, workflows, and configuration schemas independently. Record compatibility constraints explicitly rather than relying on implicit coupling.
 
-### 2.14 Package boundaries
+### 2.14 Design migrations with rollback boundaries
+Every material migration should identify its rollback boundary before rollout: what can be reverted, what data transformations are forward-only, what external actions are irreversible, and how a known-good state will be restored. Never advertise rollback where data integrity cannot be guaranteed.
+
+### 2.15 Use staged release channels
+Support controlled rollout patterns such as **Stable**, **Preview**, and an advanced/experimental channel where appropriate. Production organizations should not become involuntary beta testers for non-critical platform changes.
+
+### 2.16 Test the contracts
+New abstractions ship with unit tests around registries, allow-lists, install lifecycle, permission boundaries, adaptation decisions, provider replacement, version compatibility, migration/rollback behavior, and failure modes.
+
+### 2.17 Package boundaries
 Import public entrypoints (`@openrabbit/*`), not deep relative `src/` internals across packages.
 
-### 2.15 Security hygiene
+### 2.18 Security hygiene
 Secrets are referenced, not embedded in manifests, logs, prompts, or client bundles. Third-party passwords are not an integration strategy when delegated authorization is available.
 
 ---
@@ -150,6 +169,7 @@ Secrets are referenced, not embedded in manifests, logs, prompts, or client bund
 |---|---|
 | Adaptive, evolving operating environment | Static feature dashboard as product identity |
 | Stable interface / replaceable implementation | Treat today's vendor as permanent architecture |
+| Versioned, staged, reversible update | Silent forced behavioral change |
 | Worker, runtime, capability, pack | “The bot”, “the OpenClaw”, “the agent does everything” |
 | `runtimes/openclaw` for claw code | Import OpenClaw SDK from `services/*` or apps |
 | `capabilities/real-estate` | Copy repo for “OpenRabbit RE” |
@@ -173,7 +193,10 @@ Ask:
 8. Does adaptation preserve permissions, explainability, and auditability?  
 9. Are we making an implementation component unnecessarily permanent?  
 10. If replacing technology, is the change supported by measurable benefit and an acceptable migration path?  
-11. Are docs in `/docs` updated if architecture shifts?  
+11. Is the change versioned, compatibility-aware, and staged appropriately?  
+12. Have we identified a safe rollback boundary or explicitly documented why rollback is impossible?  
+13. Does this preserve the user's environment configuration unless changing it is necessary and explained?  
+14. Are docs in `/docs` updated if architecture shifts?  
 
 If any answer is no, redesign.
 
@@ -196,6 +219,9 @@ If any answer is no, redesign.
 13. Treating a current model, runtime, vendor, protocol, framework, or infrastructure provider as permanent without architectural necessity  
 14. Rewriting OpenRabbit merely to adopt a fashionable technology when a bounded adapter or incremental migration would suffice  
 15. Refusing a demonstrably superior technology because replacing the existing implementation is inconvenient  
+16. Silent forced upgrades that materially change non-critical user behavior without notice or migration support  
+17. Claiming an update is reversible when its data migration or external side effects cannot safely be undone  
+18. Coupling user configuration so tightly to a component version that routine platform upgrades require rebuilding the user's environment  
 
 ---
 
@@ -215,7 +241,7 @@ Internal engineering philosophy:
 
 > **The rabbit doesn't slow down.**
 
-This means rapid learning, benchmarking, modular improvement, and deliberate adoption of superior technology—not uncontrolled architectural churn.
+This means rapid learning, benchmarking, modular improvement, deliberate adoption of superior technology, and continuity for the user—not uncontrolled architectural churn.
 
 ---
 
