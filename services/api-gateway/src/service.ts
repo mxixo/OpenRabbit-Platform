@@ -74,18 +74,13 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
   };
 
   return {
-    async start(): Promise<void> {
-      started = true;
-      await logger.info("api-gateway started", { configKeys: config.keys() });
-      await eventBus.publish({ type: "service.started", payload: { service: descriptor.serviceName }, timestamp: new Date().toISOString() });
-    },
+    async start(): Promise<void> { started = true; await logger.info("api-gateway started", { configKeys: config.keys() }); await eventBus.publish({ type: "service.started", payload: { service: descriptor.serviceName }, timestamp: new Date().toISOString() }); },
     async stop(): Promise<void> { started = false; await logger.info("api-gateway stopped"); },
     isStarted(): boolean { return started; },
     getDescriptor(): ServiceDescriptor { return descriptor; },
     getHealth(): ServiceHealth {
       return {
-        status: started ? "ok" : "degraded",
-        timestamp: new Date().toISOString(),
+        status: started ? "ok" : "degraded", timestamp: new Date().toISOString(),
         dependencies: [
           { name: "configuration-manager", status: "up" }, { name: "event-bus", status: "up" },
           { name: "permission-manager", status: "up" }, { name: "native-crm", status: "up" },
@@ -110,35 +105,23 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
     registerPlatformBackend(backend: PlatformApiBackend): void { platformBackend = backend; },
     registerProviderAuthorizationAdapter(adapter): void { providerAuthorization.register(adapter); },
     async handleRequest(input: unknown): Promise<ServiceOperationResult<ApiResponseData>> {
-      if (!started) {
-        operationsFailed += 1; lastErrorCode = "SERVICE_NOT_STARTED";
-        return { ok: false, error: { code: "SERVICE_NOT_STARTED", message: "api-gateway service not started", retryable: true } };
-      }
+      if (!started) { operationsFailed += 1; lastErrorCode = "SERVICE_NOT_STARTED"; return { ok: false, error: { code: "SERVICE_NOT_STARTED", message: "api-gateway service not started", retryable: true } }; }
       const validation = this.validateRequest(input);
-      if (!validation.valid) {
-        operationsFailed += 1; lastErrorCode = "INVALID_REQUEST";
-        return { ok: false, error: { code: "INVALID_REQUEST", message: validation.errors.join("; "), retryable: false } };
-      }
+      if (!validation.valid) { operationsFailed += 1; lastErrorCode = "INVALID_REQUEST"; return { ok: false, error: { code: "INVALID_REQUEST", message: validation.errors.join("; "), retryable: false } }; }
       const request = input as ApiRequestEnvelope;
       const action = request.method.toUpperCase() === "GET" ? "read" : "write";
       const decision = permissionManager.evaluate({ subject: { id: request.actorId ?? "anonymous", roles: request.actorRoles }, action, resource: { type: "api-request" } });
-      if (!decision.allowed) {
-        operationsFailed += 1; lastErrorCode = "PERMISSION_DENIED";
-        return { ok: false, error: { code: "PERMISSION_DENIED", message: decision.reason, retryable: false } };
-      }
+      if (!decision.allowed) { operationsFailed += 1; lastErrorCode = "PERMISSION_DENIED"; return { ok: false, error: { code: "PERMISSION_DENIED", message: decision.reason, retryable: false } }; }
       await eventBus.publish({ type: "api.request.accepted", payload: { requestId: request.requestId, path: request.path }, timestamp: new Date().toISOString() });
 
       if (request.path.startsWith("/v1/")) {
-        if (!platformBackend) {
-          operationsFailed += 1; lastErrorCode = "PLATFORM_BACKEND_NOT_REGISTERED";
-          return { ok: false, error: { code: "PLATFORM_BACKEND_NOT_REGISTERED", message: "platform API backend is not registered", retryable: true } };
-        }
+        if (!platformBackend) { operationsFailed += 1; lastErrorCode = "PLATFORM_BACKEND_NOT_REGISTERED"; return { ok: false, error: { code: "PLATFORM_BACKEND_NOT_REGISTERED", message: "platform API backend is not registered", retryable: true } }; }
         try {
-          const crmRoute = await routeNativeCrmApi(request, nativeCrm);
+          const crmRoute = await routeNativeCrmApi(request, nativeCrm, contextGraph);
           const emailRoute = crmRoute.matched ? crmRoute : await routeEmailApi(request, emailStore, platformBackend, contextGraph);
           const providerRoute = emailRoute.matched ? emailRoute : await routeProviderApi(request, providerConnections, emailDrafts, providerAuthorization);
-          const mapRoute = providerRoute.matched ? providerRoute : await routeMapApi(request, propertyStore);
-          const socialRoute = mapRoute.matched ? mapRoute : await routeSocialApi(request, socialStore);
+          const mapRoute = providerRoute.matched ? providerRoute : await routeMapApi(request, propertyStore, contextGraph);
+          const socialRoute = mapRoute.matched ? mapRoute : await routeSocialApi(request, socialStore, contextGraph);
           const agentRoute = socialRoute.matched ? socialRoute : await routeEnvironmentAgentApi(request, environmentAgent);
           const contextRoute = agentRoute.matched ? agentRoute : await routeContextApi(request, contextGraph);
           const workspaceBackend = {
@@ -152,14 +135,8 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           const workspaceRoute = contextRoute.matched ? contextRoute : await routeWorkspaceApi(request, workspaceBackend);
           const todayRoute = workspaceRoute.matched ? workspaceRoute : await routeTodayApi(request, platformBackend, contextGraph);
           const routed = todayRoute.matched ? todayRoute : await routePlatformApi(request, platformBackend);
-          if (!routed.matched) {
-            operationsFailed += 1; lastErrorCode = "ROUTE_NOT_FOUND";
-            return { ok: false, error: { code: "ROUTE_NOT_FOUND", message: `No platform API route for ${request.method.toUpperCase()} ${request.path}`, retryable: false } };
-          }
-          if (routed.error) {
-            operationsFailed += 1; lastErrorCode = routed.error.code;
-            return { ok: false, data: { status: routed.status }, error: { code: routed.error.code, message: routed.error.message, retryable: false } };
-          }
+          if (!routed.matched) { operationsFailed += 1; lastErrorCode = "ROUTE_NOT_FOUND"; return { ok: false, error: { code: "ROUTE_NOT_FOUND", message: `No platform API route for ${request.method.toUpperCase()} ${request.path}`, retryable: false } }; }
+          if (routed.error) { operationsFailed += 1; lastErrorCode = routed.error.code; return { ok: false, data: { status: routed.status }, error: { code: routed.error.code, message: routed.error.message, retryable: false } }; }
           operationsSucceeded += 1;
           return { ok: true, data: { status: routed.status, result: routed.data } };
         } catch (error) {
