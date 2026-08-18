@@ -10,6 +10,7 @@ import type { CrmRelationshipAdapter } from "./crm-adapter.js";
 import type { PropertyAdapter } from "./map-adapter.js";
 import type { CalendarAdapter } from "./calendar-adapter.js";
 import type { SocialSourceAdapter } from "./social-adapter.js";
+import type { AppUser, OrganizationMembership } from "./app-bootstrap.js";
 
 export interface ServiceDescriptor {
   serviceName: "api-gateway";
@@ -54,5 +55,7 @@ export interface ApiGatewayService {
   registerPropertySyncAdapter(adapter: PropertyAdapter): void;
   registerCalendarSyncAdapter(adapter: CalendarAdapter): void;
   registerSocialSyncAdapter(adapter: SocialSourceAdapter): void;
+  registerAppUser(user: AppUser): void;
+  registerOrganizationMembership(userId: string, membership: OrganizationMembership): void;
   handleRequest(input: unknown): Promise<ServiceOperationResult<ApiResponseData>>;
 }
