@@ -23,7 +23,7 @@ export interface EnvironmentActionRecord {
   id: string;
   orgId: string;
   actionType: string;
-  status: "proposed" | "pending_approval" | "executed" | "failed" | "cancelled";
+  status: "proposed" | "pending_approval" | "approved" | "executing" | "executed" | "failed" | "cancelled";
   actorType: "user" | "worker" | "system";
   actorId?: string;
   summary: string;
