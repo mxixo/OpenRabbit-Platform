@@ -62,6 +62,11 @@ Current routes:
 - `GET /v1/orgs/:orgId/email/messages?date=YYYY-MM-DD`
 - `PATCH /v1/orgs/:orgId/email/messages/:messageId`
 - `POST /v1/orgs/:orgId/email/messages/:messageId/schedule`
+- `GET /v1/orgs/:orgId/email/drafts`
+- `POST /v1/orgs/:orgId/email/drafts`
+- `PATCH /v1/orgs/:orgId/email/drafts/:draftId`
+- `GET /v1/orgs/:orgId/connections`
+- `PUT /v1/orgs/:orgId/connections/:provider`
 
 Provider imports are idempotent by provider + external message ID. Normalized messages can carry `relationshipId` and `propertyId`, allowing the same email to remain linked to CRM and Map/property context.
 
@@ -69,7 +74,19 @@ The scheduling route converts an email with scheduling intent into an OpenRabbit
 
 When Email is focused, `email-ui.js` exposes the first cross-interface action: a recognized scheduling email can be given a start/end time and added to Calendar from inside the Email surface. This is the first concrete implementation of the intended **Email → CRM/context → Calendar → Today** operating loop.
 
-Like native CRM, the current normalized email store is in-memory development storage. OAuth, provider pagination, delta sync, webhook/watch subscriptions, outbound drafting/sending, and provider-specific calendar adapters remain future work.
+### Delegated provider connection boundary
+
+`DelegatedAuthorizationAdapter` defines the OAuth/delegated authorization boundary for Google, Microsoft, and future providers. The connection registry stores only user-visible status, granted capability/scopes metadata, account label, and sync health. **Access and refresh tokens are deliberately excluded** and belong in a dedicated encrypted credential service.
+
+Connections can declare granular capabilities such as `email.read`, `email.draft`, `email.send`, `calendar.read`, and `calendar.write`. This is the basis for onboarding choices like “read + draft email, but require approval to send.”
+
+### Draft/reply safety boundary
+
+`EmailDraft` creates a normalized outbound queue with explicit states: `draft`, `pending_approval`, `approved`, `sent`, and `discarded`. A worker can prepare a reply and mark it pending approval without being granted implicit permission to send it. `EmailSendAdapter` is the future provider boundary for creating provider-native drafts and sending approved drafts.
+
+`CalendarAdapter` is defined separately from OpenRabbit's planning kernel. Google/Microsoft calendars can synchronize selected plan items, while the OpenRabbit timeline remains the provider-neutral operating model.
+
+Like native CRM, the current normalized email, draft, and provider-connection stores are in-memory development storage. Actual Google/Microsoft OAuth clients, encrypted token custody, provider pagination/delta sync, webhook/watch subscriptions, and outbound delivery remain future work.
 
 ## Social autonomy template
 
