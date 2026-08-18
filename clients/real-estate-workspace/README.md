@@ -97,6 +97,23 @@ OAuth begin/callback/revoke routes operate only when a provider authorization ad
 
 Like native CRM, the current normalized email, draft, connection, and development credential stores are in-memory. Provider pagination/delta sync, webhook/watch subscriptions, production encrypted credential custody, and provider-native outbound delivery remain future work.
 
+## Map / property intelligence prototype
+
+The Map surface now has a provider-neutral property record model and API boundary. `PropertyAdapter` is intended for MLS/property/geospatial implementations such as a future Flexmls adapter, while the dashboard consumes normalized records rather than provider-specific payloads.
+
+Current routes:
+
+- `POST /v1/orgs/:orgId/map/import`
+- `GET /v1/orgs/:orgId/map/items`
+- `GET /v1/orgs/:orgId/map/items/:itemId`
+- `GET /v1/orgs/:orgId/map/items?north=...&south=...&east=...&west=...`
+
+Normalized property records can preserve provider/external ID, MLS ID, coordinates, address, price, property type, beds/baths/units, status, CRM relationship links, listing URL, Street View URL, and provider-specific metadata. Imports are idempotent by provider + external ID.
+
+`map-ui.js` provides the first real focused Map renderer. It plots normalized coordinates into a lightweight provider-neutral canvas, supports selecting individual property markers, and shows a property inspector with price, MLS/context, and optional Street View/listing links. This is deliberately **not** pretending to be Google Maps or an MLS map yet: real map tiles, geocoding, routing, Street View embedding, and Flexmls/MLS feeds remain replaceable provider integrations behind the existing contracts.
+
+The current property store is in-memory development storage. It exists to stabilize the property/geospatial contract and cross-surface behavior before binding OpenRabbit to an MLS or mapping vendor.
+
 ## Social autonomy template
 
 Social is modeled with an explicit operator-controlled ladder:
@@ -115,7 +132,7 @@ Repeated approvals never silently promote a user into autopilot.
 
 `GET /v1/orgs/:orgId/workspace?date=YYYY-MM-DD`
 
-The adaptive workspace endpoint returns one normalized provider-neutral model for Calendar, Email, CRM, Map, and Social. Native CRM and normalized email records already flow through this contract.
+The adaptive workspace endpoint returns one normalized provider-neutral model for Calendar, Email, CRM, Map, and Social. Native CRM, normalized email, and normalized property/map records already flow through this contract.
 
 `GET /v1/orgs/:orgId/today?date=YYYY-MM-DD`
 
