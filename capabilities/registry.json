@@ -1,5 +1,5 @@
 {
-  "registry_version": "1.0.0",
+  "registry_version": "1.1.0",
   "capabilities": [
     {
       "capability_id": "work.deal_create",
@@ -60,6 +60,76 @@
       "supports_dry_run": true,
       "supports_idempotency": true,
       "emits_telemetry": true
+    },
+    {
+      "capability_id": "calendar.read",
+      "contract_version": "1.0.0",
+      "risk_level": "read",
+      "default_execution_policy": "read_only",
+      "providers": ["openrabbit_productivity"],
+      "supports_dry_run": false,
+      "supports_idempotency": false,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "calendar.event_create",
+      "contract_version": "1.0.0",
+      "risk_level": "write_external",
+      "default_execution_policy": "approval_required",
+      "providers": ["openrabbit_productivity"],
+      "supports_dry_run": true,
+      "supports_idempotency": true,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "calendar.event_update",
+      "contract_version": "1.0.0",
+      "risk_level": "write_external",
+      "default_execution_policy": "approval_required",
+      "providers": ["openrabbit_productivity"],
+      "supports_dry_run": true,
+      "supports_idempotency": true,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "mail.search",
+      "contract_version": "1.0.0",
+      "risk_level": "read",
+      "default_execution_policy": "read_only",
+      "providers": ["openrabbit_productivity"],
+      "supports_dry_run": false,
+      "supports_idempotency": false,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "mail.read",
+      "contract_version": "1.0.0",
+      "risk_level": "read",
+      "default_execution_policy": "read_only",
+      "providers": ["openrabbit_productivity"],
+      "supports_dry_run": false,
+      "supports_idempotency": false,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "mail.draft",
+      "contract_version": "1.0.0",
+      "risk_level": "write_internal",
+      "default_execution_policy": "draft_only",
+      "providers": ["openrabbit_productivity"],
+      "supports_dry_run": true,
+      "supports_idempotency": true,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "mail.send",
+      "contract_version": "1.0.0",
+      "risk_level": "write_external",
+      "default_execution_policy": "approval_required",
+      "providers": ["openrabbit_productivity"],
+      "supports_dry_run": true,
+      "supports_idempotency": true,
+      "emits_telemetry": true
     }
   ],
   "providers": [
@@ -73,6 +143,23 @@
         "work.deal_compare",
         "work.outreach_draft",
         "work.outreach_execute"
+      ],
+      "credential_scope": "tenant",
+      "state": "available",
+      "healthcheck": true,
+      "priority": 100
+    },
+    {
+      "provider_id": "openrabbit_productivity",
+      "adapter_version": "1.0.0",
+      "capabilities": [
+        "calendar.read",
+        "calendar.event_create",
+        "calendar.event_update",
+        "mail.search",
+        "mail.read",
+        "mail.draft",
+        "mail.send"
       ],
       "credential_scope": "tenant",
       "state": "available",
