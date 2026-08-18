@@ -53,7 +53,8 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
       "platform-api-v1",
       "today-surface-v1",
       "adaptive-workspace-v1",
-      "native-crm-v1"
+      "native-crm-v1",
+      "crm-import-v1"
     ]
   };
 
