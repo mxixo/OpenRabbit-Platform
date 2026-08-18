@@ -72,15 +72,22 @@ export class EnvironmentAgentService {
     }
 
     if (input.intent === "queue_social_post") {
-      const network = stringParam(params, "network");
+      const network = stringParam(params, "network")?.toLowerCase();
       const body = stringParam(params, "body");
       if (!network || !body) throw new Error("queue_social_post requires parameters.network and parameters.body");
+      const scheduledAt = stringParam(params, "scheduledAt");
       const policy = await this.social.getPolicy(input.orgId);
-      const requiresApproval = input.actorType !== "user" && policy.autonomyMode !== "trusted_autopilot";
+      const targetDate = scheduledAt?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+      const existingForDay = (await this.social.list(input.orgId, targetDate)).filter((post) => ["scheduled", "published"].includes(post.status)).length;
+      const allowedByNetwork = policy.allowedNetworks.includes(network);
+      const networkNeedsApproval = policy.approvalRequiredForNetworks.includes(network);
+      const withinDailyLimit = existingForDay < policy.maxPostsPerDay;
+      const trusted = policy.autonomyMode === "trusted_autopilot" && allowedByNetwork && !networkNeedsApproval && withinDailyLimit;
+      const requiresApproval = input.actorType !== "user" && !trusted;
       steps.push({
         id: stepId(0), kind: "create_social_post", summary: `Queue ${network} social post`,
         requiresApproval,
-        input: { network, body, title: stringParam(params, "title"), scheduledAt: stringParam(params, "scheduledAt") }
+        input: { network, body, title: stringParam(params, "title"), scheduledAt }
       });
     }
 
