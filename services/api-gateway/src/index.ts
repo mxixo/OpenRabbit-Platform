@@ -22,6 +22,7 @@ export * from "./social-adapter.js";
 export * from "./social-api.js";
 export * from "./context-graph.js";
 export * from "./context-api.js";
+export * from "./context-auto-link.js";
 export * from "./environment-agent.js";
 export * from "./environment-agent-api.js";
 export * from "./service.js";
