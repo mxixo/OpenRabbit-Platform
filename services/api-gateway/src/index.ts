@@ -8,4 +8,7 @@ export * from "./native-crm.js";
 export * from "./crm-api.js";
 export * from "./email-adapter.js";
 export * from "./email-api.js";
+export * from "./provider-connections.js";
+export * from "./email-drafts.js";
+export * from "./provider-api.js";
 export * from "./service.js";
