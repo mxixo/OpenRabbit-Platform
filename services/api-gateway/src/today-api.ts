@@ -1,5 +1,6 @@
 import type { ApiRequestEnvelope } from "./contracts.js";
 import type { PlatformApiBackend, PlatformApiRouteResult } from "./platform-api.js";
+import type { EnvironmentActionRecord, InMemoryContextGraphStore } from "./context-graph.js";
 
 export interface TodaySurfaceSummary {
   date: string;
@@ -7,6 +8,7 @@ export interface TodaySurfaceSummary {
   approvals: Awaited<ReturnType<PlatformApiBackend["listApprovals"]>>;
   pendingApprovals: Awaited<ReturnType<PlatformApiBackend["listApprovals"]>>;
   audit: Awaited<ReturnType<PlatformApiBackend["listAudit"]>>;
+  environmentActions: EnvironmentActionRecord[];
   planItems: Awaited<ReturnType<NonNullable<PlatformApiBackend["listPlanItems"]>>>;
   summary: {
     pendingApprovals: number;
@@ -44,7 +46,8 @@ function recordDate(value: unknown): string | undefined {
 
 export async function routeTodayApi(
   request: ApiRequestEnvelope,
-  backend: PlatformApiBackend
+  backend: PlatformApiBackend,
+  contextGraph?: InMemoryContextGraphStore
 ): Promise<PlatformApiRouteResult> {
   const { parts, date: requestedDate } = parsePath(request.path);
   if (
@@ -60,14 +63,16 @@ export async function routeTodayApi(
 
   const orgId = parts[2];
   const date = requestedDate ?? new Date().toISOString().slice(0, 10);
-  const [workers, approvals, allAudit, planItems] = await Promise.all([
+  const [workers, approvals, allAudit, planItems, environmentActions] = await Promise.all([
     backend.listWorkers(orgId),
     backend.listApprovals(orgId),
     backend.listAudit(orgId),
-    backend.listPlanItems ? backend.listPlanItems(orgId, date) : Promise.resolve([])
+    backend.listPlanItems ? backend.listPlanItems(orgId, date) : Promise.resolve([]),
+    contextGraph ? contextGraph.listActions(orgId, date) : Promise.resolve([])
   ]);
 
   const pendingApprovals = approvals.filter((approval) => approval.status === "pending");
+  const pendingEnvironmentActions = environmentActions.filter((action) => action.status === "pending_approval");
   const audit = allAudit.filter((record) => recordDate(record) === date);
   const activeWorkers = workers.filter(
     (worker) => worker.status === undefined || worker.status === "active"
@@ -79,10 +84,11 @@ export async function routeTodayApi(
     approvals,
     pendingApprovals,
     audit,
+    environmentActions,
     planItems,
     summary: {
-      pendingApprovals: pendingApprovals.length,
-      agentActionsToday: audit.length,
+      pendingApprovals: pendingApprovals.length + pendingEnvironmentActions.length,
+      agentActionsToday: audit.length + environmentActions.filter((action) => action.actorType !== "user").length,
       scheduledItems: planItems.length,
       activeWorkers
     }
