@@ -18,4 +18,6 @@ export * from "./email-drafts.js";
 export * from "./provider-api.js";
 export * from "./map-adapter.js";
 export * from "./map-api.js";
+export * from "./social-adapter.js";
+export * from "./social-api.js";
 export * from "./service.js";
