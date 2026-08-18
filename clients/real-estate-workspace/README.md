@@ -52,6 +52,25 @@ Imported native records retain `sourceProvider` and `externalId` provenance. OAu
 
 The current native store is **in-memory development storage**, not production persistence. Durable multi-tenant storage comes later. This is deliberate: the contracts and user experience can stabilize before binding the product to a database or CRM vendor.
 
+## Email + Calendar linkage prototype
+
+Email now has a provider-neutral normalization boundary comparable to CRM. `EmailAdapter` translates Gmail, Microsoft, or future mail-provider messages into `WorkspaceEmailItem` records without leaking vendor-specific fields into the dashboard.
+
+Current routes:
+
+- `POST /v1/orgs/:orgId/email/import`
+- `GET /v1/orgs/:orgId/email/messages?date=YYYY-MM-DD`
+- `PATCH /v1/orgs/:orgId/email/messages/:messageId`
+- `POST /v1/orgs/:orgId/email/messages/:messageId/schedule`
+
+Provider imports are idempotent by provider + external message ID. Normalized messages can carry `relationshipId` and `propertyId`, allowing the same email to remain linked to CRM and Map/property context.
+
+The scheduling route converts an email with scheduling intent into an OpenRabbit calendar plan item through the existing planning backend. The resulting calendar metadata preserves the email message, provider/external ID, relationship, and property links. Once scheduled, the email's pending scheduling action is cleared.
+
+When Email is focused, `email-ui.js` exposes the first cross-interface action: a recognized scheduling email can be given a start/end time and added to Calendar from inside the Email surface. This is the first concrete implementation of the intended **Email → CRM/context → Calendar → Today** operating loop.
+
+Like native CRM, the current normalized email store is in-memory development storage. OAuth, provider pagination, delta sync, webhook/watch subscriptions, outbound drafting/sending, and provider-specific calendar adapters remain future work.
+
 ## Social autonomy template
 
 Social is modeled with an explicit operator-controlled ladder:
@@ -70,7 +89,7 @@ Repeated approvals never silently promote a user into autopilot.
 
 `GET /v1/orgs/:orgId/workspace?date=YYYY-MM-DD`
 
-The adaptive workspace endpoint returns one normalized provider-neutral model for Calendar, Email, CRM, Map, and Social. Native CRM records already flow through this contract.
+The adaptive workspace endpoint returns one normalized provider-neutral model for Calendar, Email, CRM, Map, and Social. Native CRM and normalized email records already flow through this contract.
 
 `GET /v1/orgs/:orgId/today?date=YYYY-MM-DD`
 
