@@ -54,4 +54,41 @@ describe("entity resolution", () => {
     expect(result.applied).toMatchObject([{ targetType: "property", targetId: property.id, disposition: "auto_link" }]);
     expect((await emails.get("org-1", imported.items[0].id))?.propertyId).toBe(property.id);
   });
+
+  it("accepts a suggestion only after explicit user decision and records feedback", async () => {
+    const emails = new InMemoryEmailStore();
+    const crm = new InMemoryNativeCrmStore();
+    const properties = new InMemoryPropertyStore();
+    const graph = new InMemoryContextGraphStore();
+    const resolver = new EntityResolutionService(emails, crm, properties, graph);
+
+    const relationship = await crm.create("org-1", { displayName: "Olivia Grijalva" });
+    const imported = await emails.import({ orgId: "org-1", provider: "google", messages: [{ externalId: "m4", subject: "Olivia Grijalva follow-up" }] });
+    const emailId = imported.items[0].id;
+    const inspected = await resolver.inspectEmail("org-1", emailId);
+    expect(inspected.candidates[0]).toMatchObject({ targetId: relationship.id, disposition: "suggest" });
+
+    const decided = await resolver.decideEmailCandidate({ orgId: "org-1", emailId, targetType: "relationship", targetId: relationship.id, decision: "accepted", actorId: "user-1" });
+    expect(decided.message.relationshipId).toBe(relationship.id);
+    expect(decided.feedback).toMatchObject({ decision: "accepted", actorId: "user-1", confidence: 0.82 });
+    expect(await resolver.listFeedback("org-1", emailId)).toHaveLength(1);
+  });
+
+  it("rejects a suggestion without mutating the email and suppresses that candidate", async () => {
+    const emails = new InMemoryEmailStore();
+    const crm = new InMemoryNativeCrmStore();
+    const properties = new InMemoryPropertyStore();
+    const graph = new InMemoryContextGraphStore();
+    const resolver = new EntityResolutionService(emails, crm, properties, graph);
+
+    const relationship = await crm.create("org-1", { displayName: "Olivia Grijalva" });
+    const imported = await emails.import({ orgId: "org-1", provider: "google", messages: [{ externalId: "m5", subject: "Olivia Grijalva follow-up" }] });
+    const emailId = imported.items[0].id;
+
+    await resolver.decideEmailCandidate({ orgId: "org-1", emailId, targetType: "relationship", targetId: relationship.id, decision: "rejected", actorId: "user-1" });
+    expect((await emails.get("org-1", emailId))?.relationshipId).toBeUndefined();
+    const inspected = await resolver.inspectEmail("org-1", emailId);
+    expect(inspected.candidates).toEqual([]);
+    expect(inspected.feedback).toMatchObject([{ decision: "rejected", targetId: relationship.id }]);
+  });
 });
