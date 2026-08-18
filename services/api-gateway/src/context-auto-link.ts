@@ -21,16 +21,27 @@ export async function autoLinkRecordContext(
   graph: InMemoryContextGraphStore,
   orgId: string,
   entity: ContextEntityRef,
-  record: { relationshipId?: string; propertyId?: string; propertyIds?: string[] }
+  record: {
+    relationshipId?: string;
+    relationshipIds?: string[];
+    propertyId?: string;
+    propertyIds?: string[];
+  }
 ): Promise<void> {
-  if (record.relationshipId) {
-    await linkOnce(graph, orgId, entity, { type: "relationship", id: record.relationshipId }, "related_to");
+  const relationshipIds = [record.relationshipId, ...(record.relationshipIds ?? [])].filter(Boolean) as string[];
+  const propertyIds = [record.propertyId, ...(record.propertyIds ?? [])].filter(Boolean) as string[];
+
+  for (const relationshipId of [...new Set(relationshipIds)]) {
+    await linkOnce(graph, orgId, entity, { type: "relationship", id: relationshipId }, "related_to");
   }
-  if (record.propertyId) {
-    await linkOnce(graph, orgId, entity, { type: "property", id: record.propertyId }, "about");
-  }
-  for (const propertyId of record.propertyIds ?? []) {
-    if (propertyId) await linkOnce(graph, orgId, entity, { type: "property", id: propertyId }, "related_to");
+  for (const propertyId of [...new Set(propertyIds)]) {
+    await linkOnce(
+      graph,
+      orgId,
+      entity,
+      { type: "property", id: propertyId },
+      entity.type === "email" || entity.type === "social" ? "about" : "related_to"
+    );
   }
 }
 
