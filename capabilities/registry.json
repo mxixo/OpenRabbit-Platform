@@ -1,0 +1,83 @@
+{
+  "registry_version": "1.0.0",
+  "capabilities": [
+    {
+      "capability_id": "work.deal_create",
+      "contract_version": "1.0.0",
+      "risk_level": "write_internal",
+      "default_execution_policy": "approval_required",
+      "providers": ["openrabbit_real_estate"],
+      "supports_dry_run": true,
+      "supports_idempotency": true,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "work.underwrite",
+      "contract_version": "1.0.0",
+      "risk_level": "write_internal",
+      "default_execution_policy": "approval_required",
+      "providers": ["openrabbit_real_estate"],
+      "supports_dry_run": true,
+      "supports_idempotency": true,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "work.deal_read",
+      "contract_version": "1.0.0",
+      "risk_level": "read",
+      "default_execution_policy": "read_only",
+      "providers": ["openrabbit_real_estate"],
+      "supports_dry_run": false,
+      "supports_idempotency": false,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "work.deal_compare",
+      "contract_version": "1.0.0",
+      "risk_level": "read",
+      "default_execution_policy": "read_only",
+      "providers": ["openrabbit_real_estate"],
+      "supports_dry_run": false,
+      "supports_idempotency": false,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "work.outreach_draft",
+      "contract_version": "1.0.0",
+      "risk_level": "write_internal",
+      "default_execution_policy": "draft_only",
+      "providers": ["openrabbit_real_estate"],
+      "supports_dry_run": true,
+      "supports_idempotency": true,
+      "emits_telemetry": true
+    },
+    {
+      "capability_id": "work.outreach_execute",
+      "contract_version": "1.0.0",
+      "risk_level": "write_external",
+      "default_execution_policy": "approval_required",
+      "providers": ["openrabbit_real_estate"],
+      "supports_dry_run": true,
+      "supports_idempotency": true,
+      "emits_telemetry": true
+    }
+  ],
+  "providers": [
+    {
+      "provider_id": "openrabbit_real_estate",
+      "adapter_version": "1.0.0",
+      "capabilities": [
+        "work.deal_create",
+        "work.underwrite",
+        "work.deal_read",
+        "work.deal_compare",
+        "work.outreach_draft",
+        "work.outreach_execute"
+      ],
+      "credential_scope": "tenant",
+      "state": "available",
+      "healthcheck": true,
+      "priority": 100
+    }
+  ]
+}
