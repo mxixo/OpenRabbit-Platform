@@ -83,7 +83,7 @@ function baseBackend(): PlatformApiBackend {
 }
 
 describe("Today surface API", () => {
-  it("combines approvals, worker state, audit activity, and schedule into one read model", async () => {
+  it("combines approvals, worker state, current-day audit activity, and schedule into one read model", async () => {
     const result = await routeTodayApi(
       {
         requestId: "today-1",
@@ -107,9 +107,14 @@ describe("Today surface API", () => {
       }
     });
     if (!result.matched || !result.data) throw new Error("Today route did not return data");
-    const data = result.data as { pendingApprovals: ApprovalRequest[]; planItems: CalendarPlanItem[] };
+    const data = result.data as {
+      pendingApprovals: ApprovalRequest[];
+      planItems: CalendarPlanItem[];
+      audit: AuditRecord[];
+    };
     expect(data.pendingApprovals).toHaveLength(1);
     expect(data.planItems[0]?.title).toBe("Client meeting");
+    expect(data.audit).toHaveLength(1);
   });
 
   it("falls through for unrelated routes", async () => {
