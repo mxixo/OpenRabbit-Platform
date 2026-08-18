@@ -1,5 +1,6 @@
 import type { ApiRequestEnvelope } from "./contracts.js";
 import type { PlatformApiRouteResult } from "./platform-api.js";
+import type { CrmImportRequest } from "./crm-adapter.js";
 import type {
   CreateNativeCrmRelationshipInput,
   InMemoryNativeCrmStore,
@@ -34,6 +35,16 @@ function parseUpdate(body: unknown): UpdateNativeCrmRelationshipInput | Platform
   return value;
 }
 
+function parseImport(body: unknown): CrmImportRequest | PlatformApiRouteResult {
+  const value = (body ?? {}) as Partial<CrmImportRequest>;
+  if (!value.provider?.trim()) return invalid("provider is required", "CRM_IMPORT_PROVIDER_REQUIRED");
+  if (!Array.isArray(value.records) || value.records.length === 0) return invalid("records must be a non-empty array", "CRM_IMPORT_RECORDS_REQUIRED");
+  if (value.mode && !["merge", "create_only"].includes(value.mode)) return invalid("mode must be merge or create_only", "INVALID_CRM_IMPORT_MODE");
+  const invalidRecord = value.records.some((record) => !record?.displayName?.trim() || (record.priority && !PRIORITIES.has(record.priority)));
+  if (invalidRecord) return invalid("every import record requires displayName and a valid priority when provided", "INVALID_CRM_IMPORT_RECORD");
+  return value as CrmImportRequest;
+}
+
 function isRouteResult(value: unknown): value is PlatformApiRouteResult {
   return Boolean(value && typeof value === "object" && "matched" in value);
 }
@@ -44,11 +55,25 @@ export async function routeNativeCrmApi(
 ): Promise<PlatformApiRouteResult> {
   const method = request.method.toUpperCase();
   const path = parts(request.path);
-  if (path[0] !== "v1" || path[1] !== "orgs" || !path[2] || path[3] !== "crm" || path[4] !== "relationships") {
+  if (path[0] !== "v1" || path[1] !== "orgs" || !path[2] || path[3] !== "crm") {
     return { matched: false };
   }
 
   const orgId = path[2];
+
+  if (path[4] === "import" && path.length === 5 && method === "POST") {
+    const parsed = parseImport(request.body);
+    if (isRouteResult(parsed)) return parsed;
+    try {
+      const result = await store.importRecords(orgId, parsed.provider, parsed.records, parsed.mode ?? "merge");
+      return { matched: true, status: 200, data: result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "CRM import failed";
+      return { matched: true, status: 400, error: { code: "CRM_IMPORT_FAILED", message } };
+    }
+  }
+
+  if (path[4] !== "relationships") return { matched: false };
 
   if (method === "GET" && path.length === 5) {
     return { matched: true, status: 200, data: await store.list(orgId) };
