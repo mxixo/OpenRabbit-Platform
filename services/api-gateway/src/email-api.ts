@@ -2,6 +2,7 @@ import type { ApiRequestEnvelope } from "./contracts.js";
 import type { PlatformApiBackend, PlatformApiRouteResult } from "./platform-api.js";
 import type { EmailActionType, EmailProviderMessage, InMemoryEmailStore } from "./email-adapter.js";
 import type { InMemoryContextGraphStore } from "./context-graph.js";
+import type { EntityResolutionService } from "./entity-resolution.js";
 import { autoLinkRecordContext, autoLinkScheduledFromEmail } from "./context-auto-link.js";
 
 const ACTION_TYPES = new Set<EmailActionType>(["reply", "document", "scheduling", "review", "other"]);
@@ -23,7 +24,8 @@ export async function routeEmailApi(
   request: ApiRequestEnvelope,
   store: InMemoryEmailStore,
   backend: PlatformApiBackend,
-  contextGraph?: InMemoryContextGraphStore
+  contextGraph?: InMemoryContextGraphStore,
+  entityResolver?: EntityResolutionService
 ): Promise<PlatformApiRouteResult> {
   const method = request.method.toUpperCase();
   const parts = pathParts(request.path);
@@ -36,12 +38,15 @@ export async function routeEmailApi(
     const messages = parseMessages(body.messages);
     if (isRouteResult(messages)) return messages;
     const result = await store.import({ orgId, provider: body.provider.trim(), messages });
-    if (contextGraph) {
-      for (const record of await store.list(orgId)) {
-        await autoLinkRecordContext(contextGraph, orgId, { type: "email", id: record.id, label: record.subject }, record);
+    const resolutions = [];
+    for (const record of result.items) {
+      if (contextGraph) await autoLinkRecordContext(contextGraph, orgId, { type: "email", id: record.id, label: record.subject }, record);
+      if (entityResolver && (!record.relationshipId || !record.propertyId)) {
+        const resolution = await entityResolver.resolveEmail(orgId, record.id);
+        if (resolution.candidates.length) resolutions.push(resolution);
       }
     }
-    return { matched: true, status: 200, data: result };
+    return { matched: true, status: 200, data: { ...result, resolutions } };
   }
 
   if (method === "GET" && parts.length === 5 && parts[4] === "messages") {
