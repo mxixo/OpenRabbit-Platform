@@ -18,7 +18,11 @@ One interface is always the focused centerpiece while the other four remain live
 
 The initial default is Calendar-first, but no surface is permanently privileged. This allows the environment to adapt to user preference and current task context.
 
-`Today` is intentionally **not a sixth work app**. It is the orchestration/read-model layer above the five interfaces. The adaptive workspace top bar can consume Today summary counts while the five windows remain the actual work surfaces.
+`Today` is intentionally **not a sixth work app**. It is the orchestration/read-model layer above the five interfaces. The adaptive workspace top bar consumes Today summary counts while the five windows remain the actual work surfaces.
+
+The **Agent actions** chip opens an operational activity drawer rather than another workspace window. `activity-ui.js` renders Today environment actions with their actor, linked context, lifecycle status, error state, and timestamp. Pending actions can be approved in place; approved or directly executable actions can be executed in place. After execution the activity feed and five-window workspace refresh so newly created calendar/social/email-draft state becomes visible without navigating away.
+
+This keeps approval/execution control visible while preserving the five-surface model. The current prototype uses `workspace-user` as the approver identity until tenant-aware authenticated user identity replaces developer bootstrap state.
 
 `Deals` remains a specialized workflow reachable from CRM, Map, and direct deal views rather than becoming one of the five universal windows.
 
