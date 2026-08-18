@@ -18,28 +18,25 @@ One interface is always the focused centerpiece while the other four remain live
 
 The initial default is Calendar-first, but no surface is permanently privileged. This allows the environment to adapt to user preference and current task context.
 
-`Today` is intentionally **not a sixth work app**. It is the orchestration/read-model layer above the five interfaces. The adaptive workspace top bar consumes shared summary counts while the five windows remain the actual work surfaces.
+`Today` is intentionally **not a sixth work app**. It is the orchestration/read-model layer above the five interfaces. The adaptive workspace top bar can consume Today summary counts while the five windows remain the actual work surfaces.
 
 `Deals` remains a specialized workflow reachable from CRM, Map, and direct deal views rather than becoming one of the five universal windows.
 
-## Normalized workspace view model
+## Native CRM prototype
 
-The adaptive shell now consumes:
+OpenRabbit now has a first native relationship backend behind the CRM surface. It is intentionally provider-neutral and tenant-scoped.
 
-`GET /v1/orgs/:orgId/workspace?date=YYYY-MM-DD`
+Current routes:
 
-This endpoint is the frontend-facing composition contract for the five windows. It returns:
+- `GET /v1/orgs/:orgId/crm/relationships`
+- `POST /v1/orgs/:orgId/crm/relationships`
+- `GET /v1/orgs/:orgId/crm/relationships/:relationshipId`
+- `PATCH /v1/orgs/:orgId/crm/relationships/:relationshipId`
+- `DELETE /v1/orgs/:orgId/crm/relationships/:relationshipId`
 
-- shared Today-style summary counts
-- Calendar items normalized from OpenRabbit planning / future connected calendars
-- Email items normalized independently of Gmail, Microsoft, or another provider
-- CRM relationship items independently of native CRM, HubSpot, Follow Up Boss, or another provider
-- Map records independently of the mapping, MLS, or property-data provider
-- Social queue records plus the configured autonomy mode
-- surface connection/readiness status without inventing provider data
-- an optional focus recommendation for contextual adaptation
+The native CRM currently supports relationship identity, type/kind, stage, priority, follow-up date, lead source, property links, summary, email, phone, and tags. The adaptive workspace receives a reduced provider-neutral relationship view so a future HubSpot/Follow Up Boss/other CRM adapter can satisfy the same surface contract.
 
-The browser templates render the normalized objects and do not need to know which provider produced them. Missing integrations render explicit `not_connected` states rather than fake content.
+The current store is **in-memory development storage**, not production persistence. Durable multi-tenant storage and import/sync adapters come later. This is deliberate: the API contract and user experience can stabilize before binding the product to a database or CRM vendor.
 
 ## Social autonomy template
 
@@ -53,13 +50,17 @@ Repeated approvals never silently promote a user into autopilot.
 
 ## Existing full surfaces
 
-`index.html` still contains the earlier full-surface shell for Today, CRM, Email, Calendar, Map, Social, and Deals while the adaptive workspace is refined. It also preserves the working deal underwriting/approval workflow.
+`index.html` still contains the earlier full-surface shell for Today, CRM, Email, Calendar, Map, Social, and Deals while the adaptive workspace template is refined. It also preserves the working deal underwriting/approval workflow.
 
-## Other Platform APIs used
+## Platform APIs used
+
+`GET /v1/orgs/:orgId/workspace?date=YYYY-MM-DD`
+
+The adaptive workspace endpoint returns one normalized provider-neutral model for Calendar, Email, CRM, Map, and Social. Native CRM records already flow through this contract.
 
 `GET /v1/orgs/:orgId/today?date=YYYY-MM-DD`
 
-The Today endpoint composes existing platform primitives: workers, approvals, audit records, and calendar plan items. It remains useful as a dedicated orchestration feed even though the adaptive workspace endpoint now includes its summary counts.
+The Today endpoint composes existing platform primitives instead of moving business logic into the browser: workers, approvals, audit records, and calendar plan items.
 
 `GET /v1/orgs/:orgId/deals/:dealId/workspace`
 
@@ -67,4 +68,4 @@ The Deals surface renders the current deal, underwriting KPIs, downside/base/ups
 
 The client intentionally stays thin. Business rules, permissions, workflow execution, provider selection, durable state, social publishing policy, and cross-interface context belong in Platform APIs/capabilities rather than frontend code.
 
-For local use, serve this directory from the same origin as the platform/real-estate API (or configure an explicit API base URL and CORS policy later). `workspace.html?org=<orgId>` loads the normalized workspace model for the selected organization. Organization ID and bearer token in the older shell currently remain under Deals → Advanced connection settings until tenant-aware app bootstrap replaces developer connection controls.
+For local use, serve this directory from the same origin as the platform/real-estate API (or configure an explicit API base URL and CORS policy later). `workspace.html?org=<orgId>` can load the normalized workspace for the selected organization. Organization ID and bearer token in the older shell currently remain under Deals → Advanced connection settings until tenant-aware app bootstrap replaces developer connection controls.
