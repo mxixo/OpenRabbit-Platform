@@ -20,4 +20,6 @@ export * from "./map-adapter.js";
 export * from "./map-api.js";
 export * from "./social-adapter.js";
 export * from "./social-api.js";
+export * from "./context-graph.js";
+export * from "./context-api.js";
 export * from "./service.js";
