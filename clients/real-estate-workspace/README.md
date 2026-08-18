@@ -24,7 +24,7 @@ The initial default is Calendar-first, but no surface is permanently privileged.
 
 ## Native CRM prototype
 
-OpenRabbit now has a first native relationship backend behind the CRM surface. It is intentionally provider-neutral and tenant-scoped.
+OpenRabbit now has a first native relationship backend behind the CRM surface. It is provider-neutral and tenant-scoped.
 
 Current routes:
 
@@ -33,10 +33,24 @@ Current routes:
 - `GET /v1/orgs/:orgId/crm/relationships/:relationshipId`
 - `PATCH /v1/orgs/:orgId/crm/relationships/:relationshipId`
 - `DELETE /v1/orgs/:orgId/crm/relationships/:relationshipId`
+- `POST /v1/orgs/:orgId/crm/import`
 
-The native CRM currently supports relationship identity, type/kind, stage, priority, follow-up date, lead source, property links, summary, email, phone, and tags. The adaptive workspace receives a reduced provider-neutral relationship view so a future HubSpot/Follow Up Boss/other CRM adapter can satisfy the same surface contract.
+When CRM is focused in the adaptive workspace, `crm-ui.js` adds first usable native controls: create a relationship and quickly edit stage, priority, and next follow-up. These controls call the CRM API rather than placing CRM state in browser-only storage.
 
-The current store is **in-memory development storage**, not production persistence. Durable multi-tenant storage and import/sync adapters come later. This is deliberate: the API contract and user experience can stabilize before binding the product to a database or CRM vendor.
+The native CRM supports relationship identity, type/kind, stage, priority, follow-up date, lead source, property links, summary, email, phone, tags, and import provenance. The adaptive workspace receives a reduced provider-neutral relationship view so HubSpot, Follow Up Boss, and other CRM adapters can satisfy the same surface contract.
+
+### CRM adapter/import boundary
+
+`CrmRelationshipAdapter` is the provider boundary for connected CRM systems. Provider adapters translate their records into OpenRabbit's normalized relationship format instead of leaking vendor-specific fields into the dashboard.
+
+The current import route accepts normalized records plus a provider name and supports:
+
+- **merge** — match an existing record by provider/external ID or normalized email, then update it rather than duplicate it.
+- **create_only** — create new records and skip matches.
+
+Imported native records retain `sourceProvider` and `externalId` provenance. OAuth, provider pagination, background sync, conflict policy, and webhook/event ingestion remain future adapter implementation work.
+
+The current native store is **in-memory development storage**, not production persistence. Durable multi-tenant storage comes later. This is deliberate: the contracts and user experience can stabilize before binding the product to a database or CRM vendor.
 
 ## Social autonomy template
 
