@@ -68,10 +68,10 @@ async function addNativeControls(panel){
   let modelRows=[];
   try{modelRows=await loadCrmRelationships()}catch{return}
   if(!modelRows.length) return;
-  const cards=[...panel.querySelectorAll(".list .item")].slice(-modelRows.length);
-  cards.forEach((card,index)=>{
-    const rel=modelRows[index];
-    if(!rel || card.querySelector("[data-crm-edit]")) return;
+  const cards=[...panel.querySelectorAll(".list .item")];
+  modelRows.forEach((rel,index)=>{
+    const card=cards[index];
+    if(!rel || !card || card.querySelector("[data-crm-edit]")) return;
     const editor=document.createElement("div");
     editor.className="crm-row-edit";
     editor.dataset.crmEdit=rel.id;
