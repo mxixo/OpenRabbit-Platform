@@ -4,7 +4,9 @@ const app = document.getElementById("app");
 const dealTitle = document.getElementById("dealTitle");
 const dealMeta = document.getElementById("dealMeta");
 const setupPanel = document.getElementById("setupPanel");
+const todaySurface = document.getElementById("surface-today");
 let currentWorkspace = null;
+let todayLoaded = false;
 
 function money(value){return Number.isFinite(Number(value))?new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(Number(value)):"—"}
 function number(value,suffix=""){return Number.isFinite(Number(value))?`${Number(value)}${suffix}`:"—"}
@@ -13,9 +15,45 @@ function slugify(value){return String(value||"deal").toLowerCase().replace(/[^a-
 function scenarioCard(name, scenario){const m=scenario?.investmentMetrics||{};return `<section class="card span4 scenario"><div class="label">${escapeHtml(name)} scenario</div><h3>${money(m.annualCashFlowBeforeTax)} cash flow</h3><div class="muted">Cap ${number(m.capRate,"%")} · DSCR ${number(m.dscr)} · Cash-on-cash ${number(m.cashOnCash,"%")}</div></section>`}
 function credentials(){return {orgId:document.getElementById("orgId").value.trim(),dealId:document.getElementById("dealId").value.trim(),token:document.getElementById("token").value.trim()}}
 function headers(token,withJson=false){return {...(token?{Authorization:`Bearer ${token}`}:{ }),...(withJson?{"Content-Type":"application/json"}:{})}}
-async function apiRequest(path,{method="GET",body}={}){const {token}=credentials();const response=await fetch(path,{method,headers:headers(token,body!==undefined),...(body!==undefined?{body:JSON.stringify(body)}:{})});const payload=await response.json();if(!response.ok)throw new Error(payload?.error?.message||"OpenRabbit request failed");return payload.data}
+async function apiRequest(path,{method="GET",body}={}){const {token}=credentials();const response=await fetch(path,{method,headers:headers(token,body!==undefined),...(body!==undefined?{body:JSON.stringify(body)}:{})});const payload=await response.json();if(!response.ok)throw new Error(payload?.error?.message||"OpenRabbit request failed");return payload?.data?.result??payload?.data}
 function setFeedback(message,type="info"){const el=document.getElementById("feedback");if(!el)return;el.textContent=message;el.dataset.type=type}
 function versionRows(versions){if(!versions?.length)return "<p class=\"muted\">No versions yet.</p>";return `<table class="version-table"><thead><tr><th>Version</th><th>Price</th><th>NOI</th><th>Cap</th><th>DSCR</th><th>Recommendation</th><th>Confidence</th></tr></thead><tbody>${versions.slice().reverse().map((v)=>`<tr><td>v${escapeHtml(v.version)}</td><td>${money(v.assumptions?.purchasePrice)}</td><td>${money(v.investmentMetrics?.noi)}</td><td>${number(v.investmentMetrics?.capRate,"%")}</td><td>${number(v.investmentMetrics?.dscr)}</td><td>${escapeHtml((v.recommendation||"—").replaceAll("_"," "))}</td><td>${escapeHtml(v.confidence||"—")}</td></tr>`).join("")}</tbody></table>`}
+function localDate(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
+function timestampOf(item){return item?.timestamp||item?.completedAt||item?.updatedAt||item?.createdAt||item?.requestedAt||item?.startAt||""}
+function timeLabel(value){if(!value)return "";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}
+function auditLabel(record){return record?.action||record?.eventType||record?.kind||record?.type||"OpenRabbit activity"}
+
+function renderToday(today){
+  if(!todaySurface)return;
+  const summary=today?.summary||{};
+  const approvals=today?.pendingApprovals||[];
+  const planItems=today?.planItems||[];
+  const audit=today?.audit||[];
+  const workerNames=new Map((today?.workers||[]).map((worker)=>[worker.id,worker.displayName||worker.role||worker.id]));
+  const timeline=[
+    ...planItems.map((item)=>({timestamp:item.startAt||item.updatedAt||item.createdAt,kind:item.workerId?"agent":"schedule",label:item.title||"Scheduled item",actor:item.workerId?(workerNames.get(item.workerId)||"OpenRabbit"):"You",status:item.status})),
+    ...audit.map((record)=>({timestamp:timestampOf(record),kind:"agent",label:auditLabel(record),actor:record.workerId?(workerNames.get(record.workerId)||"OpenRabbit"):"OpenRabbit"})),
+    ...approvals.map((approval)=>({timestamp:approval.requestedAt,kind:"approval",label:`Approval requested · ${approval.taskType||"action"}`,actor:workerNames.get(approval.workerId)||"OpenRabbit"}))
+  ].filter((item)=>item.timestamp).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
+  todaySurface.innerHTML=`
+    <div class="top"><div><div class="eyebrow">OpenRabbit / Today</div><h1 class="title">What matters now</h1><div class="muted">Your schedule, approvals, agent activity, and work in one view.</div></div><span class="status-pill">${escapeHtml(today?.date||localDate())}</span></div>
+    <div class="grid">
+      <section class="card span3"><div class="label">Needs your attention</div><div class="kpi">${number(summary.pendingApprovals??0)}</div><p class="muted">Pending approvals waiting on you.</p></section>
+      <section class="card span3"><div class="label">Agent actions today</div><div class="kpi">${number(summary.agentActionsToday??0)}</div><p class="muted">Audited actions completed or recorded today.</p></section>
+      <section class="card span3"><div class="label">Scheduled items</div><div class="kpi">${number(summary.scheduledItems??0)}</div><p class="muted">Human and worker work on today's plan.</p></section>
+      <section class="card span3"><div class="label">Active workers</div><div class="kpi">${number(summary.activeWorkers??0)}</div><p class="muted">OpenRabbit workers currently active.</p></section>
+      <section class="card span8"><div class="summary-row"><div><div class="label">Shared activity timeline</div><h3>Human schedule + AI work</h3></div><span class="status-pill">Live data</span></div><ul class="timeline">${timeline.length?timeline.map((item)=>`<li>${item.kind!=="schedule"?'<span class="activity-dot"></span>':''}<strong>${escapeHtml(item.actor)}</strong> · ${escapeHtml(item.label)} ${item.status?`<span class="muted">· ${escapeHtml(item.status)}</span>`:""} <span class="muted">${escapeHtml(timeLabel(item.timestamp))}</span></li>`).join(""):"<li>No activity has been recorded for today yet.</li>"}</ul></section>
+      <section class="card span4"><div class="label">Pending approvals</div><div class="list">${approvals.length?approvals.map((approval)=>`<div class="list-item"><strong>${escapeHtml(approval.taskType||"OpenRabbit action")}</strong><div class="muted small">${escapeHtml(workerNames.get(approval.workerId)||approval.workerId||"OpenRabbit")} · ${escapeHtml(timeLabel(approval.requestedAt))}</div></div>`).join(""):"<div class=\"empty\">Nothing is waiting on you.</div>"}</div></section>
+    </div>`;
+}
+
+async function loadToday(force=false){
+  if(!todaySurface||todayLoaded&&!force)return;
+  const {orgId}=credentials();
+  if(!orgId){todaySurface.innerHTML='<div class="card empty">Set an organization under Deals → Advanced connection settings to load Today.</div>';return}
+  todaySurface.innerHTML='<div class="card empty">Loading your OpenRabbit day…</div>';
+  try{const today=await apiRequest(`/v1/orgs/${encodeURIComponent(orgId)}/today?date=${encodeURIComponent(localDate())}`);renderToday(today);todayLoaded=true}catch(error){todaySurface.innerHTML=`<div class="top"><div><div class="eyebrow">OpenRabbit / Today</div><h1 class="title">What matters now</h1></div><span class="status-pill">Connection needed</span></div><div class="card empty"><strong>Today is not connected yet.</strong><p>${escapeHtml(error.message)}</p><p class="muted">The product shell remains usable while the platform API is being connected.</p><button class="dark" id="retryTodayBtn">Retry</button></div>`;document.getElementById("retryTodayBtn")?.addEventListener("click",()=>loadToday(true))}
+}
 
 function render(workspace){
   currentWorkspace=workspace;
@@ -50,11 +88,11 @@ async function createDealAndAnalyze(){
 
 async function submitRevision(){const report=currentWorkspace?.underwriting?.latestReport;if(!report)return;const current=report.assumptions||{};const {orgId,dealId}=credentials();const input={...current,purchasePrice:Number(document.getElementById("revPurchasePrice").value),annualGrossIncome:Number(document.getElementById("revIncome").value),occupancyRate:Number(document.getElementById("revOccupancy").value),operatingExpenseRatio:Number(document.getElementById("revOpex").value),downPaymentPct:Number(document.getElementById("revDown").value),interestRatePct:Number(document.getElementById("revRate").value),address:currentWorkspace.deal.address,propertyType:currentWorkspace.deal.propertyType};try{setFeedback("Running revised underwriting…");await apiRequest(`/v1/orgs/${encodeURIComponent(orgId)}/deals/${encodeURIComponent(dealId)}/underwriting-runs`,{method:"POST",body:{taskId:`underwrite-ui-${Date.now()}`,input}});await loadWorkspace();setFeedback("Revised underwriting completed.","success")}catch(error){setFeedback(error.message,"error")}}
 async function requestOutreachApproval(){const report=currentWorkspace?.underwriting?.latestReport;if(!report)return;const recipient=prompt("Controlled outreach recipient","test-recipient@openrabbit.local");if(!recipient)return;const {orgId,dealId}=credentials();const stamp=Date.now();try{setFeedback("Requesting approval…");await apiRequest(`/v1/orgs/${encodeURIComponent(orgId)}/deals/${encodeURIComponent(dealId)}/outreach-approvals`,{method:"POST",body:{taskId:`outreach-ui-${stamp}`,approvalId:`approval-ui-${stamp}`,workerId:"workspace-operator",message:{recipient,subject:`Investment review — ${currentWorkspace.deal.address}`,body:report.investorOutreachDraft}}});await loadWorkspace();setFeedback("Approval requested.","success")}catch(error){setFeedback(error.message,"error")}}
-async function decideAction(approvalId,decision){if(!approvalId||!confirm(`${decision==="approve"?"Approve":"Deny"} this external action?`))return;const {orgId}=credentials();try{setFeedback(`${decision==="approve"?"Approving":"Denying"} action…`);await apiRequest(`/v1/orgs/${encodeURIComponent(orgId)}/approvals/${encodeURIComponent(approvalId)}/decision`,{method:"POST",body:{decision}});await loadWorkspace();setFeedback(`Action ${decision==="approve"?"approved":"denied"}.`,"success")}catch(error){setFeedback(error.message,"error")}}
-async function executeAction(approvalId){if(!approvalId||!confirm("Execute this approved external action now?"))return;const {orgId}=credentials();try{setFeedback("Executing approved action…");await apiRequest(`/v1/orgs/${encodeURIComponent(orgId)}/approvals/${encodeURIComponent(approvalId)}/execute`,{method:"POST"});await loadWorkspace();setFeedback("Approved action executed.","success")}catch(error){setFeedback(error.message,"error")}}
+async function decideAction(approvalId,decision){if(!approvalId||!confirm(`${decision==="approve"?"Approve":"Deny"} this external action?`))return;const {orgId}=credentials();try{setFeedback(`${decision==="approve"?"Approving":"Denying"} action…`);await apiRequest(`/v1/orgs/${encodeURIComponent(orgId)}/approvals/${encodeURIComponent(approvalId)}/decision`,{method:"POST",body:{decision}});todayLoaded=false;await loadWorkspace();setFeedback(`Action ${decision==="approve"?"approved":"denied"}.`,"success")}catch(error){setFeedback(error.message,"error")}}
+async function executeAction(approvalId){if(!approvalId||!confirm("Execute this approved external action now?"))return;const {orgId}=credentials();try{setFeedback("Executing approved action…");await apiRequest(`/v1/orgs/${encodeURIComponent(orgId)}/approvals/${encodeURIComponent(approvalId)}/execute`,{method:"POST"});todayLoaded=false;await loadWorkspace();setFeedback("Approved action executed.","success")}catch(error){setFeedback(error.message,"error")}}
 async function loadWorkspace(){const {orgId,dealId}=credentials();if(!orgId||!dealId){setupPanel.hidden=false;app.innerHTML='<div class="card empty">Enter an organization and deal ID under advanced settings to load an existing deal.</div>';return}app.innerHTML='<div class="card empty">Loading workspace…</div>';try{render(await apiRequest(`/v1/orgs/${encodeURIComponent(orgId)}/deals/${encodeURIComponent(dealId)}/workspace`))}catch(error){app.innerHTML=`<div class="card empty"><strong>Workspace unavailable</strong><p>${escapeHtml(error.message)}</p></div>`}}
 
-function showSurface(name){document.querySelectorAll(".surface").forEach((surface)=>surface.classList.toggle("active",surface.id===`surface-${name}`));document.querySelectorAll(".nav-btn").forEach((button)=>button.classList.toggle("active",button.dataset.surface===name));window.history.replaceState(null,"",`#${name}`)}
+function showSurface(name){document.querySelectorAll(".surface").forEach((surface)=>surface.classList.toggle("active",surface.id===`surface-${name}`));document.querySelectorAll(".nav-btn").forEach((button)=>button.classList.toggle("active",button.dataset.surface===name));window.history.replaceState(null,"",`#${name}`);if(name==="today")loadToday()}
 document.querySelectorAll(".nav-btn").forEach((button)=>button.addEventListener("click",()=>showSurface(button.dataset.surface)));
 const initialSurface=(window.location.hash||"#today").slice(1);if(document.getElementById(`surface-${initialSurface}`))showSurface(initialSurface);
 
