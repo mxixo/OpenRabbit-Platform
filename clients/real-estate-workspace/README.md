@@ -2,14 +2,39 @@
 
 Thin browser client for the first OpenRabbit Real Estate operating environment.
 
-## Current surfaces
+## Adaptive workspace
 
-- **Today** — live read model for pending approvals, audited agent activity, active workers, and scheduled plan items.
-- **CRM** — first-class relationship surface; live CRM adapters/native CRM are the next product slice.
-- **Email** — communication surface prepared for provider-backed inbox context and action suggestions.
-- **Calendar** — shared human schedule + OpenRabbit worker activity concept.
-- **Map** — provider-agnostic property intelligence surface for future MLS/property/geospatial adapters.
-- **Deals** — working underwriting, scenario, recommendation, diligence, approval, and audit workspace.
+`workspace.html` is the current interaction template for the intended product shell.
+
+It keeps the five first-class work interfaces visible at the same time:
+
+- **Calendar** — human schedule plus meaningful OpenRabbit worker execution.
+- **Email** — professional communication, triage, action detection, and linked context.
+- **CRM** — contacts, leads, relationships, pipeline, and follow-up intelligence.
+- **Map** — listings, clients, comps, opportunities, appointments, routes, and geographic property context.
+- **Social** — multi-network content creation, approval, scheduling, publishing, performance, and lead signals.
+
+One interface is always the focused centerpiece while the other four remain live compact widgets. Clicking **Expand** promotes that widget into the primary workspace and collapses the previous focus without removing it. The selected focus is currently persisted in browser storage as a temporary client-side prototype; tenant/user layout persistence belongs in Platform APIs later.
+
+The initial default is Calendar-first, but no surface is permanently privileged. This allows the environment to adapt to user preference and current task context.
+
+`Today` is intentionally **not a sixth work app**. It is the orchestration/read-model layer above the five interfaces. The adaptive workspace top bar can consume Today summary counts while the five windows remain the actual work surfaces.
+
+`Deals` remains a specialized workflow reachable from CRM, Map, and direct deal views rather than becoming one of the five universal windows.
+
+## Social autonomy template
+
+Social is modeled with an explicit operator-controlled ladder:
+
+1. **Draft only** — OpenRabbit prepares content but never schedules or publishes.
+2. **Approval required** — proposed posts can be scheduled but wait for approval before external publishing.
+3. **Trusted autopilot** — publishing is allowed only after the user explicitly enables it and defines applicable guardrails.
+
+Repeated approvals never silently promote a user into autopilot.
+
+## Existing full surfaces
+
+`index.html` still contains the earlier full-surface shell for Today, CRM, Email, Calendar, Map, Social, and Deals while the adaptive workspace template is refined. It also preserves the working deal underwriting/approval workflow.
 
 ## Platform APIs used
 
@@ -21,6 +46,6 @@ The Today endpoint composes existing platform primitives instead of moving busin
 
 The Deals surface renders the current deal, underwriting KPIs, downside/base/upside scenarios, data confidence, recommendation, target purchase price, diligence items, approval state, and audit history.
 
-The client intentionally stays thin. Business rules, permissions, workflow execution, provider selection, and durable state belong in Platform APIs/capabilities rather than frontend code.
+The client intentionally stays thin. Business rules, permissions, workflow execution, provider selection, durable state, social publishing policy, and cross-interface context belong in Platform APIs/capabilities rather than frontend code.
 
-For local use, serve this directory from the same origin as the platform/real-estate API (or configure an explicit API base URL and CORS policy later). Organization ID and bearer token currently live under Deals → Advanced connection settings until tenant-aware app bootstrap replaces the developer connection controls.
+For local use, serve this directory from the same origin as the platform/real-estate API (or configure an explicit API base URL and CORS policy later). `workspace.html?org=<orgId>` can load Today summary counts for the selected organization. Organization ID and bearer token in the older shell currently remain under Deals → Advanced connection settings until tenant-aware app bootstrap replaces developer connection controls.
