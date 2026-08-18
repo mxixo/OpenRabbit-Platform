@@ -124,6 +124,28 @@ Social is modeled with an explicit operator-controlled ladder:
 
 Repeated approvals never silently promote a user into autopilot.
 
+## Environment agent planning + execution
+
+The context graph now feeds a first deterministic environment-agent planner/executor. It does not give a model arbitrary write access. Instead, the agent turns a supported intent into explicit typed steps, records the plan as an `EnvironmentActionRecord`, checks whether any step requires approval, and only then executes bounded platform operations.
+
+Current routes:
+
+- `POST /v1/orgs/:orgId/agent/plan`
+- `POST /v1/orgs/:orgId/agent/actions/:actionId/approve`
+- `POST /v1/orgs/:orgId/agent/actions/:actionId/execute`
+- `GET /v1/orgs/:orgId/actions`
+- `GET /v1/orgs/:orgId/context/neighborhood?entityType=...&entityId=...`
+
+The first supported intents are:
+
+- `draft_follow_up_email` — reads local graph context and creates a normalized outbound draft without sending it.
+- `schedule_follow_up` — creates an OpenRabbit calendar-plan item; worker-created calendar changes require explicit approval first.
+- `queue_social_post` — creates a normalized social queue item. Worker autopilot is allowed only when trusted autopilot is explicitly enabled and the requested network/day remains inside policy guardrails.
+
+Environment actions use the lifecycle `proposed → pending_approval → approved → executing → executed`, with `failed` and `cancelled` terminal alternatives. Execution results preserve the IDs of resources created by individual steps. Today now includes these environment actions in the activity projection and counts worker actions plus pending environment approvals.
+
+This is intentionally a bounded planner rather than a mega-agent. Provider-native sending, MLS writes, arbitrary CRM mutations, and other irreversible external actions remain behind future typed executors and approval policies.
+
 ## Existing full surfaces
 
 `index.html` still contains the earlier full-surface shell for Today, CRM, Email, Calendar, Map, Social, and Deals while the adaptive workspace template is refined. It also preserves the working deal underwriting/approval workflow.
@@ -136,7 +158,7 @@ The adaptive workspace endpoint returns one normalized provider-neutral model fo
 
 `GET /v1/orgs/:orgId/today?date=YYYY-MM-DD`
 
-The Today endpoint composes existing platform primitives instead of moving business logic into the browser: workers, approvals, audit records, and calendar plan items.
+The Today endpoint composes existing platform primitives plus environment actions: workers, approvals, audit records, calendar plan items, pending environment approvals, and worker execution activity.
 
 `GET /v1/orgs/:orgId/deals/:dealId/workspace`
 
