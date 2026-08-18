@@ -13,6 +13,13 @@ function cloneItem(item: CalendarPlanItem): CalendarPlanItem {
   };
 }
 
+export interface CalendarPlanStoreSnapshot {
+  version: 1;
+  exportedAt: string;
+  items: CalendarPlanItem[];
+  plans: DailyPlan[];
+}
+
 function clonePlan(plan: DailyPlan): DailyPlan {
   return {
     ...plan,
@@ -129,6 +136,48 @@ export class InMemoryCalendarPlanStore implements CalendarPlanStore {
   getDailyPlan(orgId: string, date: string): DailyPlan | undefined {
     const plan = this.plans.get(this.planKey(orgId, date));
     return plan ? clonePlan(plan) : undefined;
+  }
+
+  exportSnapshot(exportedAt = new Date().toISOString()): CalendarPlanStoreSnapshot {
+    return {
+      version: 1,
+      exportedAt,
+      items: [...this.items.values()].map(cloneItem),
+      plans: [...this.plans.values()].map(clonePlan)
+    };
+  }
+
+  importSnapshot(snapshot: CalendarPlanStoreSnapshot): void {
+    if (snapshot.version !== 1) {
+      throw new Error(`Unsupported calendar plan snapshot version: ${snapshot.version}`);
+    }
+    if (!Array.isArray(snapshot.items) || !Array.isArray(snapshot.plans)) {
+      throw new Error("Invalid calendar plan snapshot");
+    }
+
+    const replacementItems = new Map<string, CalendarPlanItem>();
+    const replacementPlans = new Map<string, DailyPlan>();
+    for (const item of snapshot.items) {
+      if (!item.id?.trim() || !item.orgId?.trim() || !item.date?.trim() || !item.title?.trim()) {
+        throw new Error("Invalid calendar item in snapshot");
+      }
+      const key = this.itemKey(item.orgId, item.id);
+      if (replacementItems.has(key)) throw new Error(`Duplicate calendar item in snapshot: ${item.id}`);
+      replacementItems.set(key, cloneItem(item));
+    }
+    for (const plan of snapshot.plans) {
+      if (!plan.id?.trim() || !plan.orgId?.trim() || !plan.date?.trim() || !plan.timezone?.trim()) {
+        throw new Error("Invalid daily plan in snapshot");
+      }
+      const key = this.planKey(plan.orgId, plan.date);
+      if (replacementPlans.has(key)) throw new Error(`Duplicate daily plan in snapshot: ${plan.date}`);
+      replacementPlans.set(key, clonePlan(plan));
+    }
+
+    this.items.clear();
+    this.plans.clear();
+    for (const [key, item] of replacementItems) this.items.set(key, item);
+    for (const [key, plan] of replacementPlans) this.plans.set(key, plan);
   }
 
   private itemKey(orgId: string, itemId: string): string {

@@ -1,3 +1,7 @@
+import { mkdtempSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { JsonFileCalendarPlanStore } from "@openrabbit/runtime-core";
 import { describe, expect, it } from "vitest";
 import { PlanningRealEstatePlatformBackend } from "../../src/planning-real-estate-platform-backend.js";
 
@@ -381,6 +385,61 @@ describe("PlanningRealEstatePlatformBackend", () => {
         candidates: [{ itemId: foreign.id, estimatedMinutes: 30 }]
       })
     ).rejects.toThrow("not found for organization and date");
+  });
+
+
+  it("recovers the operating plan through a durable store after backend restart", async () => {
+    const filePath = join(
+      mkdtempSync(join(tmpdir(), "openrabbit-orchestrator-")),
+      "plans.json"
+    );
+    const first = new PlanningRealEstatePlatformBackend(
+      new JsonFileCalendarPlanStore({ filePath })
+    );
+    const item = await first.createPlanItem({
+      orgId: "org-restart",
+      date: "2026-08-13",
+      title: "Follow up with qualified buyer",
+      notes: "Initial context"
+    });
+    await first.updatePlanItem({
+      orgId: "org-restart",
+      itemId: item.id,
+      status: "blocked",
+      notes: "Waiting for proof of funds",
+      taskId: "task-restart"
+    });
+    await first.saveDailyPlan({
+      orgId: "org-restart",
+      date: "2026-08-13",
+      timezone: "America/Phoenix",
+      objective: "Move the buyer conversation forward",
+      itemIds: [item.id],
+      generatedBy: "openrabbit"
+    });
+
+    const restarted = new PlanningRealEstatePlatformBackend(
+      new JsonFileCalendarPlanStore({ filePath })
+    );
+    expect(await restarted.getDailyPlan("org-restart", "2026-08-13")).toMatchObject({
+      objective: "Move the buyer conversation forward",
+      itemIds: [item.id]
+    });
+    expect(await restarted.listPlanItems("org-restart", "2026-08-13")).toEqual([
+      expect.objectContaining({
+        id: item.id,
+        status: "blocked",
+        taskId: "task-restart",
+        notes: "Waiting for proof of funds"
+      })
+    ]);
+
+    const newItem = await restarted.createPlanItem({
+      orgId: "org-restart",
+      date: "2026-08-13",
+      title: "New work after restart"
+    });
+    expect(newItem.id).not.toBe(item.id);
   });
 
 });

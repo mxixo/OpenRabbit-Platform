@@ -47,6 +47,7 @@ export * from "./core/in-memory-worker-orchestrator.js";
 export * from "./core/in-memory-approval-request-store.js";
 export * from "./core/in-memory-audit-store.js";
 export * from "./core/in-memory-calendar-plan-store.js";
+export * from "./core/json-file-calendar-plan-store.js";
 export * from "./core/living-agenda-priority.js";
 export * from "./core/living-agenda-generator.js";
 export * from "./core/living-agenda-reconciler.js";
