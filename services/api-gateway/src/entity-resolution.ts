@@ -6,6 +6,7 @@ import { autoLinkRecordContext } from "./context-auto-link.js";
 
 export type ResolutionTargetType = "relationship" | "property";
 export type ResolutionDisposition = "auto_link" | "suggest" | "ignore";
+export type ResolutionDecision = "accepted" | "rejected";
 
 export interface EntityResolutionCandidate {
   targetType: ResolutionTargetType;
@@ -16,10 +17,23 @@ export interface EntityResolutionCandidate {
   reasons: string[];
 }
 
+export interface ResolutionFeedbackRecord {
+  orgId: string;
+  emailId: string;
+  targetType: ResolutionTargetType;
+  targetId: string;
+  decision: ResolutionDecision;
+  actorId?: string;
+  confidence: number;
+  reasons: string[];
+  createdAt: string;
+}
+
 export interface EmailResolutionResult {
   emailId: string;
   candidates: EntityResolutionCandidate[];
   applied: EntityResolutionCandidate[];
+  feedback: ResolutionFeedbackRecord[];
 }
 
 function normalizeEmail(value: string | undefined): string | undefined {
@@ -98,13 +112,25 @@ function propertyCandidate(message: NormalizedEmailMessage, property: Normalized
   return undefined;
 }
 
+function feedbackKey(orgId: string, emailId: string, targetType: ResolutionTargetType, targetId: string): string {
+  return `${orgId}:${emailId}:${targetType}:${targetId}`;
+}
+
 export class EntityResolutionService {
+  private readonly feedbackRecords = new Map<string, ResolutionFeedbackRecord>();
+
   constructor(
     private readonly emailStore: InMemoryEmailStore,
     private readonly crmStore: InMemoryNativeCrmStore,
     private readonly propertyStore: InMemoryPropertyStore,
     private readonly graph: InMemoryContextGraphStore
   ) {}
+
+  async listFeedback(orgId: string, emailId?: string): Promise<ResolutionFeedbackRecord[]> {
+    return [...this.feedbackRecords.values()]
+      .filter((record) => record.orgId === orgId && (!emailId || record.emailId === emailId))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
 
   async inspectEmail(orgId: string, emailId: string): Promise<EmailResolutionResult> {
     const message = await this.emailStore.get(orgId, emailId);
@@ -124,8 +150,11 @@ export class EntityResolutionService {
       }
     }
 
-    candidates.sort((a, b) => b.confidence - a.confidence);
-    return { emailId, candidates, applied: [] };
+    const feedback = await this.listFeedback(orgId, emailId);
+    const rejected = new Set(feedback.filter((record) => record.decision === "rejected").map((record) => `${record.targetType}:${record.targetId}`));
+    const visible = candidates.filter((candidate) => !rejected.has(`${candidate.targetType}:${candidate.targetId}`));
+    visible.sort((a, b) => b.confidence - a.confidence);
+    return { emailId, candidates: visible, applied: [], feedback };
   }
 
   async resolveEmail(orgId: string, emailId: string): Promise<EmailResolutionResult> {
@@ -148,5 +177,44 @@ export class EntityResolutionService {
     }
 
     return { ...result, applied };
+  }
+
+  async decideEmailCandidate(input: {
+    orgId: string;
+    emailId: string;
+    targetType: ResolutionTargetType;
+    targetId: string;
+    decision: ResolutionDecision;
+    actorId?: string;
+  }): Promise<{ message: NormalizedEmailMessage; feedback: ResolutionFeedbackRecord }> {
+    const message = await this.emailStore.get(input.orgId, input.emailId);
+    if (!message) throw new Error(`Email message not found: ${input.emailId}`);
+
+    const inspected = await this.inspectEmail(input.orgId, input.emailId);
+    const candidate = inspected.candidates.find((item) => item.targetType === input.targetType && item.targetId === input.targetId);
+    if (!candidate) throw new Error(`Resolution candidate not found: ${input.targetType}:${input.targetId}`);
+
+    let updated = message;
+    if (input.decision === "accepted") {
+      updated = await this.emailStore.update(input.orgId, input.emailId, {
+        relationshipId: input.targetType === "relationship" ? input.targetId : message.relationshipId,
+        propertyId: input.targetType === "property" ? input.targetId : message.propertyId
+      });
+      await autoLinkRecordContext(this.graph, input.orgId, { type: "email", id: updated.id, label: updated.subject }, updated);
+    }
+
+    const feedback: ResolutionFeedbackRecord = {
+      orgId: input.orgId,
+      emailId: input.emailId,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      decision: input.decision,
+      actorId: input.actorId?.trim() || undefined,
+      confidence: candidate.confidence,
+      reasons: candidate.reasons,
+      createdAt: new Date().toISOString()
+    };
+    this.feedbackRecords.set(feedbackKey(input.orgId, input.emailId, input.targetType, input.targetId), feedback);
+    return { message: updated, feedback };
   }
 }
