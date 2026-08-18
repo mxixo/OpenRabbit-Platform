@@ -36,6 +36,8 @@ import { EnvironmentAgentService } from "./environment-agent.js";
 import { routeEnvironmentAgentApi } from "./environment-agent-api.js";
 import { EntityResolutionService } from "./entity-resolution.js";
 import { routeEntityResolutionApi } from "./entity-resolution-api.js";
+import { ProviderSyncCoordinator } from "./provider-sync.js";
+import { routeProviderSyncApi } from "./provider-sync-api.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -62,6 +64,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
   let lastErrorCode: string | undefined;
   let platformBackend: PlatformApiBackend | undefined;
   const environmentAgent = new EnvironmentAgentService(contextGraph, emailDrafts, socialStore, () => platformBackend);
+  const providerSync = new ProviderSyncCoordinator(emailStore, nativeCrm, propertyStore, socialStore, providerConnections, contextGraph, entityResolver, () => platformBackend);
 
   const descriptor: ServiceDescriptor = {
     serviceName: "api-gateway",
@@ -72,7 +75,8 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
       "email-calendar-linkage-v1", "provider-connections-v1", "provider-oauth-bootstrap-v1",
       "email-drafts-v1", "property-map-v1", "social-queue-v1", "social-autonomy-policy-v1",
       "context-graph-v1", "environment-actions-v1", "environment-agent-planner-v1",
-      "environment-agent-executor-v1", "automatic-context-linking-v1", "entity-resolution-v1"
+      "environment-agent-executor-v1", "automatic-context-linking-v1", "entity-resolution-v1",
+      "provider-sync-v1"
     ]
   };
 
@@ -88,10 +92,10 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           { name: "configuration-manager", status: "up" }, { name: "event-bus", status: "up" },
           { name: "permission-manager", status: "up" }, { name: "native-crm", status: "up" },
           { name: "email-normalizer", status: "up" }, { name: "provider-connection-registry", status: "up" },
-          { name: "provider-authorization", status: "up" }, { name: "email-draft-queue", status: "up" },
-          { name: "property-map-normalizer", status: "up" }, { name: "social-queue", status: "up" },
-          { name: "context-graph", status: "up" }, { name: "entity-resolution", status: "up" },
-          { name: "environment-agent", status: "up" },
+          { name: "provider-authorization", status: "up" }, { name: "provider-sync", status: "up" },
+          { name: "email-draft-queue", status: "up" }, { name: "property-map-normalizer", status: "up" },
+          { name: "social-queue", status: "up" }, { name: "context-graph", status: "up" },
+          { name: "entity-resolution", status: "up" }, { name: "environment-agent", status: "up" },
           ...(platformBackend ? [{ name: "platform-backend", status: "up" as const }] : [])
         ]
       };
@@ -108,6 +112,11 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
     },
     registerPlatformBackend(backend: PlatformApiBackend): void { platformBackend = backend; },
     registerProviderAuthorizationAdapter(adapter): void { providerAuthorization.register(adapter); },
+    registerEmailSyncAdapter(adapter): void { providerSync.registerEmailAdapter(adapter); },
+    registerCrmSyncAdapter(adapter): void { providerSync.registerCrmAdapter(adapter); },
+    registerPropertySyncAdapter(adapter): void { providerSync.registerPropertyAdapter(adapter); },
+    registerCalendarSyncAdapter(adapter): void { providerSync.registerCalendarAdapter(adapter); },
+    registerSocialSyncAdapter(adapter): void { providerSync.registerSocialAdapter(adapter); },
     async handleRequest(input: unknown): Promise<ServiceOperationResult<ApiResponseData>> {
       if (!started) { operationsFailed += 1; lastErrorCode = "SERVICE_NOT_STARTED"; return { ok: false, error: { code: "SERVICE_NOT_STARTED", message: "api-gateway service not started", retryable: true } }; }
       const validation = this.validateRequest(input);
@@ -125,7 +134,8 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           const emailRoute = crmRoute.matched ? crmRoute : await routeEmailApi(request, emailStore, platformBackend, contextGraph, entityResolver);
           const resolutionRoute = emailRoute.matched ? emailRoute : await routeEntityResolutionApi(request, entityResolver);
           const providerRoute = resolutionRoute.matched ? resolutionRoute : await routeProviderApi(request, providerConnections, emailDrafts, providerAuthorization);
-          const mapRoute = providerRoute.matched ? providerRoute : await routeMapApi(request, propertyStore, contextGraph);
+          const syncRoute = providerRoute.matched ? providerRoute : await routeProviderSyncApi(request, providerSync);
+          const mapRoute = syncRoute.matched ? syncRoute : await routeMapApi(request, propertyStore, contextGraph);
           const socialRoute = mapRoute.matched ? mapRoute : await routeSocialApi(request, socialStore, contextGraph);
           const agentRoute = socialRoute.matched ? socialRoute : await routeEnvironmentAgentApi(request, environmentAgent);
           const contextRoute = agentRoute.matched ? agentRoute : await routeContextApi(request, contextGraph);
