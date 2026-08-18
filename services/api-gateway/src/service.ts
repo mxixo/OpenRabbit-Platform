@@ -37,6 +37,7 @@ import { routeEnvironmentAgentApi } from "./environment-agent-api.js";
 import { EntityResolutionService } from "./entity-resolution.js";
 import { routeEntityResolutionApi } from "./entity-resolution-api.js";
 import { ProviderSyncCoordinator } from "./provider-sync.js";
+import { ProviderSyncScheduler } from "./provider-sync-scheduler.js";
 import { routeProviderSyncApi } from "./provider-sync-api.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
@@ -65,6 +66,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
   let platformBackend: PlatformApiBackend | undefined;
   const environmentAgent = new EnvironmentAgentService(contextGraph, emailDrafts, socialStore, () => platformBackend);
   const providerSync = new ProviderSyncCoordinator(emailStore, nativeCrm, propertyStore, socialStore, providerConnections, contextGraph, entityResolver, () => platformBackend);
+  const providerSyncScheduler = new ProviderSyncScheduler(providerSync);
 
   const descriptor: ServiceDescriptor = {
     serviceName: "api-gateway",
@@ -76,13 +78,13 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
       "email-drafts-v1", "property-map-v1", "social-queue-v1", "social-autonomy-policy-v1",
       "context-graph-v1", "environment-actions-v1", "environment-agent-planner-v1",
       "environment-agent-executor-v1", "automatic-context-linking-v1", "entity-resolution-v1",
-      "provider-sync-v1"
+      "provider-sync-v1", "provider-sync-scheduler-v1"
     ]
   };
 
   return {
-    async start(): Promise<void> { started = true; await logger.info("api-gateway started", { configKeys: config.keys() }); await eventBus.publish({ type: "service.started", payload: { service: descriptor.serviceName }, timestamp: new Date().toISOString() }); },
-    async stop(): Promise<void> { started = false; await logger.info("api-gateway stopped"); },
+    async start(): Promise<void> { started = true; providerSyncScheduler.start(); await logger.info("api-gateway started", { configKeys: config.keys() }); await eventBus.publish({ type: "service.started", payload: { service: descriptor.serviceName }, timestamp: new Date().toISOString() }); },
+    async stop(): Promise<void> { providerSyncScheduler.stop(); started = false; await logger.info("api-gateway stopped"); },
     isStarted(): boolean { return started; },
     getDescriptor(): ServiceDescriptor { return descriptor; },
     getHealth(): ServiceHealth {
@@ -93,9 +95,10 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           { name: "permission-manager", status: "up" }, { name: "native-crm", status: "up" },
           { name: "email-normalizer", status: "up" }, { name: "provider-connection-registry", status: "up" },
           { name: "provider-authorization", status: "up" }, { name: "provider-sync", status: "up" },
-          { name: "email-draft-queue", status: "up" }, { name: "property-map-normalizer", status: "up" },
-          { name: "social-queue", status: "up" }, { name: "context-graph", status: "up" },
-          { name: "entity-resolution", status: "up" }, { name: "environment-agent", status: "up" },
+          { name: "provider-sync-scheduler", status: "up" }, { name: "email-draft-queue", status: "up" },
+          { name: "property-map-normalizer", status: "up" }, { name: "social-queue", status: "up" },
+          { name: "context-graph", status: "up" }, { name: "entity-resolution", status: "up" },
+          { name: "environment-agent", status: "up" },
           ...(platformBackend ? [{ name: "platform-backend", status: "up" as const }] : [])
         ]
       };
@@ -134,7 +137,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           const emailRoute = crmRoute.matched ? crmRoute : await routeEmailApi(request, emailStore, platformBackend, contextGraph, entityResolver);
           const resolutionRoute = emailRoute.matched ? emailRoute : await routeEntityResolutionApi(request, entityResolver);
           const providerRoute = resolutionRoute.matched ? resolutionRoute : await routeProviderApi(request, providerConnections, emailDrafts, providerAuthorization);
-          const syncRoute = providerRoute.matched ? providerRoute : await routeProviderSyncApi(request, providerSync);
+          const syncRoute = providerRoute.matched ? providerRoute : await routeProviderSyncApi(request, providerSync, providerSyncScheduler);
           const mapRoute = syncRoute.matched ? syncRoute : await routeMapApi(request, propertyStore, contextGraph);
           const socialRoute = mapRoute.matched ? mapRoute : await routeSocialApi(request, socialStore, contextGraph);
           const agentRoute = socialRoute.matched ? socialRoute : await routeEnvironmentAgentApi(request, environmentAgent);
