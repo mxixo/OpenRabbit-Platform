@@ -30,6 +30,8 @@ import { InMemoryPropertyStore } from "./map-adapter.js";
 import { routeMapApi } from "./map-api.js";
 import { InMemorySocialStore } from "./social-adapter.js";
 import { routeSocialApi } from "./social-api.js";
+import { InMemoryContextGraphStore } from "./context-graph.js";
+import { routeContextApi } from "./context-api.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -45,6 +47,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
   const providerAuthorization = new ProviderAuthorizationService(providerConnections);
   const propertyStore = new InMemoryPropertyStore();
   const socialStore = new InMemorySocialStore();
+  const contextGraph = new InMemoryContextGraphStore();
 
   permissionManager.addPolicy({
     id: "allow-api-requests",
@@ -78,7 +81,9 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
       "email-drafts-v1",
       "property-map-v1",
       "social-queue-v1",
-      "social-autonomy-policy-v1"
+      "social-autonomy-policy-v1",
+      "context-graph-v1",
+      "environment-actions-v1"
     ]
   };
 
@@ -109,6 +114,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           { name: "email-draft-queue", status: "up" },
           { name: "property-map-normalizer", status: "up" },
           { name: "social-queue", status: "up" },
+          { name: "context-graph", status: "up" },
           ...(platformBackend ? [{ name: "platform-backend", status: "up" as const }] : [])
         ]
       };
@@ -161,6 +167,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           const providerRoute = emailRoute.matched ? emailRoute : await routeProviderApi(request, providerConnections, emailDrafts, providerAuthorization);
           const mapRoute = providerRoute.matched ? providerRoute : await routeMapApi(request, propertyStore);
           const socialRoute = mapRoute.matched ? mapRoute : await routeSocialApi(request, socialStore);
+          const contextRoute = socialRoute.matched ? socialRoute : await routeContextApi(request, contextGraph);
           const workspaceBackend = {
             ...platformBackend,
             listWorkspaceRelationships: (orgId: string) => nativeCrm.workspaceItems(orgId),
@@ -169,7 +176,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
             listWorkspaceSocialItems: (orgId: string, date: string) => socialStore.workspaceItems(orgId, date),
             getWorkspaceSocialAutonomyMode: async (orgId: string) => (await socialStore.getPolicy(orgId)).autonomyMode
           };
-          const workspaceRoute = socialRoute.matched ? socialRoute : await routeWorkspaceApi(request, workspaceBackend);
+          const workspaceRoute = contextRoute.matched ? contextRoute : await routeWorkspaceApi(request, workspaceBackend);
           const todayRoute = workspaceRoute.matched ? workspaceRoute : await routeTodayApi(request, platformBackend);
           const routed = todayRoute.matched ? todayRoute : await routePlatformApi(request, platformBackend);
 
