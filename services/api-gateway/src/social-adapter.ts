@@ -40,6 +40,10 @@ function unique(values: string[] | undefined): string[] {
   return [...new Set((values ?? []).map((value) => value.trim().toLowerCase()).filter(Boolean))];
 }
 
+function day(value: string | undefined, fallback: string): string {
+  return (value ?? fallback).slice(0, 10);
+}
+
 export class InMemorySocialStore {
   private readonly posts = new Map<string, SocialPostRecord>();
   private readonly policies = new Map<string, SocialPublishPolicy>();
@@ -56,6 +60,21 @@ export class InMemorySocialStore {
     return post?.orgId === orgId ? post : undefined;
   }
 
+  private async workerMayAutopilot(orgId: string, network: string | undefined, scheduledAt: string | undefined, now: string): Promise<boolean> {
+    const policy = await this.getPolicy(orgId);
+    const normalizedNetwork = network?.trim().toLowerCase();
+    if (policy.autonomyMode !== "trusted_autopilot" || !normalizedNetwork) return false;
+    if (!policy.allowedNetworks.includes(normalizedNetwork)) return false;
+    if (policy.approvalRequiredForNetworks.includes(normalizedNetwork)) return false;
+    const targetDay = day(scheduledAt, now);
+    const alreadyScheduled = [...this.posts.values()].filter((post) =>
+      post.orgId === orgId &&
+      ["scheduled", "published"].includes(post.status) &&
+      day(post.scheduledAt, post.createdAt) === targetDay
+    ).length;
+    return alreadyScheduled < policy.maxPostsPerDay;
+  }
+
   async create(orgId: string, input: {
     title?: string;
     network?: string;
@@ -69,11 +88,11 @@ export class InMemorySocialStore {
     status?: "draft" | "pending_approval" | "scheduled";
   }): Promise<SocialPostRecord> {
     const now = new Date().toISOString();
-    const policy = await this.getPolicy(orgId);
     const requested = input.status ?? "draft";
-    const status: SocialPostStatus = input.createdBy === "worker" && requested !== "draft"
-      ? (policy.autonomyMode === "trusted_autopilot" ? requested : "pending_approval")
-      : requested;
+    let status: SocialPostStatus = requested;
+    if (input.createdBy === "worker" && requested !== "draft") {
+      status = await this.workerMayAutopilot(orgId, input.network, input.scheduledAt, now) ? requested : "pending_approval";
+    }
     const post: SocialPostRecord = {
       id: id(),
       orgId,
