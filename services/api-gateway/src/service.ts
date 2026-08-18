@@ -20,6 +20,8 @@ import { routeTodayApi } from "./today-api.js";
 import { routeWorkspaceApi } from "./workspace-api.js";
 import { InMemoryNativeCrmStore } from "./native-crm.js";
 import { routeNativeCrmApi } from "./crm-api.js";
+import { InMemoryEmailStore } from "./email-adapter.js";
+import { routeEmailApi } from "./email-api.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -29,6 +31,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
   const permissionManager = new InMemoryPermissionManager();
   const logger = new StructuredLogger([new InMemoryLogSink()]).child({ service: "api-gateway" });
   const nativeCrm = new InMemoryNativeCrmStore();
+  const emailStore = new InMemoryEmailStore();
 
   permissionManager.addPolicy({
     id: "allow-api-requests",
@@ -54,7 +57,9 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
       "today-surface-v1",
       "adaptive-workspace-v1",
       "native-crm-v1",
-      "crm-import-v1"
+      "crm-import-v1",
+      "email-adapter-v1",
+      "email-calendar-linkage-v1"
     ]
   };
 
@@ -79,6 +84,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           { name: "event-bus", status: "up" },
           { name: "permission-manager", status: "up" },
           { name: "native-crm", status: "up" },
+          { name: "email-normalizer", status: "up" },
           ...(platformBackend ? [{ name: "platform-backend", status: "up" as const }] : [])
         ]
       };
@@ -126,11 +132,13 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
         }
         try {
           const crmRoute = await routeNativeCrmApi(request, nativeCrm);
+          const emailRoute = crmRoute.matched ? crmRoute : await routeEmailApi(request, emailStore, platformBackend);
           const workspaceBackend = {
             ...platformBackend,
-            listWorkspaceRelationships: (orgId: string) => nativeCrm.workspaceItems(orgId)
+            listWorkspaceRelationships: (orgId: string) => nativeCrm.workspaceItems(orgId),
+            listWorkspaceEmailItems: (orgId: string, date: string) => emailStore.workspaceItems(orgId, date)
           };
-          const workspaceRoute = crmRoute.matched ? crmRoute : await routeWorkspaceApi(request, workspaceBackend);
+          const workspaceRoute = emailRoute.matched ? emailRoute : await routeWorkspaceApi(request, workspaceBackend);
           const todayRoute = workspaceRoute.matched ? workspaceRoute : await routeTodayApi(request, platformBackend);
           const routed = todayRoute.matched ? todayRoute : await routePlatformApi(request, platformBackend);
 
