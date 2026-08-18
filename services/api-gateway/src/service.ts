@@ -51,12 +51,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
   const socialStore = new InMemorySocialStore();
   const contextGraph = new InMemoryContextGraphStore();
 
-  permissionManager.addPolicy({
-    id: "allow-api-requests",
-    effect: "allow",
-    actions: ["read", "write"],
-    resources: ["api-request"]
-  });
+  permissionManager.addPolicy({ id: "allow-api-requests", effect: "allow", actions: ["read", "write"], resources: ["api-request"] });
 
   let started = false;
   let operationsSucceeded = 0;
@@ -69,26 +64,12 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
     serviceName: "api-gateway",
     version,
     capabilities: [
-      "health",
-      "request-validation",
-      "request-handling",
-      "platform-api-v1",
-      "today-surface-v1",
-      "adaptive-workspace-v1",
-      "native-crm-v1",
-      "crm-import-v1",
-      "email-adapter-v1",
-      "email-calendar-linkage-v1",
-      "provider-connections-v1",
-      "provider-oauth-bootstrap-v1",
-      "email-drafts-v1",
-      "property-map-v1",
-      "social-queue-v1",
-      "social-autonomy-policy-v1",
-      "context-graph-v1",
-      "environment-actions-v1",
-      "environment-agent-planner-v1",
-      "environment-agent-executor-v1"
+      "health", "request-validation", "request-handling", "platform-api-v1", "today-surface-v1",
+      "adaptive-workspace-v1", "native-crm-v1", "crm-import-v1", "email-adapter-v1",
+      "email-calendar-linkage-v1", "provider-connections-v1", "provider-oauth-bootstrap-v1",
+      "email-drafts-v1", "property-map-v1", "social-queue-v1", "social-autonomy-policy-v1",
+      "context-graph-v1", "environment-actions-v1", "environment-agent-planner-v1",
+      "environment-agent-executor-v1", "automatic-context-linking-v1"
     ]
   };
 
@@ -98,10 +79,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
       await logger.info("api-gateway started", { configKeys: config.keys() });
       await eventBus.publish({ type: "service.started", payload: { service: descriptor.serviceName }, timestamp: new Date().toISOString() });
     },
-    async stop(): Promise<void> {
-      started = false;
-      await logger.info("api-gateway stopped");
-    },
+    async stop(): Promise<void> { started = false; await logger.info("api-gateway stopped"); },
     isStarted(): boolean { return started; },
     getDescriptor(): ServiceDescriptor { return descriptor; },
     getHealth(): ServiceHealth {
@@ -109,18 +87,12 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
         status: started ? "ok" : "degraded",
         timestamp: new Date().toISOString(),
         dependencies: [
-          { name: "configuration-manager", status: "up" },
-          { name: "event-bus", status: "up" },
-          { name: "permission-manager", status: "up" },
-          { name: "native-crm", status: "up" },
-          { name: "email-normalizer", status: "up" },
-          { name: "provider-connection-registry", status: "up" },
-          { name: "provider-authorization", status: "up" },
-          { name: "email-draft-queue", status: "up" },
-          { name: "property-map-normalizer", status: "up" },
-          { name: "social-queue", status: "up" },
-          { name: "context-graph", status: "up" },
-          { name: "environment-agent", status: "up" },
+          { name: "configuration-manager", status: "up" }, { name: "event-bus", status: "up" },
+          { name: "permission-manager", status: "up" }, { name: "native-crm", status: "up" },
+          { name: "email-normalizer", status: "up" }, { name: "provider-connection-registry", status: "up" },
+          { name: "provider-authorization", status: "up" }, { name: "email-draft-queue", status: "up" },
+          { name: "property-map-normalizer", status: "up" }, { name: "social-queue", status: "up" },
+          { name: "context-graph", status: "up" }, { name: "environment-agent", status: "up" },
           ...(platformBackend ? [{ name: "platform-backend", status: "up" as const }] : [])
         ]
       };
@@ -147,19 +119,13 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
         operationsFailed += 1; lastErrorCode = "INVALID_REQUEST";
         return { ok: false, error: { code: "INVALID_REQUEST", message: validation.errors.join("; "), retryable: false } };
       }
-
       const request = input as ApiRequestEnvelope;
       const action = request.method.toUpperCase() === "GET" ? "read" : "write";
-      const decision = permissionManager.evaluate({
-        subject: { id: request.actorId ?? "anonymous", roles: request.actorRoles },
-        action,
-        resource: { type: "api-request" }
-      });
+      const decision = permissionManager.evaluate({ subject: { id: request.actorId ?? "anonymous", roles: request.actorRoles }, action, resource: { type: "api-request" } });
       if (!decision.allowed) {
         operationsFailed += 1; lastErrorCode = "PERMISSION_DENIED";
         return { ok: false, error: { code: "PERMISSION_DENIED", message: decision.reason, retryable: false } };
       }
-
       await eventBus.publish({ type: "api.request.accepted", payload: { requestId: request.requestId, path: request.path }, timestamp: new Date().toISOString() });
 
       if (request.path.startsWith("/v1/")) {
@@ -169,7 +135,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
         }
         try {
           const crmRoute = await routeNativeCrmApi(request, nativeCrm);
-          const emailRoute = crmRoute.matched ? crmRoute : await routeEmailApi(request, emailStore, platformBackend);
+          const emailRoute = crmRoute.matched ? crmRoute : await routeEmailApi(request, emailStore, platformBackend, contextGraph);
           const providerRoute = emailRoute.matched ? emailRoute : await routeProviderApi(request, providerConnections, emailDrafts, providerAuthorization);
           const mapRoute = providerRoute.matched ? providerRoute : await routeMapApi(request, propertyStore);
           const socialRoute = mapRoute.matched ? mapRoute : await routeSocialApi(request, socialStore);
@@ -186,7 +152,6 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           const workspaceRoute = contextRoute.matched ? contextRoute : await routeWorkspaceApi(request, workspaceBackend);
           const todayRoute = workspaceRoute.matched ? workspaceRoute : await routeTodayApi(request, platformBackend, contextGraph);
           const routed = todayRoute.matched ? todayRoute : await routePlatformApi(request, platformBackend);
-
           if (!routed.matched) {
             operationsFailed += 1; lastErrorCode = "ROUTE_NOT_FOUND";
             return { ok: false, error: { code: "ROUTE_NOT_FOUND", message: `No platform API route for ${request.method.toUpperCase()} ${request.path}`, retryable: false } };
@@ -202,7 +167,6 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           return { ok: false, error: { code: "PLATFORM_BACKEND_ERROR", message: error instanceof Error ? error.message : "platform backend failed", retryable: true } };
         }
       }
-
       operationsSucceeded += 1;
       return { ok: true, data: { accepted: true } };
     }
