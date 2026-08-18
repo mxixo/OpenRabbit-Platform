@@ -15,6 +15,24 @@ export interface SocialPostRecord extends WorkspaceSocialItem {
   updatedAt: string;
 }
 
+export interface SocialProviderPost {
+  externalId: string;
+  network: string;
+  title?: string;
+  body?: string;
+  campaign?: string;
+  summary?: string;
+  scheduledAt?: string;
+  status?: SocialPostStatus;
+  relationshipId?: string;
+  propertyId?: string;
+}
+
+export interface SocialSourceAdapter {
+  readonly provider: string;
+  listPosts(orgId: string, updatedSince?: string): Promise<SocialProviderPost[]>;
+}
+
 export interface SocialPublishPolicy {
   orgId: string;
   autonomyMode: SocialAutonomyMode;
@@ -111,6 +129,38 @@ export class InMemorySocialStore {
     };
     this.posts.set(post.id, post);
     return post;
+  }
+
+  async importExternal(orgId: string, provider: string, posts: SocialProviderPost[]): Promise<{ imported: number; updated: number; items: SocialPostRecord[] }> {
+    let imported = 0;
+    let updated = 0;
+    const items: SocialPostRecord[] = [];
+    const normalizedProvider = provider.trim().toLowerCase();
+    for (const incoming of posts) {
+      if (!incoming.externalId?.trim()) throw new Error("social externalId is required");
+      if (!incoming.network?.trim()) throw new Error("social network is required");
+      const existing = [...this.posts.values()].find((post) => post.orgId === orgId && post.provider === normalizedProvider && post.externalId === incoming.externalId.trim());
+      const now = new Date().toISOString();
+      const next: SocialPostRecord = {
+        ...(existing ?? { id: id(), orgId, createdBy: "user" as const, createdAt: now }),
+        provider: normalizedProvider,
+        externalId: incoming.externalId.trim(),
+        network: incoming.network.trim().toLowerCase(),
+        title: incoming.title?.trim(),
+        body: incoming.body?.trim(),
+        campaign: incoming.campaign?.trim(),
+        summary: incoming.summary?.trim(),
+        scheduledAt: incoming.scheduledAt,
+        relationshipId: incoming.relationshipId?.trim(),
+        propertyId: incoming.propertyId?.trim(),
+        status: incoming.status ?? existing?.status ?? "published",
+        updatedAt: now
+      };
+      this.posts.set(next.id, next);
+      existing ? updated++ : imported++;
+      items.push(next);
+    }
+    return { imported, updated, items };
   }
 
   async update(orgId: string, postId: string, patch: Partial<Pick<SocialPostRecord, "title" | "body" | "campaign" | "scheduledAt" | "status" | "summary">>): Promise<SocialPostRecord> {
