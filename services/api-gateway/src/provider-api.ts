@@ -2,6 +2,7 @@ import type { ApiRequestEnvelope } from "./contracts.js";
 import type { PlatformApiRouteResult } from "./platform-api.js";
 import type { InMemoryProviderConnectionStore, ProviderCapability, ProviderConnectionStatus } from "./provider-connections.js";
 import type { InMemoryEmailDraftStore, EmailDraftStatus } from "./email-drafts.js";
+import type { ProviderAuthorizationService } from "./provider-authorization-service.js";
 
 const STATUSES = new Set<ProviderConnectionStatus>(["disconnected", "authorizing", "connected", "error"]);
 const CAPABILITIES = new Set<ProviderCapability>(["email.read", "email.draft", "email.send", "calendar.read", "calendar.write"]);
@@ -15,10 +16,15 @@ function invalid(message: string, code = "INVALID_PROVIDER_REQUEST"): PlatformAp
   return { matched: true, status: 400, error: { code, message } };
 }
 
+function authUnavailable(provider: string): PlatformApiRouteResult {
+  return { matched: true, status: 501, error: { code: "PROVIDER_AUTH_NOT_CONFIGURED", message: `provider authorization adapter not configured: ${provider}` } };
+}
+
 export async function routeProviderApi(
   request: ApiRequestEnvelope,
   connections: InMemoryProviderConnectionStore,
-  drafts: InMemoryEmailDraftStore
+  drafts: InMemoryEmailDraftStore,
+  authorization?: ProviderAuthorizationService
 ): Promise<PlatformApiRouteResult> {
   const method = request.method.toUpperCase();
   const path = parts(request.path);
@@ -29,38 +35,77 @@ export async function routeProviderApi(
     if (method === "GET" && path.length === 4) {
       return { matched: true, status: 200, data: await connections.list(orgId) };
     }
-    if (method === "PUT" && path.length === 5) {
-      const body = (request.body ?? {}) as Partial<{
-        status: ProviderConnectionStatus;
-        accountLabel: string;
-        capabilities: ProviderCapability[];
-        scopes: string[];
-        connectedAt: string;
-        lastSyncAt: string;
-        error: string;
-      }>;
-      if (!body.status || !STATUSES.has(body.status)) return invalid("valid connection status is required", "INVALID_CONNECTION_STATUS");
-      if (body.capabilities && (!Array.isArray(body.capabilities) || body.capabilities.some((capability) => !CAPABILITIES.has(capability)))) {
-        return invalid("one or more provider capabilities are invalid", "INVALID_PROVIDER_CAPABILITY");
+
+    if (path.length >= 5) {
+      const provider = path[4].toLowerCase();
+
+      if (method === "POST" && path.length === 6 && path[5] === "authorize") {
+        const body = (request.body ?? {}) as Partial<{ redirectUri: string; capabilities: ProviderCapability[] }>;
+        if (!body.redirectUri?.trim()) return invalid("redirectUri is required", "PROVIDER_REDIRECT_URI_REQUIRED");
+        if (!Array.isArray(body.capabilities) || !body.capabilities.length || body.capabilities.some((capability) => !CAPABILITIES.has(capability))) {
+          return invalid("one or more provider capabilities are invalid", "INVALID_PROVIDER_CAPABILITY");
+        }
+        if (!authorization?.has(provider)) return authUnavailable(provider);
+        try {
+          return { matched: true, status: 200, data: await authorization.begin({ orgId, provider, redirectUri: body.redirectUri, capabilities: body.capabilities }) };
+        } catch (error) {
+          return invalid(error instanceof Error ? error.message : "provider authorization could not begin", "PROVIDER_AUTH_BEGIN_FAILED");
+        }
       }
-      if (body.scopes && !Array.isArray(body.scopes)) return invalid("scopes must be an array", "INVALID_PROVIDER_SCOPES");
-      try {
-        return {
-          matched: true,
-          status: 200,
-          data: await connections.upsert(orgId, {
-            provider: path[4],
-            status: body.status,
-            accountLabel: body.accountLabel,
-            capabilities: body.capabilities,
-            scopes: body.scopes,
-            connectedAt: body.connectedAt,
-            lastSyncAt: body.lastSyncAt,
-            error: body.error
-          })
-        };
-      } catch (error) {
-        return invalid(error instanceof Error ? error.message : "provider connection could not be updated");
+
+      if (method === "POST" && path.length === 6 && path[5] === "callback") {
+        const body = (request.body ?? {}) as Partial<{ code: string; state: string; redirectUri: string }>;
+        if (!body.code?.trim() || !body.state?.trim() || !body.redirectUri?.trim()) {
+          return invalid("code, state, and redirectUri are required", "INVALID_PROVIDER_CALLBACK");
+        }
+        if (!authorization?.has(provider)) return authUnavailable(provider);
+        try {
+          await authorization.complete({ orgId, provider, code: body.code, state: body.state, redirectUri: body.redirectUri });
+          return { matched: true, status: 200, data: await connections.get(orgId, provider) };
+        } catch (error) {
+          return { matched: true, status: 400, error: { code: "PROVIDER_AUTH_CALLBACK_FAILED", message: error instanceof Error ? error.message : "provider authorization callback failed" } };
+        }
+      }
+
+      if (method === "DELETE" && path.length === 5) {
+        if (authorization?.has(provider)) await authorization.revoke(orgId, provider);
+        else await connections.upsert(orgId, { provider, status: "disconnected", capabilities: [], scopes: [] });
+        return { matched: true, status: 200, data: await connections.get(orgId, provider) };
+      }
+
+      if (method === "PUT" && path.length === 5) {
+        const body = (request.body ?? {}) as Partial<{
+          status: ProviderConnectionStatus;
+          accountLabel: string;
+          capabilities: ProviderCapability[];
+          scopes: string[];
+          connectedAt: string;
+          lastSyncAt: string;
+          error: string;
+        }>;
+        if (!body.status || !STATUSES.has(body.status)) return invalid("valid connection status is required", "INVALID_CONNECTION_STATUS");
+        if (body.capabilities && (!Array.isArray(body.capabilities) || body.capabilities.some((capability) => !CAPABILITIES.has(capability)))) {
+          return invalid("one or more provider capabilities are invalid", "INVALID_PROVIDER_CAPABILITY");
+        }
+        if (body.scopes && !Array.isArray(body.scopes)) return invalid("scopes must be an array", "INVALID_PROVIDER_SCOPES");
+        try {
+          return {
+            matched: true,
+            status: 200,
+            data: await connections.upsert(orgId, {
+              provider,
+              status: body.status,
+              accountLabel: body.accountLabel,
+              capabilities: body.capabilities,
+              scopes: body.scopes,
+              connectedAt: body.connectedAt,
+              lastSyncAt: body.lastSyncAt,
+              error: body.error
+            })
+          };
+        } catch (error) {
+          return invalid(error instanceof Error ? error.message : "provider connection could not be updated");
+        }
       }
     }
   }
