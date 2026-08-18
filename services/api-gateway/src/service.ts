@@ -26,6 +26,8 @@ import { InMemoryProviderConnectionStore } from "./provider-connections.js";
 import { InMemoryEmailDraftStore } from "./email-drafts.js";
 import { routeProviderApi } from "./provider-api.js";
 import { ProviderAuthorizationService } from "./provider-authorization-service.js";
+import { InMemoryPropertyStore } from "./map-adapter.js";
+import { routeMapApi } from "./map-api.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -39,6 +41,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
   const providerConnections = new InMemoryProviderConnectionStore();
   const emailDrafts = new InMemoryEmailDraftStore();
   const providerAuthorization = new ProviderAuthorizationService(providerConnections);
+  const propertyStore = new InMemoryPropertyStore();
 
   permissionManager.addPolicy({
     id: "allow-api-requests",
@@ -69,7 +72,8 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
       "email-calendar-linkage-v1",
       "provider-connections-v1",
       "provider-oauth-bootstrap-v1",
-      "email-drafts-v1"
+      "email-drafts-v1",
+      "property-map-v1"
     ]
   };
 
@@ -98,6 +102,7 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           { name: "provider-connection-registry", status: "up" },
           { name: "provider-authorization", status: "up" },
           { name: "email-draft-queue", status: "up" },
+          { name: "property-map-normalizer", status: "up" },
           ...(platformBackend ? [{ name: "platform-backend", status: "up" as const }] : [])
         ]
       };
@@ -148,12 +153,14 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
           const crmRoute = await routeNativeCrmApi(request, nativeCrm);
           const emailRoute = crmRoute.matched ? crmRoute : await routeEmailApi(request, emailStore, platformBackend);
           const providerRoute = emailRoute.matched ? emailRoute : await routeProviderApi(request, providerConnections, emailDrafts, providerAuthorization);
+          const mapRoute = providerRoute.matched ? providerRoute : await routeMapApi(request, propertyStore);
           const workspaceBackend = {
             ...platformBackend,
             listWorkspaceRelationships: (orgId: string) => nativeCrm.workspaceItems(orgId),
-            listWorkspaceEmailItems: (orgId: string, date: string) => emailStore.workspaceItems(orgId, date)
+            listWorkspaceEmailItems: (orgId: string, date: string) => emailStore.workspaceItems(orgId, date),
+            listWorkspaceMapItems: (orgId: string) => propertyStore.workspaceItems(orgId)
           };
-          const workspaceRoute = providerRoute.matched ? providerRoute : await routeWorkspaceApi(request, workspaceBackend);
+          const workspaceRoute = mapRoute.matched ? mapRoute : await routeWorkspaceApi(request, workspaceBackend);
           const todayRoute = workspaceRoute.matched ? workspaceRoute : await routeTodayApi(request, platformBackend);
           const routed = todayRoute.matched ? todayRoute : await routePlatformApi(request, platformBackend);
 
