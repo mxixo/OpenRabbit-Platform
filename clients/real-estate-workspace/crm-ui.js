@@ -32,12 +32,12 @@ function crmFocusedPanel(){
   return document.querySelector('.workspace-panel.focused[data-panel="crm"] .panel-body');
 }
 
-function crmRelationshipItems(){
-  const rows = window.__openrabbitWorkspaceModel?.surfaces?.crm?.data?.items;
-  return Array.isArray(rows) ? rows : [];
+async function loadCrmRelationships(){
+  const rows=await crmRequest(`/v1/orgs/${encodeURIComponent(crmOrgId)}/crm/relationships`);
+  return Array.isArray(rows)?rows:[];
 }
 
-function addNativeControls(panel){
+async function addNativeControls(panel){
   if(panel.querySelector("[data-native-crm-controls]")) return;
   const tools=document.createElement("div");
   tools.className="crm-tools";
@@ -65,7 +65,8 @@ function addNativeControls(panel){
     }catch(error){notice.hidden=false;notice.className="crm-notice crm-error";notice.textContent=error instanceof Error?error.message:"CRM request failed"}
   });
 
-  const modelRows=crmRelationshipItems();
+  let modelRows=[];
+  try{modelRows=await loadCrmRelationships()}catch{return}
   if(!modelRows.length) return;
   const cards=[...panel.querySelectorAll(".list .item")].slice(-modelRows.length);
   cards.forEach((card,index)=>{
@@ -93,7 +94,7 @@ function addNativeControls(panel){
   });
 }
 
-function enhanceCrm(){installCrmStyles();const panel=crmFocusedPanel();if(panel)addNativeControls(panel)}
+function enhanceCrm(){installCrmStyles();const panel=crmFocusedPanel();if(panel)void addNativeControls(panel)}
 
 const crmObserver=new MutationObserver(()=>queueMicrotask(enhanceCrm));
 const crmWorkspace=document.getElementById("adaptiveWorkspace");
