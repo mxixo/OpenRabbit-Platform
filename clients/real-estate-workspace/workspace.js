@@ -58,7 +58,7 @@ function renderWorkspace(focus=loadFocus()){
   window.dispatchEvent(new CustomEvent("openrabbit:workspace-rendered",{detail:{focus:selected}}));
 }
 
-function updateTodayStrip(){const s=workspaceModel?.summary||{};document.getElementById("todayApprovals").textContent=`Approvals ${s.pendingApprovals??0}`;document.getElementById("todayActions").textContent=`Agent actions ${s.agentActionsToday??0}`;document.getElementById("todaySchedule").textContent=`Scheduled ${s.scheduledItems??0}`}
+function updateTodayStrip(){const s=workspaceModel?.summary||{};document.getElementById("todayApprovals").textContent=`Approvals ${s.pendingApprovals??0}`;document.getElementById("activityTrigger").textContent=`Agent actions ${s.agentActionsToday??0}`;document.getElementById("todaySchedule").textContent=`Scheduled ${s.scheduledItems??0}`}
 
 async function loadWorkspaceModel(){
   const params=new URLSearchParams(location.search), orgId=params.get("org")||"org-test", date=new Date().toISOString().slice(0,10);
@@ -79,4 +79,5 @@ async function loadWorkspaceModel(){
   }
 }
 
+window.addEventListener("openrabbit:refresh-workspace",loadWorkspaceModel);
 loadWorkspaceModel();
