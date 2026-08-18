@@ -1,4 +1,5 @@
 import type { WorkspaceRelationshipItem } from "./workspace-contracts.js";
+import type { CrmImportRecord, CrmImportResult } from "./crm-adapter.js";
 
 export type CrmPriority = "low" | "medium" | "high";
 
@@ -7,6 +8,8 @@ export interface NativeCrmRelationship extends WorkspaceRelationshipItem {
   email?: string;
   phone?: string;
   tags?: string[];
+  sourceProvider?: string;
+  externalId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,6 +27,8 @@ export interface CreateNativeCrmRelationshipInput {
   email?: string;
   phone?: string;
   tags?: string[];
+  sourceProvider?: string;
+  externalId?: string;
 }
 
 export type UpdateNativeCrmRelationshipInput = Partial<Omit<CreateNativeCrmRelationshipInput, "id">>;
@@ -40,6 +45,10 @@ function uniqueStrings(values: string[] | undefined): string[] | undefined {
 
 function relationshipId(): string {
   return `rel_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function comparableEmail(value: string | undefined): string | undefined {
+  return cleanText(value)?.toLowerCase();
 }
 
 export class InMemoryNativeCrmStore {
@@ -78,6 +87,8 @@ export class InMemoryNativeCrmStore {
       email: cleanText(input.email),
       phone: cleanText(input.phone),
       tags: uniqueStrings(input.tags),
+      sourceProvider: cleanText(input.sourceProvider),
+      externalId: cleanText(input.externalId),
       createdAt: now,
       updatedAt: now
     };
@@ -105,6 +116,8 @@ export class InMemoryNativeCrmStore {
       email: input.email === undefined ? current.email : cleanText(input.email),
       phone: input.phone === undefined ? current.phone : cleanText(input.phone),
       tags: input.tags === undefined ? current.tags : uniqueStrings(input.tags),
+      sourceProvider: input.sourceProvider === undefined ? current.sourceProvider : cleanText(input.sourceProvider),
+      externalId: input.externalId === undefined ? current.externalId : cleanText(input.externalId),
       updatedAt: new Date().toISOString()
     };
     this.records.set(id, next);
@@ -117,8 +130,49 @@ export class InMemoryNativeCrmStore {
     return this.records.delete(id);
   }
 
+  async importRecords(
+    orgId: string,
+    provider: string,
+    records: CrmImportRecord[],
+    mode: "merge" | "create_only" = "merge"
+  ): Promise<CrmImportResult> {
+    const sourceProvider = provider.trim();
+    if (!sourceProvider) throw new Error("provider is required");
+
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    const relationshipIds: string[] = [];
+
+    for (const record of records) {
+      const externalId = cleanText(record.externalId);
+      const email = comparableEmail(record.email);
+      const existing = (await this.list(orgId)).find((candidate) =>
+        (externalId && candidate.sourceProvider === sourceProvider && candidate.externalId === externalId) ||
+        (email && comparableEmail(candidate.email) === email)
+      );
+
+      if (existing) {
+        relationshipIds.push(existing.id);
+        if (mode === "create_only") {
+          skipped += 1;
+          continue;
+        }
+        await this.update(orgId, existing.id, { ...record, sourceProvider, externalId });
+        updated += 1;
+        continue;
+      }
+
+      const createdRecord = await this.create(orgId, { ...record, sourceProvider, externalId });
+      relationshipIds.push(createdRecord.id);
+      created += 1;
+    }
+
+    return { provider: sourceProvider, created, updated, skipped, relationshipIds };
+  }
+
   async workspaceItems(orgId: string): Promise<WorkspaceRelationshipItem[]> {
     const records = await this.list(orgId);
-    return records.map(({ orgId: _orgId, email: _email, phone: _phone, tags: _tags, createdAt: _createdAt, updatedAt: _updatedAt, ...item }) => item);
+    return records.map(({ orgId: _orgId, email: _email, phone: _phone, tags: _tags, sourceProvider: _sourceProvider, externalId: _externalId, createdAt: _createdAt, updatedAt: _updatedAt, ...item }) => item);
   }
 }
