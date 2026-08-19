@@ -8,8 +8,9 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "prepare:workspace": "node prepare-workspace.js",
+    "pack": "npm run prepare:workspace && electron-builder --dir",
+    "dist": "npm run prepare:workspace && electron-builder"
   },
   "devDependencies": {
     "electron": "^37.2.6",
@@ -24,11 +25,9 @@
     "files": [
       "main.js",
       "preload.js",
-      "../clients/real-estate-workspace/**/*"
+      "prepare-workspace.js",
+      "workspace/**/*"
     ],
-    "extraMetadata": {
-      "main": "main.js"
-    },
     "mac": {
       "target": [
         {"target": "dmg", "arch": ["arm64", "x64"]},
