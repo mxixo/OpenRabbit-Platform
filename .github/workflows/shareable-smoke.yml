@@ -1,0 +1,45 @@
+name: Shareable Clone Smoke Test
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'README.md'
+      - '.env.example'
+      - 'package.json'
+      - 'scripts/bootstrap/**'
+      - 'clients/desktop-shell/**'
+      - 'clients/real-estate-workspace/**'
+      - 'docs/QUICKSTART.md'
+      - '.github/workflows/shareable-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-clone-smoke:
+    name: Fresh clone - ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Bootstrap like a new tester
+        run: npm run bootstrap:local
+
+      - name: Verify shareable clone
+        run: npm run verify:shareable
