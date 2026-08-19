@@ -1,5 +1,6 @@
 const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -22,8 +23,9 @@ const createWindow = () => {
     return { action: 'deny' };
   });
 
-  const workspace = path.join(__dirname, '..', 'clients', 'real-estate-workspace', 'index.html');
-  win.loadFile(workspace);
+  const bundled = path.join(__dirname, 'workspace', 'index.html');
+  const development = path.join(__dirname, '..', 'clients', 'real-estate-workspace', 'index.html');
+  win.loadFile(fs.existsSync(bundled) ? bundled : development);
 };
 
 app.whenReady().then(() => {
