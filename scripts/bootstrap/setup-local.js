@@ -3,7 +3,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..', '..');
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const npmCommand = process.platform === 'win32' ? 'npm' : 'npm';
 
 function fail(message) {
   console.error(`\n[OpenRabbit bootstrap] ${message}`);
@@ -16,7 +16,7 @@ function run(command, args, cwd) {
     cwd,
     stdio: 'inherit',
     env: process.env,
-    shell: false
+    shell: process.platform === 'win32'
   });
   if (result.error) fail(result.error.message);
   if (result.status !== 0) fail(`Command failed with exit code ${result.status}.`);
