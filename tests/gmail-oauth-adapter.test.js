@@ -21,6 +21,8 @@ const { GmailOAuthAdapter } = require("../integrations/google/gmail-oauth");
   assert.equal(connected.accountId,"demo@example.com");
   const saved=await registry.get({userId:"u1",provider:"gmail",accountId:"demo@example.com"});
   assert.equal(saved.refreshToken,"refresh");
+  const discovered=await registry.findProviderConnection({userId:"u1",provider:"gmail"});
+  assert.equal(discovered.accountId,"demo@example.com");
   const inbox=await adapter.listInbox({accessToken:"access"});
   assert.equal(inbox.messages[0].subject,"Offer update");
   assert(calls.length>=4);
