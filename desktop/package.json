@@ -1,0 +1,51 @@
+{
+  "name": "openrabbit-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenRabbit desktop client for macOS and Windows",
+  "main": "main.js",
+  "author": "OpenRabbit",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "prepare:workspace": "node prepare-workspace.js",
+    "pack": "npm run prepare:workspace && electron-builder --dir",
+    "dist": "npm run prepare:workspace && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.openrabbit.desktop",
+    "productName": "OpenRabbit",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "prepare-workspace.js",
+      "workspace/**/*"
+    ],
+    "mac": {
+      "target": [
+        {"target": "dmg", "arch": ["arm64", "x64"]},
+        {"target": "zip", "arch": ["arm64", "x64"]}
+      ],
+      "category": "public.app-category.business"
+    },
+    "win": {
+      "target": [
+        {"target": "nsis", "arch": ["x64"]},
+        {"target": "portable", "arch": ["x64"]}
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

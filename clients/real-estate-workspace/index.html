@@ -25,10 +25,11 @@
         <label>Operating expense ratio<input id="newOpex" type="number" min="0" max="0.95" step="0.01" value="0.35"></label>
       </div>
       <div class="actions"><button class="dark" id="createDealBtn">Create deal & analyze</button></div>
-      <details class="advanced"><summary>Advanced connection settings</summary><div class="form-grid"><label>Organization ID<input id="orgId" value="org-test"></label><label>Deal ID<input id="dealId" placeholder="Generated automatically"></label><label>Bearer token<input id="token" placeholder="Bearer token" type="password"></label></div></details>
+      <details class="advanced"><summary>Advanced connection settings</summary><div class="form-grid"><label>API base URL<input id="apiBase" placeholder="https://api.openrabbit.app"></label><label>Organization ID<input id="orgId" value="org-test"></label><label>Deal ID<input id="dealId" placeholder="Generated automatically"></label><label>Bearer token<input id="token" placeholder="Bearer token" type="password"></label></div></details>
     </section>
     <div id="app"><div class="card empty">Create a new deal or load an existing workspace.</div></div>
   </main>
+<script src="./api-base.js"></script>
 <script src="./app.js"></script>
 </body>
 </html>
