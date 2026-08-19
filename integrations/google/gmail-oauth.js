@@ -4,12 +4,18 @@ const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 const CALENDAR_BASE = "https://www.googleapis.com/calendar/v3";
-const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
-const DEFAULT_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly", CALENDAR_SCOPE];
+const GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify";
+const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+const DEFAULT_SCOPES = ["openid", "email", GMAIL_MODIFY_SCOPE, CALENDAR_SCOPE];
+
+function encodeMessage({to, subject, body}) {
+  const mime = [`To: ${to}`, `Subject: ${subject || ""}`, "Content-Type: text/plain; charset=UTF-8", "", body || ""].join("\r\n");
+  return Buffer.from(mime).toString("base64url");
+}
 
 class GmailOAuthAdapter {
   constructor({ clientId, clientSecret, redirectUri, registry, fetchImpl = global.fetch }) {
-    if (!clientId || !clientSecret || !redirectUri) throw new Error("Gmail OAuth configuration missing");
+    if (!clientId || !clientSecret || !redirectUri) throw new Error("Google OAuth configuration missing");
     if (!registry) throw new Error("Connection registry required");
     this.clientId = clientId; this.clientSecret = clientSecret; this.redirectUri = redirectUri; this.registry = registry; this.fetch = fetchImpl;
   }
@@ -39,26 +45,34 @@ class GmailOAuthAdapter {
     return res.json();
   }
 
-  async gmailFetch(path, accessToken) {
-    const res = await this.fetch(`${GMAIL_BASE}${path}`,{headers:{authorization:`Bearer ${accessToken}`}});
+  async gmailFetch(path, accessToken, options={}) {
+    const res = await this.fetch(`${GMAIL_BASE}${path}`,{...options,headers:{authorization:`Bearer ${accessToken}`,...(options.headers||{})}});
     if (!res.ok) throw new Error(`Gmail API failed: ${res.status}`);
-    return res.json();
+    return res.status===204?{}:res.json();
   }
 
-  async calendarFetch(path, accessToken) {
-    const res = await this.fetch(`${CALENDAR_BASE}${path}`,{headers:{authorization:`Bearer ${accessToken}`}});
+  async calendarFetch(path, accessToken, options={}) {
+    const res = await this.fetch(`${CALENDAR_BASE}${path}`,{...options,headers:{authorization:`Bearer ${accessToken}`,...(options.headers||{})}});
     if (!res.ok) throw new Error(`Google Calendar API failed: ${res.status}`);
-    return res.json();
+    return res.status===204?{}:res.json();
   }
 
   async listInbox({ accessToken, maxResults = 12, query = "in:inbox" }) {
     const list = await this.gmailFetch(`/messages?maxResults=${maxResults}&q=${encodeURIComponent(query)}`, accessToken);
     const messages = await Promise.all((list.messages || []).map(async ({id}) => {
-      const msg = await this.gmailFetch(`/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`, accessToken);
+      const msg = await this.gmailFetch(`/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`, accessToken);
       const headers = Object.fromEntries((msg.payload?.headers || []).map(h=>[h.name.toLowerCase(),h.value]));
-      return { id, threadId:msg.threadId, from:headers.from || "", subject:headers.subject || "(no subject)", date:headers.date || "", snippet:msg.snippet || "", labelIds:msg.labelIds || [] };
+      return { id, threadId:msg.threadId, from:headers.from || "", to:headers.to || "", subject:headers.subject || "(no subject)", date:headers.date || "", snippet:msg.snippet || "", labelIds:msg.labelIds || [] };
     }));
     return { messages, nextPageToken:list.nextPageToken || null };
+  }
+
+  async createDraft({ accessToken, to, subject, body }) {
+    return this.gmailFetch("/drafts",accessToken,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({message:{raw:encodeMessage({to,subject,body})}})});
+  }
+
+  async sendEmail({ accessToken, to, subject, body }) {
+    return this.gmailFetch("/messages/send",accessToken,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({raw:encodeMessage({to,subject,body})})});
   }
 
   async listCalendarEvents({ accessToken, timeMin, timeMax, maxResults = 30 }) {
@@ -67,20 +81,21 @@ class GmailOAuthAdapter {
     if (timeMax) q.set("timeMax", timeMax);
     const data = await this.calendarFetch(`/calendars/primary/events?${q}`, accessToken);
     const events = (data.items || []).map(event => ({
-      id:event.id,
-      summary:event.summary || "(untitled)",
-      description:event.description || "",
-      location:event.location || "",
-      status:event.status || "confirmed",
-      htmlLink:event.htmlLink || "",
-      start:event.start?.dateTime || event.start?.date || null,
-      end:event.end?.dateTime || event.end?.date || null,
-      allDay:Boolean(event.start?.date && !event.start?.dateTime),
-      organizer:event.organizer?.email || "",
-      attendees:(event.attendees || []).map(a=>({email:a.email,responseStatus:a.responseStatus}))
+      id:event.id, summary:event.summary || "(untitled)", description:event.description || "", location:event.location || "", status:event.status || "confirmed", htmlLink:event.htmlLink || "",
+      start:event.start?.dateTime || event.start?.date || null, end:event.end?.dateTime || event.end?.date || null, allDay:Boolean(event.start?.date && !event.start?.dateTime), organizer:event.organizer?.email || "", attendees:(event.attendees || []).map(a=>({email:a.email,responseStatus:a.responseStatus}))
     }));
     return {calendar:"primary",events,nextPageToken:data.nextPageToken||null,timeZone:data.timeZone||null};
   }
+
+  async createCalendarEvent({accessToken, summary, start, end, description="", location="", attendees=[]}) {
+    const event={summary,description,location,start:{dateTime:start},end:{dateTime:end}};
+    if(attendees.length)event.attendees=attendees.map(email=>({email}));
+    return this.calendarFetch("/calendars/primary/events?sendUpdates=all",accessToken,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(event)});
+  }
+
+  async deleteCalendarEvent({accessToken,eventId}) {
+    return this.calendarFetch(`/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=all`,accessToken,{method:"DELETE"});
+  }
 }
 
-module.exports = { GmailOAuthAdapter, DEFAULT_SCOPES, CALENDAR_SCOPE };
+module.exports = { GmailOAuthAdapter, DEFAULT_SCOPES, CALENDAR_SCOPE, GMAIL_MODIFY_SCOPE, encodeMessage };
