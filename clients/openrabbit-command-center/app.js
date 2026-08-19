@@ -29,10 +29,7 @@ function expandWindow(panel){
   const alreadyExpanded = panel.classList.contains("expanded");
   document.querySelectorAll(".panel.expanded").forEach((p)=>p.classList.remove("expanded"));
   document.body.classList.toggle("window-open", !alreadyExpanded);
-  if(!alreadyExpanded){
-    panel.classList.add("expanded");
-    panel.scrollTop = 0;
-  }
+  if(!alreadyExpanded){panel.classList.add("expanded");panel.scrollTop = 0;}
 }
 
 function installWindowControls(){
@@ -56,6 +53,8 @@ function addToast(message){
   setTimeout(()=>{toast.classList.remove("show");setTimeout(()=>toast.remove(),250)},2200);
 }
 
+function openDeal(){ window.location.href="./deal.html"; }
+
 function installCardInteractions(){
   document.querySelectorAll(".mail-list article").forEach((item)=>item.addEventListener("click",()=>{
     item.classList.toggle("selected");
@@ -67,6 +66,7 @@ function installCardInteractions(){
     document.querySelectorAll(".kanban article.selected").forEach((x)=>x.classList.remove("selected"));
     card.classList.add("selected");
     const name=card.querySelector("b")?.textContent?.trim()||"CRM record";
+    if(name.includes("1638 W Mohave")){openDeal();return}
     openAgent(`Open the full record for ${name}, summarize the latest activity, and recommend the next action.`);
   }));
 
@@ -76,7 +76,7 @@ function installCardInteractions(){
     addToast(`Selected ${eventCard.querySelector("b")?.textContent?.trim()||"calendar event"}`);
   }));
 
-  document.querySelector(".property-card")?.addEventListener("click",()=>openAgent("Open 1638 W Mohave St. Show the deal timeline, contract status, comps, outstanding tasks, and recommended next steps."));
+  document.querySelector(".property-card")?.addEventListener("click",openDeal);
 
   document.querySelectorAll(".agent-actions button").forEach((button)=>button.addEventListener("click",()=>{
     const prompts={
@@ -103,24 +103,16 @@ function runAgentDemo(){
 talkBtn?.addEventListener("click",()=>openAgent());
 closeDrawer?.addEventListener("click",closeAgent);
 agentSearch?.addEventListener("keydown",(event)=>{
-  if(event.key === "Enter"){
-    openAgent(event.currentTarget.value.trim());
-    event.currentTarget.value = "";
-  }
+  if(event.key === "Enter"){openAgent(event.currentTarget.value.trim());event.currentTarget.value = "";}
 });
 
 drawer?.querySelector(".primary")?.addEventListener("click",runAgentDemo);
 
 document.addEventListener("keydown",(event)=>{
-  if((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k"){
-    event.preventDefault();
-    agentSearch?.focus();
-  }
+  if((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k"){event.preventDefault();agentSearch?.focus();}
   if(event.key === "Escape"){
-    if(document.querySelector(".panel.expanded")){
-      document.querySelectorAll(".panel.expanded").forEach((p)=>p.classList.remove("expanded"));
-      document.body.classList.remove("window-open");
-    }else closeAgent();
+    if(document.querySelector(".panel.expanded")){document.querySelectorAll(".panel.expanded").forEach((p)=>p.classList.remove("expanded"));document.body.classList.remove("window-open");}
+    else closeAgent();
   }
 });
 
@@ -130,18 +122,14 @@ document.querySelectorAll(".nav").forEach((button)=>{
     button.classList.add("active");
     const label = button.textContent.trim();
     const targetMap = {Calendar:".calendar",CRM:".crm",Email:".email",Social:".social",Market:".market"};
-    if(label === "Home"){
-      dashboard?.scrollIntoView({behavior:"smooth",block:"start"});
-      return;
-    }
+    if(label === "Home"){dashboard?.scrollIntoView({behavior:"smooth",block:"start"});return;}
     focusWindow(targetMap[label]);
   });
 });
 
 document.querySelectorAll(".tabs, .segmented").forEach((group)=>{
   group.querySelectorAll("button").forEach((button)=>button.addEventListener("click",()=>{
-    group.querySelectorAll("button").forEach((item)=>item.classList.remove("active"));
-    button.classList.add("active");
+    group.querySelectorAll("button").forEach((item)=>item.classList.remove("active"));button.classList.add("active");
   }));
 });
 
