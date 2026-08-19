@@ -2,6 +2,12 @@ name: Build OpenRabbit Desktop
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'clients/desktop-shell/**'
+      - 'clients/real-estate-workspace/**'
+      - '.github/workflows/desktop-build.yml'
   release:
     types: [published]
 
