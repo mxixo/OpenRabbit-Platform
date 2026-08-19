@@ -1,5 +1,24 @@
 # OpenRabbit Platform
 Production foundation workspace for OpenRabbit platform services, domains, and operations.
+
+## Try OpenRabbit on your computer
+
+OpenRabbit is designed so a tester can clone the public repository and run the base workspace without receiving the owner's private credentials.
+
+Requirements: Git, Node.js 20+, npm, and a graphical desktop session for Electron.
+
+```bash
+git clone https://github.com/mxixo/OpenRabbit-Platform.git
+cd OpenRabbit-Platform
+npm run bootstrap:local
+npm run verify:shareable
+npm run desktop:start
+```
+
+`bootstrap:local` installs the root and desktop dependencies and creates a local `.env` from `.env.example` only if one does not already exist. It does not add secrets. Optional live integrations require the tester's own credentials.
+
+For a full onboarding walkthrough, installer-building instructions, optional integrations, and troubleshooting, see [`docs/QUICKSTART.md`](docs/QUICKSTART.md).
+
 ## Developer validation commands
 - `npm run ci:quick`
   - Runs `scripts/bootstrap/check-env.sh`.
@@ -9,6 +28,9 @@ Production foundation workspace for OpenRabbit platform services, domains, and o
   - Runs `scripts/ci/run-quality-gates.sh` (canonical full CI validation path).
   - Validates install + lint + test + typecheck across all active TypeScript packages.
   - Use before opening or updating a pull request, and for final local verification.
+- `npm run verify:shareable`
+  - Runs a cross-platform smoke check for a freshly bootstrapped clone.
+  - Verifies required workspace/desktop files, desktop dependencies, packaging targets, and the desktop shell test.
 
 ## OpenRabbit Desktop
 The desktop distribution shell lives in `clients/desktop-shell` and wraps the current workspace client as an installable application.
@@ -64,4 +86,3 @@ Canonical docs:
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 AI tools (Warp, OpenClaw, Antigravity, ChatGPT, etc.) must read these before proposing architectural changes.
-
