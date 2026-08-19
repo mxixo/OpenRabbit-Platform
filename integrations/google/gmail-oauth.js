@@ -3,7 +3,9 @@
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
-const DEFAULT_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly"];
+const CALENDAR_BASE = "https://www.googleapis.com/calendar/v3";
+const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
+const DEFAULT_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly", CALENDAR_SCOPE];
 
 class GmailOAuthAdapter {
   constructor({ clientId, clientSecret, redirectUri, registry, fetchImpl = global.fetch }) {
@@ -43,6 +45,12 @@ class GmailOAuthAdapter {
     return res.json();
   }
 
+  async calendarFetch(path, accessToken) {
+    const res = await this.fetch(`${CALENDAR_BASE}${path}`,{headers:{authorization:`Bearer ${accessToken}`}});
+    if (!res.ok) throw new Error(`Google Calendar API failed: ${res.status}`);
+    return res.json();
+  }
+
   async listInbox({ accessToken, maxResults = 12, query = "in:inbox" }) {
     const list = await this.gmailFetch(`/messages?maxResults=${maxResults}&q=${encodeURIComponent(query)}`, accessToken);
     const messages = await Promise.all((list.messages || []).map(async ({id}) => {
@@ -52,6 +60,27 @@ class GmailOAuthAdapter {
     }));
     return { messages, nextPageToken:list.nextPageToken || null };
   }
+
+  async listCalendarEvents({ accessToken, timeMin, timeMax, maxResults = 30 }) {
+    const q = new URLSearchParams({singleEvents:"true",orderBy:"startTime",maxResults:String(maxResults)});
+    if (timeMin) q.set("timeMin", timeMin);
+    if (timeMax) q.set("timeMax", timeMax);
+    const data = await this.calendarFetch(`/calendars/primary/events?${q}`, accessToken);
+    const events = (data.items || []).map(event => ({
+      id:event.id,
+      summary:event.summary || "(untitled)",
+      description:event.description || "",
+      location:event.location || "",
+      status:event.status || "confirmed",
+      htmlLink:event.htmlLink || "",
+      start:event.start?.dateTime || event.start?.date || null,
+      end:event.end?.dateTime || event.end?.date || null,
+      allDay:Boolean(event.start?.date && !event.start?.dateTime),
+      organizer:event.organizer?.email || "",
+      attendees:(event.attendees || []).map(a=>({email:a.email,responseStatus:a.responseStatus}))
+    }));
+    return {calendar:"primary",events,nextPageToken:data.nextPageToken||null,timeZone:data.timeZone||null};
+  }
 }
 
-module.exports = { GmailOAuthAdapter, DEFAULT_SCOPES };
+module.exports = { GmailOAuthAdapter, DEFAULT_SCOPES, CALENDAR_SCOPE };
