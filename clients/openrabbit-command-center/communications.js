@@ -85,3 +85,4 @@ document.querySelectorAll(".approveDraft").forEach(button=>button.addEventListen
 agentBtn?.addEventListener("click",()=>openAgent("Review all communications, identify urgent replies, stale follow-ups, deal risks, and drafts that need my approval."));closeBtn?.addEventListener("click",closeAgent);runBtn?.addEventListener("click",()=>{showToast("OpenRabbit prepared a communications action plan. External sends remain approval-gated.");closeAgent()});document.addEventListener("keydown",event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="k"){event.preventDefault();openAgent()}if(event.key==="Escape")closeAgent()});
 
 loadGmail();
+const liveAgentScript=document.createElement("script");liveAgentScript.src="./live-agent-client.js";document.head.appendChild(liveAgentScript);
