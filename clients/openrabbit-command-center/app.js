@@ -54,6 +54,7 @@ function addToast(message){
 }
 
 function openDeal(){ window.location.href="./deal.html"; }
+function openMarket(){ window.location.href="./market.html"; }
 
 function installCardInteractions(){
   document.querySelectorAll(".mail-list article").forEach((item)=>item.addEventListener("click",()=>{
@@ -77,6 +78,9 @@ function installCardInteractions(){
   }));
 
   document.querySelector(".property-card")?.addEventListener("click",openDeal);
+  document.querySelectorAll(".map-actions button").forEach((button)=>{
+    if(["Find Deals","Run Comps","Market Trends"].includes(button.textContent.trim())) button.addEventListener("click",openMarket);
+  });
 
   document.querySelectorAll(".agent-actions button").forEach((button)=>button.addEventListener("click",()=>{
     const prompts={
@@ -121,8 +125,9 @@ document.querySelectorAll(".nav").forEach((button)=>{
     document.querySelectorAll(".nav").forEach((item)=>item.classList.remove("active"));
     button.classList.add("active");
     const label = button.textContent.trim();
-    const targetMap = {Calendar:".calendar",CRM:".crm",Email:".email",Social:".social",Market:".market"};
+    const targetMap = {Calendar:".calendar",CRM:".crm",Email:".email",Social:".social"};
     if(label === "Home"){dashboard?.scrollIntoView({behavior:"smooth",block:"start"});return;}
+    if(label === "Market"){openMarket();return;}
     focusWindow(targetMap[label]);
   });
 });
