@@ -10,65 +10,51 @@
   <div class="app-shell">
     <header class="topbar">
       <div class="brand"><div class="rabbit">◖◗</div><div><strong>OpenRabbit</strong><span>Your AI Real Estate Operating Environment</span></div></div>
-      <nav>
-        <button class="nav active">Home</button><button class="nav">Calendar</button><button class="nav">CRM</button><button class="nav">Email</button><button class="nav">Social</button><button class="nav">Market</button>
-      </nav>
+      <nav><button class="nav active">Home</button><button class="nav">Calendar</button><button class="nav">CRM</button><button class="nav">Email</button><button class="nav">Social</button><button class="nav">Market</button></nav>
       <div class="top-actions"><input id="agentSearch" placeholder="Ask OpenRabbit…"/><button class="icon">⌘K</button><div class="avatar">MO</div></div>
     </header>
 
     <main class="dashboard">
       <section class="agent-hero panel">
         <div class="agent-orb">🐇</div>
-        <div class="agent-copy"><div class="eyebrow">OPENRABBIT AGENT <span class="status">● Active</span></div><h1>Your AI real estate operator.</h1><p>Monitoring your environment, preparing next actions, and waiting for approval where needed.</p>
-          <div class="agent-actions"><button>Find Opportunities</button><button>Draft Messages</button><button>Analyze Market</button><button>Manage Follow Ups</button><button>Create Content</button><button>Optimize Schedule</button></div>
-        </div>
-        <div class="now"><h3>What's happening now</h3><ul><li>Monitoring new Phoenix listings</li><li>Drafting 3 lead follow-ups</li><li>Analyzing 1638 W Mohave comp update</li><li>Preparing today's social post</li></ul></div>
+        <div class="agent-copy"><div class="eyebrow">OPENRABBIT AGENT <span id="agentStatus" class="status">● Checking</span></div><h1>Your AI real estate operator.</h1><p id="agentSummary">Checking the live environment. OpenRabbit will only use connected sources.</p><div class="agent-actions"><button>Find Opportunities</button><button>Draft Messages</button><button>Analyze Market</button><button>Manage Follow Ups</button><button>Create Content</button><button>Optimize Schedule</button></div></div>
+        <div class="now"><h3>Live environment</h3><ul id="environmentStatus"><li>Checking connections…</li></ul></div>
       </section>
 
-      <section class="email panel">
-        <div class="panel-head"><h2>Email</h2><span>12 unread</span></div>
-        <div class="tabs"><button class="active">Focused</button><button>Other</button><button>Updates</button></div>
-        <div class="mail-list">
-          <article><b>Tanner Hertzog</b><span>9:14 AM</span><strong>1638 W Mohave — Signed Contract</strong><p>Contract is fully executed. Great work…</p></article>
-          <article><b>Melissa Sora-Saenz</b><span>8:47 AM</span><strong>Title & Escrow Update</strong><p>We received the fully signed purchase…</p></article>
-          <article><b>ARMLS Support</b><span>7:56 AM</span><strong>Flexmls AI Settings Enabled</strong><p>MCP access has been provisioned…</p></article>
-          <article><b>Paris Robbins</b><span>Yesterday</span><strong>New Multifamily Leads</strong><p>Any updates on off-market opportunities?</p></article>
-        </div><button class="wide ghost">View All Emails</button>
+      <section class="email panel" data-provider="gmail">
+        <div class="panel-head"><h2>Email</h2><span id="emailStatus">Checking…</span></div>
+        <div id="emailBody" class="connection-empty"><p>Checking Gmail connection…</p></div>
       </section>
 
-      <section class="calendar panel">
-        <div class="panel-head"><h2>Calendar</h2><div class="segmented"><button class="active">Day</button><button>Week</button><button>Month</button></div></div>
-        <div class="calendar-meta"><div class="mini-cal"><b>August 2026</b><div class="days">Su Mo Tu We Th Fr Sa<br>2&nbsp;&nbsp;3&nbsp;&nbsp;4&nbsp;&nbsp;5&nbsp;&nbsp;6&nbsp;&nbsp;7&nbsp;&nbsp;8<br>9 10 11 12 13 14 15<br>16 <em>18</em> 19 20 21 22</div><h4>Today's Focus</h4><label>✓ 1638 W Mohave — Closing Steps</label><label>○ City P&D Meeting</label><label>○ Buyer Consult — Paris</label><label>○ Create & Schedule IG Post</label></div>
-          <div class="agenda"><div class="date-row"><button>‹</button><b>Mon, Aug 18, 2026</b><button>›</button><button class="add">+ Add Event</button></div>
-            <div class="event blue" style="top:75px">8:00 – 9:00 AM<br><b>Email + Market Review</b></div>
-            <div class="event purple" style="top:145px">10:30 – 11:30 AM<br><b>City of Phoenix — Planning & Development</b></div>
-            <div class="event pink" style="top:225px">12:00 – 12:30 PM<br><b>Post to Instagram — Listing Content</b></div>
-            <div class="event green" style="top:285px">1:00 – 2:00 PM<br><b>Investor Call — Paris Robbins</b></div>
-            <div class="event orange" style="top:410px">6:30 – 8:30 PM<br><b>Gym / Training</b></div>
-            <div class="time-grid">7 AM<br>8 AM<br>9 AM<br>10 AM<br>11 AM<br>12 PM<br>1 PM<br>2 PM<br>3 PM<br>4 PM<br>5 PM<br>6 PM<br>7 PM<br>8 PM</div>
-          </div></div>
+      <section class="calendar panel" data-provider="calendar">
+        <div class="panel-head"><h2>Calendar</h2><span id="calendarStatus">Checking…</span></div>
+        <div id="calendarBody" class="connection-empty"><p>Checking Google Calendar…</p></div>
       </section>
 
-      <section class="market panel">
-        <div class="panel-head"><h2>Market Intelligence</h2><span class="status">● Live</span></div>
-        <div class="metrics"><div><small>Median Price</small><b>$455K</b><i>↗ 2.4% MoM</i></div><div><small>Active Listings</small><b>12,487</b><i>↗ 6.2%</i></div><div><small>Avg DOM</small><b>68</b><i>↓ 4 days</i></div></div>
-        <div class="map"><div class="map-grid"></div><span class="label l1">Downtown</span><span class="label l2">Camelback East</span><span class="label l3">Central City</span><div class="property-card"><b>1638 W Mohave St</b><span>Phoenix, AZ 85007</span><strong>$315,000</strong><small>Under Contract</small></div></div>
-        <div class="map-actions"><button>Find Deals</button><button>Run Comps</button><button>Market Trends</button></div>
+      <section class="market panel" data-provider="googleMaps">
+        <div class="panel-head"><h2>Market Intelligence</h2><span id="marketStatus">Checking…</span></div>
+        <div id="marketBody" class="connection-empty"><p>Checking Google Maps…</p></div>
       </section>
 
-      <section class="activity panel"><div class="panel-head"><h2>Agent Activity</h2><span class="status">● Running</span></div><ul><li><b>New opportunity found</b><span>Phoenix 4-plex | Est. ROI 8.4%</span></li><li><b>IG post scheduled</b><span>Seller tips — 12:00 PM</span></li><li><b>3 emails drafted</b><span>Buyer follow-ups ready</span></li><li><b>Market report updated</b><span>Phoenix weekly trends</span></li><li><b>Calendar optimized</b><span>Added 2 follow-up reminders</span></li></ul><button id="talkBtn" class="wide primary">Talk to OpenRabbit</button></section>
+      <section class="activity panel">
+        <div class="panel-head"><h2>OpenRabbit Activity</h2><span id="activityStatus">Live log</span></div>
+        <div id="activityBody" class="connection-empty"><p>No runtime activity recorded in this session yet.</p></div>
+        <button id="talkBtn" class="wide primary">Talk to OpenRabbit</button>
+      </section>
 
-      <section class="crm panel"><div class="panel-head"><h2>CRM / Pipeline</h2><span>View All</span></div><div class="kanban">
-        <div><h3>New Leads <span>24</span></h3><article><b>Carlos M.</b><small>First Time Buyer</small><strong>$400K</strong></article><article><b>Marisol R.</b><small>Relocation</small><strong>$550K</strong></article><article><b>James L.</b><small>Investor</small><strong>$1.2M</strong></article></div>
-        <div><h3>Active <span>12</span></h3><article><b>Olivia Grijalva</b><small>Buyer</small><strong>Under Contract</strong></article><article><b>Paris Robbins</b><small>Investor</small><strong>Multifamily</strong></article></div>
-        <div><h3>Under Contract <span>3</span></h3><article><b>1638 W Mohave St</b><small>Phoenix</small><strong>$315,000</strong></article><article><b>Westminster St</b><small>Phoenix</small><strong>Offer Submitted</strong></article></div>
-        <div><h3>Closed <span>18</span></h3><article><b>6233 N 12th St</b><small>Closed 07/26</small><strong>$412K</strong></article><article><b>4802 N 36th Dr</b><small>Closed 06/30</small><strong>$487.5K</strong></article></div>
-      </div></section>
+      <section class="crm panel" data-provider="hubspot">
+        <div class="panel-head"><h2>CRM / Pipeline</h2><span id="crmStatus">Checking…</span></div>
+        <div id="crmBody" class="connection-empty"><p>Checking HubSpot connection…</p></div>
+      </section>
 
-      <section class="social panel"><div class="panel-head"><h2>Social Media</h2><div class="tabs"><button class="active">Instagram</button><button>Facebook</button><button>LinkedIn</button><button>TikTok</button></div></div><div class="social-grid"><div class="post-preview"><div class="house">🏠</div><div><b>Today's Post</b><h3>Just Listed in Phoenix! 🔥</h3><p>3 Bed | 2 Bath | Prime Location<br>Your next home or investment is here.</p><button>Edit</button><button class="primary">Schedule</button></div></div><div class="social-stats"><div><b>12.4K</b><small>Reach</small></div><div><b>427</b><small>Engagement</small></div><div><b>36</b><small>New Followers</small></div><h4>Content Queue</h4><p>Tue — Buyer Tips<br>Wed — Market Trends<br>Thu — Loan Programs<br>Fri — Seller Tips</p></div></div></section>
+      <section class="social panel" data-provider="social">
+        <div class="panel-head"><h2>Social Media</h2><span class="status-muted">Not connected</span></div>
+        <div class="connection-empty"><h3>Connect a social provider</h3><p>No social platform is connected to this prototype, so OpenRabbit will not display invented reach, engagement, followers, posts, or queues.</p><button class="ghost" id="socialSetup">Set up social connection</button></div>
+      </section>
     </main>
-    <footer><span>🐇 OpenRabbit</span><span>Automate. Analyze. Close.</span><span>Environment status: Healthy</span></footer>
+    <footer><span>🐇 OpenRabbit</span><span>Live data only</span><a href="./connections.html">Manage connections</a></footer>
   </div>
+
   <div id="agentDrawer" class="drawer"><button id="closeDrawer">×</button><h2>OpenRabbit Agent</h2><p>What should I do next?</p><textarea placeholder="Ask me to analyze, draft, organize, schedule, or prepare an approval…"></textarea><button class="primary wide">Run Request</button></div>
   <script src="./app.js"></script>
 </body>
