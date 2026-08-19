@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OpenRabbit — Unified Communications</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./communications.css" />
+</head>
+<body class="communications-page">
+  <header class="communications-topbar">
+    <div><a href="./index.html" class="back-link">← Command Center</a><h1>Unified Communications</h1><p>Email, messages, follow-ups, and deal context in one workspace.</p></div>
+    <div class="communications-actions"><button id="composeBtn">+ New Message</button><button id="communicationsAgentBtn" class="primary">Ask OpenRabbit</button></div>
+  </header>
+
+  <main class="communications-layout">
+    <aside class="channel-rail panel">
+      <div class="section-title">Channels</div>
+      <button class="channel active" data-channel="all">All Conversations <span>31</span></button>
+      <button class="channel" data-channel="email">Email <span>18</span></button>
+      <button class="channel" data-channel="sms">SMS <span>7</span></button>
+      <button class="channel" data-channel="whatsapp">WhatsApp <span>4</span></button>
+      <button class="channel" data-channel="social">Social DMs <span>2</span></button>
+      <div class="section-title">Smart Views</div>
+      <button class="channel" data-view="needs-reply">Needs Reply <span>9</span></button>
+      <button class="channel" data-view="at-risk">At Risk <span>3</span></button>
+      <button class="channel" data-view="approval">Approval Queue <span>4</span></button>
+      <button class="channel" data-view="deals">Linked to Deals <span>12</span></button>
+    </aside>
+
+    <section class="conversation-list panel">
+      <div class="list-head"><div><h2>Inbox</h2><span id="inboxMeta">31 conversations</span></div><input id="conversationSearch" placeholder="Search contacts, deals, messages…" /></div>
+      <div id="conversationItems" class="conversation-items">
+        <article class="conversation selected" data-channel="email" data-contact="Tanner Hertzog" data-deal="1638 W Mohave St" data-risk="low">
+          <div class="avatar">TH</div><div class="conversation-copy"><div class="conversation-row"><b>Tanner Hertzog</b><span>9:14 AM</span></div><strong>1638 W Mohave — Signed Contract</strong><p>Contract is fully executed. Great work…</p><div class="chips"><span>Email</span><span>Deal linked</span></div></div>
+        </article>
+        <article class="conversation" data-channel="email" data-contact="Melissa Sora-Saenz" data-deal="1638 W Mohave St" data-risk="medium">
+          <div class="avatar">MS</div><div class="conversation-copy"><div class="conversation-row"><b>Melissa Sora-Saenz</b><span>8:47 AM</span></div><strong>Title & Escrow Update</strong><p>We received the fully signed purchase agreement…</p><div class="chips"><span>Email</span><span>Follow-up due</span></div></div>
+        </article>
+        <article class="conversation" data-channel="sms" data-contact="Olivia Grijalva" data-deal="1638 W Mohave St" data-risk="low">
+          <div class="avatar">OG</div><div class="conversation-copy"><div class="conversation-row"><b>Olivia Grijalva</b><span>Yesterday</span></div><strong>Inspection timing</strong><p>What day should I plan to be available?</p><div class="chips"><span>SMS</span><span>Client</span></div></div>
+        </article>
+        <article class="conversation" data-channel="whatsapp" data-contact="Paris Robbins" data-deal="Phoenix Multifamily Search" data-risk="high">
+          <div class="avatar">PR</div><div class="conversation-copy"><div class="conversation-row"><b>Paris Robbins</b><span>Yesterday</span></div><strong>Any new 4–12 unit opportunities?</strong><p>Following up on the off-market list from last week.</p><div class="chips"><span>WhatsApp</span><span class="risk">At risk</span></div></div>
+        </article>
+        <article class="conversation" data-channel="social" data-contact="Instagram Lead" data-deal="Buyer Lead" data-risk="medium">
+          <div class="avatar">IG</div><div class="conversation-copy"><div class="conversation-row"><b>Instagram Lead</b><span>Mon</span></div><strong>Question about down payment assistance</strong><p>Do you help first-time buyers with programs?</p><div class="chips"><span>Instagram</span><span>New lead</span></div></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="thread-panel panel">
+      <div class="thread-head"><div><span class="eyebrow" id="threadChannel">EMAIL</span><h2 id="threadContact">Tanner Hertzog</h2><p id="threadDeal">Linked deal: 1638 W Mohave St</p></div><div class="thread-actions"><button id="openRecordBtn">Open CRM Record</button><button id="summarizeBtn">Summarize</button></div></div>
+      <div class="ai-strip"><div><span class="eyebrow">OPENRABBIT SUMMARY</span><p id="aiSummary">Contract execution is confirmed. No response is required immediately, but title and inspection milestones should be checked next.</p></div><button id="nextActionBtn">Prepare Next Action</button></div>
+      <div id="threadMessages" class="thread-messages">
+        <div class="message incoming"><small>9:11 AM</small><p>Hi Maico, the contract is fully executed. Great work getting this together.</p></div>
+        <div class="message outgoing"><small>9:13 AM</small><p>Perfect, thank you. I’m sending the completed copy to title and keeping an eye on next deadlines.</p></div>
+        <div class="message incoming"><small>9:14 AM</small><p>Sounds good. Let me know if anything else is needed from our side.</p></div>
+      </div>
+      <div class="composer">
+        <textarea id="messageDraft" placeholder="Draft a reply or ask OpenRabbit to prepare one…"></textarea>
+        <div class="composer-row"><div><button id="draftWithAiBtn">Draft with OpenRabbit</button><button id="attachBtn">Attach</button></div><button id="queueApprovalBtn" class="primary">Queue for Approval</button></div>
+      </div>
+    </section>
+
+    <aside class="context-panel panel">
+      <div class="context-block"><div class="section-title">Contact Context</div><h3 id="contextName">Tanner Hertzog</h3><p>Role: Buyer-side contact</p><p>Last interaction: Today</p><p>Relationship health: Strong</p></div>
+      <div class="context-block"><div class="section-title">Deal Context</div><h3 id="contextDeal">1638 W Mohave St</h3><p>Stage: Under Contract</p><p>Next milestone: Inspection / title</p><button id="dealWorkspaceBtn">Open Deal Workspace</button></div>
+      <div class="context-block"><div class="section-title">OpenRabbit Intelligence</div><ul><li>No response risk on current thread.</li><li>Title follow-up is due within the next business day.</li><li>Olivia should receive inspection timing once confirmed.</li></ul></div>
+      <div class="context-block"><div class="section-title">Approval Queue</div><div class="approval-card"><b>Draft to Melissa</b><span>Title / escrow follow-up</span><button class="approveDraft">Review</button></div><div class="approval-card"><b>Draft to Paris</b><span>Multifamily opportunity update</span><button class="approveDraft">Review</button></div></div>
+    </aside>
+  </main>
+
+  <div id="communicationsDrawer" class="drawer"><button id="communicationsClose">×</button><h2>OpenRabbit Communications Agent</h2><p>Ask me to summarize, draft, identify follow-up risk, or prepare an approved send.</p><textarea placeholder="What should I handle across your conversations?"></textarea><button id="communicationsRun" class="primary wide">Run Request</button></div>
+  <div id="communicationsToast" class="communications-toast"></div>
+  <script src="./communications.js"></script>
+</body>
+</html>
