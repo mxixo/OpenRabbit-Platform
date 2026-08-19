@@ -10,6 +10,22 @@ Production foundation workspace for OpenRabbit platform services, domains, and o
   - Validates install + lint + test + typecheck across all active TypeScript packages.
   - Use before opening or updating a pull request, and for final local verification.
 
+## OpenRabbit Desktop
+The desktop distribution shell lives in `clients/desktop-shell` and wraps the current workspace client as an installable application.
+
+### Local desktop run
+```bash
+npm run desktop:install
+npm run desktop:start
+```
+
+### Local installer build
+```bash
+npm run desktop:dist
+```
+
+GitHub Actions can build macOS DMG, Windows NSIS, and Linux AppImage packages using `.github/workflows/desktop-build.yml`. Manual workflow runs retain installers as Actions artifacts; published GitHub Releases receive the installers as release assets.
+
 ## Commercial investment MVP workflow
 The `commercial_investment_workflow` skill in `src/skills/commercial-investment-workflow.skill.js` provides the first usable end-to-end property screening workflow.
 
