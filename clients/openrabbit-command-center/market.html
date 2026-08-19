@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OpenRabbit — Market Intelligence</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./market.css" />
+</head>
+<body>
+  <div class="market-shell">
+    <header class="market-topbar">
+      <div class="brand"><div class="rabbit">◖◗</div><div><strong>OpenRabbit</strong><span>Market / Property Intelligence</span></div></div>
+      <div class="market-actions"><a href="./index.html">Command Center</a><a href="./connections.html">Connections</a><button id="marketAgentBtn">Ask OpenRabbit</button></div>
+    </header>
+
+    <main class="market-workspace">
+      <aside class="search-rail panel">
+        <div class="panel-head"><h2>Property Search</h2><span>Google Maps live</span></div>
+        <div style="padding:16px;color:#91a4bd;font-size:11px;line-height:1.55">
+          <p>Use the search field directly on the map to find any address or place.</p>
+          <h3 style="color:#dce8fa">Available now</h3>
+          <p>Address/place autocomplete · map type · zoom · Street View · fullscreen · current location.</p>
+          <h3 style="color:#dce8fa">Listing filters</h3>
+          <p>Price, beds, units, cap rate, status, DOM and listing inventory will activate when a real MLS/listing provider is connected. OpenRabbit will not fabricate those fields.</p>
+        </div>
+      </aside>
+
+      <section class="map-stage panel">
+        <div class="panel-head"><div><h2>Live Property Map</h2><span>Search any address or place; Google Maps controls are enabled</span></div><div class="map-tools"><button class="active">Map</button><button disabled title="Requires listing data">Listings</button><button disabled title="Requires listing data">Comps</button></div></div>
+        <div class="large-map"><div style="display:grid;place-items:center;height:100%;color:#8195b2">Loading Google Maps…</div></div>
+      </section>
+
+      <aside class="opportunity-feed panel">
+        <div class="panel-head"><h2>Selected Location</h2><span>live search context</span></div>
+        <div id="selectedLocation" style="padding:18px;color:#8295af;font-size:11px;line-height:1.5">Search an address or place on the map. The selected location will be attached to OpenRabbit automatically.</div>
+      </aside>
+
+      <section class="intel-strip panel">
+        <div class="intel"><small>Market statistics</small><b>—</b><span>listing source required</span></div><div class="intel"><small>Active listings</small><b>—</b><span>listing source required</span></div><div class="intel"><small>DOM</small><b>—</b><span>listing source required</span></div><div class="intel"><small>Comps</small><b>—</b><span>comp source required</span></div><div class="intel"><small>Investor matches</small><b>—</b><span>property dataset required</span></div>
+      </section>
+
+      <section class="comp-workspace panel">
+        <div class="panel-head"><h2>Property Intelligence</h2><div class="tabs"><button class="active">Selected location</button><button disabled>Sales Comps</button><button disabled>Rent Comps</button><button disabled>Listing Filters</button></div></div>
+        <div id="propertyIntel" style="padding:22px;color:#8295af;line-height:1.55"><b style="color:#dce8fa">No synthetic property data.</b><p>Search a location above. OpenRabbit can reason about the selected address using connected context, but pricing, listing status, comps and investor-fit scoring will remain unavailable until those sources are connected.</p></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="marketAgentDrawer" class="drawer"><button id="marketCloseDrawer">×</button><h2>OpenRabbit Market Agent</h2><p>Only live selected-map context is attached automatically.</p><textarea placeholder="Ask about the selected address, neighborhood, route, nearby places, or what additional data is needed…"></textarea><button id="marketRunAgent" class="primary wide">Run Request</button></div>
+  <script src="./market.js"></script>
+  <script src="./live-map-client.js"></script>
+</body>
+</html>

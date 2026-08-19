@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OpenRabbit — Command Center</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./proactive.css" />
+  <style>
+    :root{--or-bg:#050b14;--or-panel:#081628;--or-panel2:#0a1b30;--or-line:#18365d;--or-blue:#1576ff;--or-blue2:#0b4fd2;--or-muted:#88a0bd}
+    body{background:radial-gradient(circle at 50% -20%,#122d50 0,#07111e 28%,#040a12 75%);overflow-x:hidden}
+    .app-shell{max-width:1920px;margin:auto}
+    .topbar{height:76px;padding:0 20px;background:rgba(4,11,20,.97);border-bottom:1px solid #102742;gap:18px}
+    .brand{min-width:300px}.brand strong{font-size:21px}.brand span{font-size:10px}.rabbit{font-size:31px}
+    .topbar nav{gap:8px}.nav{font-size:14px;padding:11px 16px}.nav.active{background:linear-gradient(180deg,#0f4cc5,#0b3a99);border-color:#1f67db;box-shadow:0 0 0 1px #174fbb,0 10px 30px rgba(16,82,210,.16)}
+    .top-actions input{width:280px;border-radius:18px;padding:11px 16px;background:#081527;border-color:#17395e}.avatar{border-color:#1764dc;background:#0b3376}
+    .dashboard{padding:10px;display:grid;grid-template-columns:1.02fr 1.1fr .74fr;grid-template-rows:520px 350px;gap:10px;max-width:1900px;margin:auto}
+    .email{grid-column:1;grid-row:1}.calendar{grid-column:2;grid-row:1}.market{grid-column:3;grid-row:1}.crm{grid-column:1;grid-row:2}.social{grid-column:2;grid-row:2}.activity{grid-column:3;grid-row:2}
+    .panel{border-radius:10px;background:linear-gradient(180deg,#0a1a2d 0,#071526 100%);border-color:#16416e;box-shadow:0 14px 38px rgba(0,0,0,.28)}
+    .panel-head{height:58px;padding:0 16px;border-bottom:1px solid #14345a;justify-content:flex-start}.panel-head h2{font-size:15px}.panel-head span{font-size:11px;color:#a0b2c8}.window-controls{margin-left:auto}.window-controls button{border-color:#1f568d;background:#09203a;color:#c8d9ed}
+    .hidden-runtime{display:none}
+    .connection-empty{position:relative;height:calc(100% - 58px);min-height:0;overflow:hidden;background:#071525;color:#8fa2bd}
+    .connection-preview{position:absolute;inset:0;opacity:.46!important;filter:none!important;pointer-events:none;z-index:0}
+    .connection-empty:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,17,30,.06),rgba(6,17,30,.22));pointer-events:none;z-index:1}
+    .connection-overlay.centered,.connection-overlay{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;background:transparent!important;padding:18px;text-align:center;min-height:0!important}
+    .connect-glyph,.connection-overlay:before{width:66px!important;height:66px!important;border-radius:50%;display:grid!important;place-items:center!important;font-size:29px!important;color:white!important;background:linear-gradient(180deg,#177eff,#0c4fd0)!important;border:1px solid #4a9cff!important;box-shadow:0 0 30px rgba(22,115,255,.45),0 9px 24px rgba(0,0,0,.35)!important;margin:0 0 -20px!important;z-index:4}
+    .connection-overlay h3{width:min(82%,360px)!important;background:linear-gradient(180deg,#f8fbff,#dce6f1)!important;border:1px solid #fff!important;border-radius:14px 14px 0 0!important;padding:38px 28px 8px!important;color:#0b2d60!important;box-shadow:0 18px 55px rgba(0,0,0,.42)!important;font-size:25px!important;line-height:1.05!important;letter-spacing:-.02em!important;text-transform:uppercase!important;font-weight:900!important;margin:0!important}
+    .connection-overlay p{width:min(82%,360px)!important;background:linear-gradient(180deg,#e7eef6,#dce6f1)!important;border-radius:0 0 14px 14px!important;color:#17365f!important;padding:5px 28px 18px!important;font-size:11px!important;line-height:1.5!important;font-weight:600!important;margin:0 0 12px!important;box-shadow:0 18px 55px rgba(0,0,0,.26)}
+    .connection-action{display:inline-block;background:linear-gradient(180deg,#146fff,#0b4cc5)!important;border:1px solid #3089ff!important;color:white!important;font-weight:800!important;font-size:11px!important;padding:10px 18px!important;border-radius:8px!important;text-decoration:none!important;box-shadow:0 7px 20px rgba(11,79,199,.28)!important;margin:0!important}
+    .secure-note{margin-top:12px;color:#a7b8cc;font-size:9px}.secure-note:before{content:"🔒 ";filter:grayscale(1)}
+    .sil-mail{padding:0 14px 12px 110px!important;background:linear-gradient(90deg,rgba(5,14,25,.98) 0 104px,rgba(8,25,44,.7) 104px)}
+    .sil-mail:before{content:"▣  Inbox\A☆  Starred\A◷  Snoozed\A➤  Sent\A□  Drafts\A◉  Spam\A♜  Trash";white-space:pre;position:absolute;left:14px;top:18px;color:#7ea3cf;font-size:11px;line-height:31px}
+    .sil-mail .mail-head{display:none}.sil-mail .row{height:55px!important;margin:0!important;border:0!important;border-bottom:1px solid #173754!important;border-radius:0!important;background:transparent!important;position:relative;width:100%!important}
+    .sil-mail .row:before{content:"";position:absolute;left:8px;top:15px;width:22px;height:22px;border-radius:50%;background:#244c78;box-shadow:44px 1px 0 -6px #315c88,86px 1px 0 -6px #315c88,128px 1px 0 -6px #315c88}.sil-mail .row:after{content:"Yesterday";position:absolute;right:6px;top:18px;font-size:9px;color:#6f8aa8}.sil-mail .row:nth-child(1):after{content:"9:14 AM"}.sil-mail .row:nth-child(2):after{content:"8:37 AM"}.sil-mail .row:nth-child(3):after{content:"7:56 AM"}
+    .sil-calendar{display:grid!important;grid-template-columns:50px 1fr!important;gap:0!important;padding:48px 10px 8px 10px!important;background:linear-gradient(180deg,#0a1b31,#071526)}
+    .sil-calendar:before{content:"SUN     18       MON     19       TUE     20       WED     21       THU     22       FRI     23       SAT     24";position:absolute;left:52px;right:8px;top:12px;color:#6e9ed6;font-size:9px;word-spacing:7px;text-align:center}
+    .sil-calendar .times{display:grid!important;grid-template-rows:repeat(6,1fr)!important;gap:0!important}.sil-calendar .times i{height:auto!important;border-radius:0!important;background:transparent!important;border-bottom:1px solid #173655;position:relative}.sil-calendar .times i:before{content:"8 AM";position:absolute;left:2px;top:8px;font-style:normal;font-size:9px;color:#7898bd}.sil-calendar .times i:nth-child(2):before{content:"9 AM"}.sil-calendar .times i:nth-child(3):before{content:"10 AM"}.sil-calendar .times i:nth-child(4):before{content:"11 AM"}.sil-calendar .times i:nth-child(5):before{content:"12 PM"}.sil-calendar .times i:nth-child(6):before{content:"1 PM"}
+    .sil-calendar .events{min-height:0!important;height:100%!important;border-left:1px solid #173655!important;background:repeating-linear-gradient(to bottom,transparent 0,transparent 53px,#173655 54px),repeating-linear-gradient(to right,transparent 0,transparent 13.8%,#173655 14.2%)!important;position:relative}
+    .sil-calendar .events i{height:42px!important;border-radius:6px!important;opacity:.88}.sil-calendar .events i:nth-child(1){top:35px!important;left:2%!important;width:18%!important;background:#225b9a!important}.sil-calendar .events i:nth-child(2){top:83px!important;left:30%!important;width:18%!important;background:#6536a0!important}.sil-calendar .events i:nth-child(3){top:26px!important;left:58%!important;width:18%!important;background:#2f8b67!important}.sil-calendar .events i:nth-child(4){top:135px!important;left:72%!important;width:18%!important;background:#9c7420!important}
+    .dashboard-live-map{height:292px!important;margin:0!important;border:0!important;border-radius:0!important;filter:saturate(.75) brightness(.62) contrast(1.22)}.truth-note{padding:14px 14px 8px;font-size:10px;color:#a9bacd;line-height:1.6}.market .wide{margin-top:8px}.market .panel-head{gap:8px}.market .panel-search-link{margin-left:auto;border-radius:999px}
+    .crm .live-crm-grid{grid-template-columns:1fr 1fr;padding:10px;gap:8px}.crm .live-crm-grid section{background:#081729;min-height:215px;border-color:#173a60}.crm .wide{margin-top:0}.sil-crm{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:7px!important;padding:12px!important;height:100%!important;background:#08182a!important}.sil-crm section{border:1px solid #203b59!important;border-radius:8px!important;padding:7px!important;background:#0a1a2d!important}.sil-crm section:before{content:"Pipeline";display:block;color:#7e9bbd;font-size:9px;margin-bottom:8px}.sil-crm .row{height:28px;border:1px solid #203b59;background:#0b1b2d;border-radius:7px;margin:7px 0}
+    .social .connection-empty{height:calc(100% - 58px)}.sil-social{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:8px!important;padding:44px 10px 10px!important}.sil-social:before{content:"Instagram      Facebook      TikTok      LinkedIn";position:absolute;left:16px;top:12px;color:#9fb0c3;font-size:10px;word-spacing:15px}.sil-social .thumb{grid-column:1/-1;min-height:190px!important;border-radius:8px!important;background:linear-gradient(90deg,#c22b76 0 24%,#215dd4 24% 49%,#111 49% 74%,#1468a6 74%)!important;opacity:.56}.sil-social .lines{display:none!important}.social .connection-overlay h3{font-size:20px!important;width:min(74%,300px)!important}.social .connection-overlay p{width:min(74%,300px)!important}
+    .activity{display:flex;flex-direction:column}.activity #activityBody{flex:1;min-height:0}.activity .connection-overlay{display:flex;align-items:center;justify-content:center;text-align:center}.activity .connection-overlay h3{background:none!important;border:0!important;box-shadow:none!important;padding:74px 0 0!important;width:auto!important;color:white!important;font-size:22px!important}.activity .connection-overlay p{background:none!important;box-shadow:none!important;width:85%!important;color:#9db0c6!important;padding:0!important}.activity .connection-overlay:before{content:"✓"!important;background:#081a2d!important;border:2px solid #1675ff!important;color:#1675ff!important;margin:0!important;position:absolute;top:68px}.activity .wide{margin-top:auto}.live-activity{max-height:235px;overflow:auto}.live-activity li{padding:10px 0!important}
+    footer{height:58px;max-width:1900px;margin:0 10px 10px;border:1px solid #14375d;border-radius:10px;background:#061221;display:flex;align-items:center;justify-content:space-between;padding:0 24px;color:#92a5bc;font-size:10px}footer a{color:#c7d5e6;text-decoration:none}.footer-center{display:flex;gap:34px}.healthy{color:#4fe39e}
+    @media(max-width:1200px){.dashboard{grid-template-columns:1fr 1fr;grid-template-rows:auto}.email,.calendar,.market,.crm,.social,.activity{grid-column:auto;grid-row:auto;min-height:420px}.market,.activity{min-height:390px}.topbar nav{display:none}}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand"><div class="rabbit">🐇</div><div><strong>OpenRabbit</strong><span>Your AI Real Estate Operating Environment</span></div></div>
+      <nav><button class="nav active">Home</button><button class="nav">Calendar</button><button class="nav">CRM</button><button class="nav">Email</button><button class="nav">Social</button><button class="nav">Market</button><button class="nav">FAQ</button></nav>
+      <div class="top-actions"><input id="agentSearch" placeholder="Ask OpenRabbit…"/><button class="icon">⌘K</button><div class="avatar">MO</div></div>
+    </header>
+
+    <div class="hidden-runtime"><span id="agentStatus"></span><p id="agentSummary"></p><ul id="environmentStatus"></ul></div>
+
+    <main class="dashboard">
+      <section class="email panel" data-provider="gmail"><div class="panel-head"><h2>Email</h2><span id="emailStatus">Ready to connect</span></div><div id="emailBody" class="connection-empty"><div class="connection-preview sil-mail"><div class="row"></div><div class="row"></div><div class="row"></div><div class="row"></div><div class="row"></div></div><div class="connection-overlay"><h3>Ready to connect<br>to your inbox</h3><p>Your live inbox will appear here. Live Gmail data replaces this view after authorization.</p><a class="connection-action" href="/api/integrations/gmail/connect?redirectTo=/index.html">Connect Gmail</a><span class="secure-note">Secure OAuth connection · disconnect anytime</span></div></div></section>
+
+      <section class="calendar panel" data-provider="calendar"><div class="panel-head"><h2>Calendar</h2><span id="calendarStatus">Ready to connect · choose account</span></div><div id="calendarBody" class="connection-empty"><div class="connection-preview sil-calendar"><div class="times"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="events"><i></i><i></i><i></i><i></i></div></div><div class="connection-overlay"><h3>Ready to connect<br>your calendar</h3><p>Connect a calendar account — it can be different from your email account. Your real events appear after authorization.</p><a class="connection-action" href="/api/integrations/calendar/connect?redirectTo=/index.html">Choose calendar account</a><span class="secure-note">Secure OAuth connection · disconnect anytime</span></div></div></section>
+
+      <section class="market panel" data-provider="googleMaps"><div class="panel-head"><h2>Market Intelligence</h2><button class="panel-search-link" onclick="location.href='./market.html'">Search map</button><span id="marketStatus">Checking…</span></div><div id="marketBody" class="connection-empty"><div class="connection-overlay"><h3>Loading live map</h3><p>Search uses Google Maps. Listing statistics stay blank until an authoritative market-data source is connected.</p></div></div></section>
+
+      <section class="crm panel" data-provider="hubspot"><div class="panel-head"><h2>CRM / Pipeline</h2><span id="crmStatus">Checking…</span></div><div id="crmBody" class="connection-empty"><div class="connection-preview sil-crm"><section><div class="row"></div><div class="row"></div><div class="row"></div></section><section><div class="row"></div><div class="row"></div></section><section><div class="row"></div><div class="row"></div></section><section><div class="row"></div><div class="row"></div></section></div><div class="connection-overlay"><h3>Ready to connect<br>your CRM</h3><p>Contacts, deals and pipeline stages will appear here after authorization.</p></div></div></section>
+
+      <section class="social panel" data-provider="social"><div class="panel-head"><h2>Social Media</h2><span class="status-muted">Ready to connect</span></div><div class="connection-empty"><div class="connection-preview sil-social"><div class="thumb"></div><div class="lines"></div></div><div class="connection-overlay"><h3>Ready to connect<br>your social accounts</h3><p>Your posts, messages and engagement will appear here after authorization.</p><button class="connection-action" id="socialSetup">Connect social accounts</button><span class="secure-note">Secure OAuth connection · disconnect anytime</span></div></div></section>
+
+      <section class="activity panel"><div class="panel-head"><h2>Agent Activity</h2><span id="activityStatus">Ready to go</span></div><div id="activityBody" class="connection-empty"><div class="connection-overlay"><h3>Ready to go</h3><p>Agent runs, approvals, connections and actions will appear here as they happen.</p></div></div><button id="talkBtn" class="wide primary">Talk to OpenRabbit</button></section>
+    </main>
+
+    <footer><span>🐇 <b>OpenRabbit</b></span><div class="footer-center"><span>Automate. Analyze. Close.</span><span>Environment status: <b class="healthy">Healthy</b></span></div><span>Need help? &nbsp; <a href="./faq.html">View FAQ</a></span></footer>
+  </div>
+
+  <div id="agentDrawer" class="drawer"><button id="closeDrawer">×</button><h2>OpenRabbit Agent</h2><p>What should I do next?</p><textarea placeholder="Ask me to analyze, draft, organize, schedule, or prepare an approval…"></textarea><button class="primary wide">Run Request</button></div>
+  <script src="./app.js"></script>
+  <script src="./proactive-client.js"></script>
+  <script src="./agent-email-client.js"></script>
+  <script src="./agent-calendar-client.js"></script>
+</body>
+</html>
