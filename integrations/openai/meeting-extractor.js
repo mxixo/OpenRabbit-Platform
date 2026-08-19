@@ -12,7 +12,7 @@ function extractOutputText(payload){
   throw new Error('OpenAI response did not contain output text');
 }
 
-function createOpenAiMeetingExtractor({apiKey,model='gpt-5.6-luna',fetchImpl=globalThis.fetch,timeZone='America/Phoenix'}={}){
+function createOpenAiMeetingExtractor({apiKey,model='gpt-5-mini',fetchImpl=globalThis.fetch,timeZone='America/Phoenix'}={}){
   const key=required(apiKey,'apiKey');if(typeof fetchImpl!=="function")throw new Error('fetch implementation is required');
   return async function extract(message={}){
     const instructions='Identify only concrete meeting or appointment requests with enough evidence to place on a calendar. Do not invent dates, times, attendees, or locations. If ambiguous, return isMeeting false. Preserve source evidence snippets. Use ISO 8601 timestamps when a meeting is concrete.';
