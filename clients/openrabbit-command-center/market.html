@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OpenRabbit — Market Intelligence</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./market.css" />
+</head>
+<body>
+  <div class="market-shell">
+    <header class="market-topbar">
+      <div class="brand"><div class="rabbit">◖◗</div><div><strong>OpenRabbit</strong><span>Market / Property Intelligence</span></div></div>
+      <div class="market-actions"><a href="./index.html">Command Center</a><button id="marketAgentBtn">Ask OpenRabbit</button></div>
+    </header>
+
+    <main class="market-workspace">
+      <aside class="search-rail panel">
+        <div class="panel-head"><h2>Saved Searches</h2><span>4 active</span></div>
+        <div class="saved-search active"><b>Phoenix Multifamily</b><small>4–12 units · ≤ $2M · value-add</small><span>18 matches</span></div>
+        <div class="saved-search"><b>Central Phoenix Infill</b><small>Small multifamily / redevelopment</small><span>11 matches</span></div>
+        <div class="saved-search"><b>Distressed Hospitality</b><small>Motel / adaptive reuse</small><span>3 matches</span></div>
+        <div class="saved-search"><b>Investor Buy Box — Paris</b><small>Cash flow + refinance upside</small><span>7 matches</span></div>
+        <div class="criteria"><h3>Investor Criteria</h3><label>Price ceiling <b>$2.0M</b></label><label>Units <b>4–12</b></label><label>Target cap <b>6.5%+</b></label><label>Value-add <b>Preferred</b></label><label>Area <b>Phoenix Metro</b></label></div>
+      </aside>
+
+      <section class="map-stage panel">
+        <div class="panel-head"><div><h2>Phoenix Opportunity Map</h2><span>Live scoring across listings, saved searches, CRM and investor criteria</span></div><div class="map-tools"><button class="active">Opportunities</button><button>Comps</button><button>Heatmap</button></div></div>
+        <div class="large-map">
+          <div class="map-grid"></div>
+          <span class="district d1">Maryvale</span><span class="district d2">Downtown</span><span class="district d3">Camelback East</span><span class="district d4">Alhambra</span>
+          <button class="pin p1 hot" data-property="Royal Palm Inn">91</button>
+          <button class="pin p2" data-property="1638 W Mohave St">84</button>
+          <button class="pin p3" data-property="Westminster St">78</button>
+          <button class="pin p4" data-property="Phoenix 4-Plex">88</button>
+          <div id="propertyPopover" class="property-popover"><span class="score">Opportunity Score 91</span><h3>Royal Palm Inn</h3><p>2510 W Palo Verde Dr · Phoenix, AZ</p><div class="pop-grid"><b>$1.6M</b><span>Current ask</span><b>High</b><span>Redevelopment upside</span><b>3</b><span>Investor matches</span></div><div class="pop-actions"><button id="openDealBtn">Open Record</button><button id="analyzePropertyBtn">Analyze</button></div></div>
+        </div>
+      </section>
+
+      <aside class="opportunity-feed panel">
+        <div class="panel-head"><h2>Opportunity Feed</h2><span>ranked by OpenRabbit</span></div>
+        <article class="opp top"><div><b>Royal Palm Inn</b><small>Adaptive reuse / distressed</small></div><strong>91</strong><p>Below-area land basis, limited obvious competition, multiple exit paths.</p><button data-prompt="Analyze Royal Palm Inn versus my current investor criteria and tell me whether I should pursue it now.">Ask Agent</button></article>
+        <article class="opp"><div><b>Phoenix 4-Plex</b><small>New listing · Central Phoenix</small></div><strong>88</strong><p>Estimated cap 7.1%, cosmetic upside, strong rent-growth pocket.</p><button data-prompt="Compare the Phoenix 4-plex opportunity against Paris Robbins' criteria and recommend an offer strategy.">Ask Agent</button></article>
+        <article class="opp"><div><b>1638 W Mohave St</b><small>Under contract</small></div><strong>84</strong><p>Transaction risk low; next value is execution and closing discipline.</p><button data-prompt="Review 1638 W Mohave St and identify any closing risks or missed follow-ups.">Ask Agent</button></article>
+      </aside>
+
+      <section class="intel-strip panel">
+        <div class="intel"><small>Median Price</small><b>$455K</b><span>↗ 2.4% MoM</span></div><div class="intel"><small>Active Listings</small><b>12,487</b><span>↗ 6.2%</span></div><div class="intel"><small>Avg DOM</small><b>68</b><span>↓ 4 days</span></div><div class="intel"><small>Multifamily Inventory</small><b>1.8 mo</b><span>tight</span></div><div class="intel"><small>Investor Matches</small><b>27</b><span>7 high-fit</span></div>
+      </section>
+
+      <section class="comp-workspace panel">
+        <div class="panel-head"><h2>Property / Comp Intelligence</h2><div class="tabs"><button class="active">Subject</button><button>Sales Comps</button><button>Rent Comps</button><button>Neighborhood</button></div></div>
+        <div class="comp-grid"><div class="subject-card"><span class="badge">Selected property</span><h3>Royal Palm Inn</h3><p>Distressed hospitality / redevelopment candidate</p><div class="kv"><span>Ask</span><b>$1,600,000</b><span>Strategy</span><b>Adaptive reuse / teardown</b><span>Competition</span><b>Low visibility</b><span>Confidence</span><b>Medium</b></div></div><div class="comp-table"><div class="row head"><span>Property</span><span>Sale</span><span>Basis</span><span>Distance</span></div><div class="row"><span>W Indian School Motel</span><b>$1.42M</b><span>$61K/key</span><span>1.3 mi</span></div><div class="row"><span>N 27th Ave Redevelopment</span><b>$1.78M</b><span>$19/sf land</span><span>2.1 mi</span></div><div class="row"><span>Maryvale Inn Site</span><b>$1.31M</b><span>$54K/key</span><span>3.0 mi</span></div></div><div class="recommendation"><span class="status">OpenRabbit View</span><h3>Pursue, but control basis.</h3><p>Best fit is a buyer with redevelopment tolerance. Current ask is not automatically compelling; value depends on contamination, demolition, zoning, and achievable replacement density.</p><button data-prompt="Build a negotiation and diligence strategy for Royal Palm Inn using the market, comp, contamination, zoning and investor-fit context in this workspace.">Build Strategy</button></div></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="marketAgentDrawer" class="drawer"><button id="marketCloseDrawer">×</button><h2>OpenRabbit Market Agent</h2><p>Market context is attached automatically.</p><textarea placeholder="Ask about properties, comps, saved searches, investor matches, or next actions…"></textarea><button id="marketRunAgent" class="primary wide">Run Request</button></div>
+  <script src="./market.js"></script>
+</body>
+</html>
