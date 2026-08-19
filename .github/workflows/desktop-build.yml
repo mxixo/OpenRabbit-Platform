@@ -1,0 +1,62 @@
+name: Build OpenRabbit Desktop
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            command: dist:mac
+            artifact: macOS
+          - os: windows-latest
+            command: dist:win
+            artifact: Windows
+          - os: ubuntu-latest
+            command: dist:linux
+            artifact: Linux
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: clients/desktop-shell
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: clients/desktop-shell/package.json
+
+      - name: Install desktop build dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build installer
+        run: npm run ${{ matrix.command }}
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenRabbit-${{ matrix.artifact }}
+          path: clients/desktop-shell/dist/*
+          if-no-files-found: error
+
+      - name: Attach installer to published GitHub release
+        if: github.event_name == 'release'
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh release upload "${{ github.event.release.tag_name }}" clients/desktop-shell/dist/* --clobber
