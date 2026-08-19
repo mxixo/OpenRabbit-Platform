@@ -55,6 +55,7 @@ function addToast(message){
 
 function openDeal(){ window.location.href="./deal.html"; }
 function openMarket(){ window.location.href="./market.html"; }
+function openCommunications(){ window.location.href="./communications.html"; }
 
 function installCardInteractions(){
   document.querySelectorAll(".mail-list article").forEach((item)=>item.addEventListener("click",()=>{
@@ -62,6 +63,7 @@ function installCardInteractions(){
     const subject=item.querySelector("strong")?.textContent?.trim();
     addToast(subject?`Opened: ${subject}`:"Email opened");
   }));
+  document.querySelector(".email .wide")?.addEventListener("click",openCommunications);
 
   document.querySelectorAll(".kanban article").forEach((card)=>card.addEventListener("click",()=>{
     document.querySelectorAll(".kanban article.selected").forEach((x)=>x.classList.remove("selected"));
@@ -125,9 +127,10 @@ document.querySelectorAll(".nav").forEach((button)=>{
     document.querySelectorAll(".nav").forEach((item)=>item.classList.remove("active"));
     button.classList.add("active");
     const label = button.textContent.trim();
-    const targetMap = {Calendar:".calendar",CRM:".crm",Email:".email",Social:".social"};
+    const targetMap = {Calendar:".calendar",CRM:".crm",Social:".social"};
     if(label === "Home"){dashboard?.scrollIntoView({behavior:"smooth",block:"start"});return;}
     if(label === "Market"){openMarket();return;}
+    if(label === "Email"){openCommunications();return;}
     focusWindow(targetMap[label]);
   });
 });
