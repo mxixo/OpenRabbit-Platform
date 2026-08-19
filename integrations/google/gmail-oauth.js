@@ -12,6 +12,8 @@ function encodeMessage({to, subject, body}) {
   const mime = [`To: ${to}`, `Subject: ${subject || ""}`, "Content-Type: text/plain; charset=UTF-8", "", body || ""].join("\r\n");
   return Buffer.from(mime).toString("base64url");
 }
+function decodeBody(data){if(!data)return"";try{return Buffer.from(String(data).replace(/-/g,"+").replace(/_/g,"/"),"base64").toString("utf8")}catch{return""}}
+function extractTextPart(part){if(!part)return"";if(part.mimeType==="text/plain"&&part.body?.data)return decodeBody(part.body.data);for(const child of part.parts||[]){const text=extractTextPart(child);if(text)return text}if(part.body?.data&&String(part.mimeType||"").startsWith("text/"))return decodeBody(part.body.data).replace(/<[^>]+>/g," ");return""}
 
 class GmailOAuthAdapter {
   constructor({ clientId, clientSecret, redirectUri, registry, fetchImpl = global.fetch }) {
@@ -60,9 +62,10 @@ class GmailOAuthAdapter {
   async listInbox({ accessToken, maxResults = 12, query = "in:inbox" }) {
     const list = await this.gmailFetch(`/messages?maxResults=${maxResults}&q=${encodeURIComponent(query)}`, accessToken);
     const messages = await Promise.all((list.messages || []).map(async ({id}) => {
-      const msg = await this.gmailFetch(`/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`, accessToken);
+      const msg = await this.gmailFetch(`/messages/${id}?format=full`, accessToken);
       const headers = Object.fromEntries((msg.payload?.headers || []).map(h=>[h.name.toLowerCase(),h.value]));
-      return { id, threadId:msg.threadId, from:headers.from || "", to:headers.to || "", subject:headers.subject || "(no subject)", date:headers.date || "", snippet:msg.snippet || "", labelIds:msg.labelIds || [] };
+      const bodyText=extractTextPart(msg.payload).replace(/\s+/g," ").trim().slice(0,6000);
+      return { id, threadId:msg.threadId, from:headers.from || "", to:headers.to || "", subject:headers.subject || "(no subject)", date:headers.date || "", snippet:msg.snippet || "", bodyText, labelIds:msg.labelIds || [] };
     }));
     return { messages, nextPageToken:list.nextPageToken || null };
   }
@@ -98,4 +101,4 @@ class GmailOAuthAdapter {
   }
 }
 
-module.exports = { GmailOAuthAdapter, DEFAULT_SCOPES, CALENDAR_SCOPE, GMAIL_MODIFY_SCOPE, encodeMessage };
+module.exports = { GmailOAuthAdapter, DEFAULT_SCOPES, CALENDAR_SCOPE, GMAIL_MODIFY_SCOPE, encodeMessage, decodeBody, extractTextPart };
