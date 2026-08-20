@@ -16,9 +16,10 @@ const workspaceHtml = fs.readFileSync(path.join(workspaceDir, 'index.html'), 'ut
 const loginHtml = fs.readFileSync(path.join(workspaceDir, 'login.html'), 'utf8');
 const connectionsHtml = fs.readFileSync(path.join(workspaceDir, 'connections.html'), 'utf8');
 const marketHtml = fs.readFileSync(path.join(workspaceDir, 'market.html'), 'utf8');
-const faqHtml = fs.readFileSync(path.join(workspaceDir, 'faq.html'), 'utf8');
 const mapSource = fs.readFileSync(path.join(workspaceDir, 'market-map.js'), 'utf8');
+const mapFallback = fs.readFileSync(path.join(workspaceDir, 'map-fallback.js'), 'utf8');
 const liveDataSource = fs.readFileSync(path.join(workspaceDir, 'live-data.js'), 'utf8');
+const microsoftUiSource = fs.readFileSync(path.join(workspaceDir, 'microsoft-ui.js'), 'utf8');
 
 assert.strictEqual(desktopPackage.main, 'main-v2.js');
 assert.strictEqual(desktopPackage.version, '0.1.5');
@@ -27,7 +28,9 @@ for (const file of ['main-v2.js','main.js','preload.js','gateway-client.js','aut
   assert.ok(fs.existsSync(path.join(desktopDir, file)), `${file} must exist`);
   assert.ok(desktopPackage.build.files.includes(file), `${file} must be packaged by electron-builder`);
 }
-for (const file of ['index.html','login.html','connections.html','market.html','faq.html','market-map.js','live-data.js']) assert.ok(fs.existsSync(path.join(workspaceDir, file)), `${file} must exist`);
+for (const file of ['index.html','login.html','connections.html','market.html','market-map.js','live-data.js','map-fallback.js','microsoft-ui.js']) {
+  assert.ok(fs.existsSync(path.join(workspaceDir, file)), `${file} must exist`);
+}
 
 for (const loginText of ['Welcome to OpenRabbit','Sign in','Create account','normal sign-in screens']) assert.match(loginHtml,new RegExp(loginText,'i'));
 assert.doesNotMatch(loginHtml,/client secret|client_id|paste.*token|API key field/i);
@@ -40,17 +43,26 @@ assert.match(mainSource,/gateway\.setUserResolver/);
 assert.match(mainSource,/login\.html/);
 assert.match(mainV2Source,/openrabbit:live-snapshot/);
 assert.match(mainV2Source,/openrabbit:start-social-oauth/);
+assert.match(mainV2Source,/openrabbit:start-microsoft-oauth/);
 assert.match(mainV2Source,/live-data\.js/);
-for (const method of ['getAccountStatus','signIn','signUp','signOut','getLiveSnapshot','connectSocial']) assert.match(preloadSource,new RegExp(method));
+assert.match(mainV2Source,/map-fallback\.js/);
+assert.match(mainV2Source,/microsoft-ui\.js/);
+for (const method of ['getAccountStatus','signIn','signUp','signOut','getLiveSnapshot','connectSocial','connectMicrosoft']) assert.match(preloadSource,new RegExp(method));
 assert.match(authClientSource,/safeStorage/);
 assert.match(gatewayClientSource,/\/v1\/live/);
 assert.match(gatewayClientSource,/startSocial/);
+assert.match(gatewayClientSource,/startMicrosoft/);
 assert.match(gatewayClientSource,/identity\.accessToken/);
 assert.ok(runtimeConfig.connectionGatewayUrl);
 assert.ok(runtimeConfig.supabaseUrl);
 assert.ok(runtimeConfig.supabasePublishableKey.startsWith('sb_publishable_'));
 
 for (const liveToken of ['getLiveSnapshot','Live Gmail','Live Calendar','Live HubSpot','Instagram / Facebook','LinkedIn','TikTok']) assert.match(liveDataSource,new RegExp(liveToken,'i'));
+assert.match(microsoftUiSource,/Outlook \/ Microsoft 365/i);
+assert.match(microsoftUiSource,/Microsoft Calendar/i);
+assert.match(mapFallback,/openstreetmap\.org/i);
+assert.match(mapFallback,/nominatim\.openstreetmap\.org/i);
+assert.match(mapFallback,/Built in/i);
 assert.match(workspaceHtml,/getIntegrationStatus/);
 assert.match(workspaceHtml,/getMapsConfig/);
 assert.match(connectionsHtml,/disconnectIntegration/);
