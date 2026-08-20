@@ -24,6 +24,7 @@
     let googleAvailable=false;
     try{const c=await api?.getMapsConfig?.();googleAvailable=Boolean(c?.available&&c?.browserKey);}catch{}
     if(googleAvailable)return;
+    setBuiltIn(panel);
     if(frame.dataset.openrabbitOsm==='true')return;
     frame.dataset.openrabbitOsm='true';
     frame.innerHTML='';
@@ -33,7 +34,7 @@
     const status=document.createElement('div');status.style.cssText='position:absolute;left:10px;bottom:10px;z-index:5;background:rgba(6,12,22,.9);color:#d8deea;border:1px solid #33405b;border-radius:7px;padding:7px 9px;font-size:10px';status.textContent='OpenStreetMap live · no account connection required';frame.appendChild(status);
     const input=controls.querySelector('input'),button=controls.querySelector('button');
     async function search(){const q=input.value.trim();if(!q)return;button.disabled=true;status.textContent='Searching map…';try{const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q='+encodeURIComponent(q);const r=await fetch(url,{headers:{'Accept-Language':'en'}});const data=await r.json();const hit=data?.[0];if(!hit)throw new Error('No matching location found.');const lat=Number(hit.lat),lon=Number(hit.lon);iframe.src=embedUrl(lat,lon,.025);status.textContent=hit.display_name||q;}catch(e){status.textContent=e?.message||'Map search unavailable.';}finally{button.disabled=false;}}
-    button.addEventListener('click',search);input.addEventListener('keydown',e=>{if(e.key==='Enter')search();});setBuiltIn(panel);
+    button.addEventListener('click',search);input.addEventListener('keydown',e=>{if(e.key==='Enter')search();});
   }
-  install();setTimeout(install,1200);setTimeout(install,3500);
+  install();setTimeout(install,1200);setTimeout(install,3500);setInterval(()=>{const p=mapPanel();if(p)setBuiltIn(p);},10000);
 })();
