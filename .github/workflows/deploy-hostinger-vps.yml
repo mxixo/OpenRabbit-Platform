@@ -68,6 +68,9 @@ jobs:
             LINKEDIN_CLIENT_SECRET=${{ secrets.LINKEDIN_CLIENT_SECRET }}
             TIKTOK_CLIENT_KEY=${{ secrets.TIKTOK_CLIENT_KEY }}
             TIKTOK_CLIENT_SECRET=${{ secrets.TIKTOK_CLIENT_SECRET }}
+            MICROSOFT_CLIENT_ID=${{ secrets.MICROSOFT_CLIENT_ID }}
+            MICROSOFT_CLIENT_SECRET=${{ secrets.MICROSOFT_CLIENT_SECRET }}
+            MICROSOFT_TENANT=${{ vars.MICROSOFT_TENANT }}
 
       - name: Verify public gateway health
         env:
@@ -75,13 +78,13 @@ jobs:
         run: |
           for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
             body="$(curl --fail --silent --show-error --max-time 10 "$OPENRABBIT_GATEWAY_URL/health" || true)"
-            if echo "$body" | grep -q '"version":5'; then
+            if echo "$body" | grep -q '"version":6'; then
               echo "$body"
-              echo "OpenRabbit live gateway v5 is healthy and publicly reachable."
+              echo "OpenRabbit live gateway v6 is healthy and publicly reachable."
               exit 0
             fi
-            echo "Gateway v5 not ready yet (attempt $attempt/12)."
+            echo "Gateway v6 not ready yet (attempt $attempt/12)."
             sleep 10
           done
-          echo "OpenRabbit gateway v5 health check failed."
+          echo "OpenRabbit gateway v6 health check failed."
           exit 1
