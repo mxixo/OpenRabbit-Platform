@@ -6,5 +6,7 @@ contextBridge.exposeInMainWorld('openRabbitDesktop', Object.freeze({
   mapsBrowserKey: process.env.GOOGLE_MAPS_BROWSER_KEY || process.env.OPENRABBIT_MAPS_BROWSER_KEY || '',
   getIntegrationStatus: () => ipcRenderer.invoke('openrabbit:integration-status'),
   startGoogleOAuth: () => ipcRenderer.invoke('openrabbit:start-google-oauth'),
+  getAgentProviderStatus: () => ipcRenderer.invoke('openrabbit:agent-provider-status'),
+  connectChatGPT: () => ipcRenderer.invoke('openrabbit:connect-chatgpt'),
   agentChat: (messages) => ipcRenderer.invoke('openrabbit:agent-chat', messages)
 }));
