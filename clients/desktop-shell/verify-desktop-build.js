@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const pkg = require('./package.json');
 
-const requiredFiles = ['main-v2.js','main.js','preload.js','gateway-client.js','auth-client.js','runtime-config.json','hubspot-oauth.js'];
+const requiredFiles = ['main-v2.js','main.js','preload.js','gateway-client.js','auth-client.js','action-queue.js','ai-provider-registry.js','runtime-config.json','hubspot-oauth.js'];
 for (const file of requiredFiles) {
   const fullPath = path.join(__dirname, file);
   if (!fs.existsSync(fullPath)) {
