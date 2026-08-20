@@ -1,3 +1,5 @@
 {
-  "connectionGatewayUrl": ""
+  "connectionGatewayUrl": "https://openrabbit.93-188-163-198.sslip.io",
+  "supabaseUrl": "https://djplmhglilcwqfotnjew.supabase.co",
+  "supabasePublishableKey": "sb_publishable_ZdtVEN0fzdTEQyfQRLfhDA_zjKarn2n"
 }
