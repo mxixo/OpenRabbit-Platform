@@ -4,6 +4,12 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+let userResolver = null;
+
+function setUserResolver(resolver) {
+  userResolver = typeof resolver === 'function' ? resolver : null;
+}
+
 function packagedConfig() {
   try {
     const file = path.join(__dirname, 'runtime-config.json');
@@ -47,11 +53,22 @@ function installationUserId(app) {
   return userId;
 }
 
-function headers(app, extra = {}) {
+async function resolvedUserId(app) {
+  if (userResolver) {
+    try {
+      const value = await userResolver();
+      if (value?.id) return String(value.id);
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    } catch {}
+  }
+  return installationUserId(app);
+}
+
+async function headers(app, extra = {}) {
   const token = sessionToken();
   return {
     accept: 'application/json',
-    'x-openrabbit-user': installationUserId(app),
+    'x-openrabbit-user': await resolvedUserId(app),
     ...(token ? { authorization: `Bearer ${token}` } : {}),
     ...extra
   };
@@ -62,7 +79,7 @@ async function request(app, route, options = {}) {
   if (!base) throw new Error('OpenRabbit connection service is not configured yet.');
   const response = await fetch(`${base}${route}`, {
     method: options.method || 'GET',
-    headers: headers(app, options.headers || {}),
+    headers: await headers(app, options.headers || {}),
     body: options.body
   });
   const contentType = response.headers.get('content-type') || '';
@@ -87,4 +104,4 @@ async function startHubSpot(app) { return request(app, '/v1/connections/hubspot/
 async function verify(app, provider) { return request(app, `/v1/connections/${encodeURIComponent(provider)}/verify`, { method: 'POST' }); }
 async function disconnect(app, provider) { return request(app, `/v1/connections/${encodeURIComponent(provider)}`, { method: 'DELETE' }); }
 
-module.exports = { gatewayBaseUrl, installationUserId, health, status, mapsConfig, startGoogle, startHubSpot, verify, disconnect };
+module.exports = { gatewayBaseUrl, installationUserId, setUserResolver, health, status, mapsConfig, startGoogle, startHubSpot, verify, disconnect };
