@@ -18,6 +18,16 @@ services:
       HUBSPOT_OAUTH_CLIENT_SECRET: ${HUBSPOT_OAUTH_CLIENT_SECRET:-}
       HUBSPOT_OAUTH_SCOPES: ${HUBSPOT_OAUTH_SCOPES:-crm.objects.contacts.read crm.objects.companies.read crm.objects.deals.read}
       GOOGLE_MAPS_BROWSER_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
+      META_APP_ID: ${META_APP_ID:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      META_GRAPH_VERSION: ${META_GRAPH_VERSION:-v23.0}
+      META_OAUTH_SCOPES: ${META_OAUTH_SCOPES:-public_profile,pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights}
+      LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}
+      LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}
+      LINKEDIN_OAUTH_SCOPES: ${LINKEDIN_OAUTH_SCOPES:-openid profile email}
+      TIKTOK_CLIENT_KEY: ${TIKTOK_CLIENT_KEY:-}
+      TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}
+      TIKTOK_OAUTH_SCOPES: ${TIKTOK_OAUTH_SCOPES:-user.info.basic,video.list}
     expose:
       - "8790"
     volumes:
