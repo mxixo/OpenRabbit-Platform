@@ -5,6 +5,15 @@
   window.__openRabbitAgentChatLoaded = true;
 
   const state = { messages: [], provider: null, providerStatus: null };
+  const BRAND_ASSETS = {
+    chatgpt: 'https://cdn.jsdelivr.net/npm/@thesvg/icons/icons/openai-chatgpt.svg',
+    gemini: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/google-gemini/default.svg',
+    claude: 'https://upload.wikimedia.org/wikipedia/commons/b/b0/Claude_AI_symbol.svg'
+  };
+
+  function providerLogo(src, alt, style = '') {
+    return `<img src="${src}" alt="${alt}" loading="eager" decoding="async" referrerpolicy="no-referrer" style="width:34px;height:34px;display:block;object-fit:contain;${style}">`;
+  }
 
   function injectStyles() {
     if (document.getElementById('openrabbitAgentStyles')) return;
@@ -23,7 +32,7 @@
       .or-agent-compose{padding:14px;border-top:1px solid #173f68;background:#07182a}.or-agent-row{display:grid;grid-template-columns:1fr auto;gap:9px}.or-agent-input{width:100%;min-height:54px;max-height:150px;resize:vertical;background:#08192b;color:#fff;border:1px solid #285886;border-radius:12px;padding:13px 14px;outline:none}.or-agent-input:focus{border-color:#4a83dd;box-shadow:0 0 0 2px rgba(74,131,221,.15)}.or-agent-send{min-width:110px;border:0;border-radius:12px;background:linear-gradient(135deg,#7425dc,#1559c8);color:#fff;font-weight:900;padding:0 18px;cursor:pointer}.or-agent-send:disabled{opacity:.55;cursor:wait}
       .or-agent-meta{margin-top:8px;display:flex;justify-content:space-between;gap:10px;color:#8fa3bb;font-size:11px}.or-agent-status.ok{color:#8df4c8}.or-agent-status.warn{color:#ffd38a}
       .or-provider{padding:26px;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}.or-provider h2{margin:0 0 8px;font-size:27px}.or-provider>p{max-width:650px;text-align:center;color:#aebed0;line-height:1.55;margin:0 0 22px}
-      .or-provider-grid{width:min(680px,100%);display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.or-provider-card{border:1px solid #285886;border-radius:15px;background:linear-gradient(#0e2944,#0a1c30);padding:17px;text-align:left;color:#fff;min-height:170px;display:flex;flex-direction:column;gap:9px}.or-provider-card.ready{cursor:pointer}.or-provider-card.ready:hover{border-color:#4b85d9;transform:translateY(-1px)}.or-provider-logo{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;font-weight:900;background:#fff;color:#111}.or-provider-card h3{margin:3px 0 0;font-size:16px}.or-provider-card p{margin:0;color:#aebed0;font-size:12px;line-height:1.45;flex:1}.or-provider-action{border:0;border-radius:9px;padding:10px 12px;background:linear-gradient(135deg,#1763da,#10469f);color:#fff;font-weight:900;cursor:pointer}.or-provider-card.disabled{opacity:.62}.or-provider-card.disabled .or-provider-action{background:#20364d;cursor:default}.or-provider-note{margin-top:14px;color:#7f95ad;font-size:11px;text-align:center;max-width:650px}.or-provider-working{margin-top:15px;color:#ffd38a;font-size:12px;text-align:center;min-height:18px}.or-provider-connected{margin-top:12px;color:#8df4c8;font-weight:800;font-size:12px}
+      .or-provider-grid{width:min(680px,100%);display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.or-provider-card{border:1px solid #285886;border-radius:15px;background:linear-gradient(#0e2944,#0a1c30);padding:17px;text-align:left;color:#fff;min-height:170px;display:flex;flex-direction:column;gap:9px}.or-provider-card.ready{cursor:pointer}.or-provider-card.ready:hover{border-color:#4b85d9;transform:translateY(-1px)}.or-provider-logo{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-size:22px;font-weight:900;background:#fff;color:#111}.or-provider-card h3{margin:3px 0 0;font-size:16px}.or-provider-card p{margin:0;color:#aebed0;font-size:12px;line-height:1.45;flex:1}.or-provider-action{border:0;border-radius:9px;padding:10px 12px;background:linear-gradient(135deg,#1763da,#10469f);color:#fff;font-weight:900;cursor:pointer}.or-provider-card.disabled{opacity:.62}.or-provider-card.disabled .or-provider-action{background:#20364d;cursor:default}.or-provider-note{margin-top:14px;color:#7f95ad;font-size:11px;text-align:center;max-width:650px}.or-provider-working{margin-top:15px;color:#ffd38a;font-size:12px;text-align:center;min-height:18px}.or-provider-connected{margin-top:2px;color:#8df4c8;font-weight:800;font-size:11px;min-height:16px}
       @media(max-width:720px){.or-provider-grid{grid-template-columns:1fr}.or-agent-shell{height:94vh}.or-provider-card{min-height:140px}}
     `;
     document.head.appendChild(style);
@@ -54,32 +63,34 @@
 
   function providerMarkup(status) {
     const available = status?.codexAvailable !== false;
+    const signedIn = Boolean(status?.connected);
     return `
       <div class="or-provider">
         <h2>Ready to connect your AI</h2>
-        <p>Choose the intelligence provider that will power OpenRabbit on this computer. We are testing login-first connections so collaborators can use their own AI account without copying API keys.</p>
+        <p>Choose the intelligence provider that will power OpenRabbit on this computer. Login-first connections keep setup simple and avoid asking users to paste API keys.</p>
         <div class="or-provider-grid">
           <div class="or-provider-card ready" data-provider="chatgpt">
-            <div class="or-provider-logo">◎</div>
+            <div class="or-provider-logo">${providerLogo(BRAND_ASSETS.chatgpt, 'ChatGPT logo')}</div>
             <h3>OpenAI / ChatGPT</h3>
-            <p>Experimental account login through OpenAI Codex. Your ChatGPT authentication is stored locally by OpenAI's Codex client.</p>
+            <p>${signedIn ? 'Your ChatGPT account is already authenticated on this computer.' : 'Sign in securely through the OpenAI / Codex login flow.'}</p>
+            <div class="or-provider-connected">${signedIn ? '✓ Signed in' : ''}</div>
             <button class="or-provider-action" id="openrabbitConnectChatGPT" type="button">Continue with ChatGPT</button>
           </div>
           <div class="or-provider-card disabled">
-            <div class="or-provider-logo" style="background:#fff;color:#4285f4">G</div>
+            <div class="or-provider-logo">${providerLogo(BRAND_ASSETS.gemini, 'Google Gemini logo', 'width:36px;height:36px;')}</div>
             <h3>Google Gemini</h3>
-            <p>Login-first Gemini provider adapter is planned next.</p>
+            <p>Login-first Gemini provider support is planned next.</p>
             <button class="or-provider-action" type="button" disabled>Coming next</button>
           </div>
           <div class="or-provider-card disabled">
-            <div class="or-provider-logo" style="background:#d9c4a8;color:#2a2118">A</div>
+            <div class="or-provider-logo" style="background:#f7f1e8">${providerLogo(BRAND_ASSETS.claude, 'Claude logo', 'width:38px;height:38px;')}</div>
             <h3>Anthropic Claude</h3>
-            <p>Account-based Claude connection will appear here when the supported provider flow is added.</p>
+            <p>Account-based Claude provider support is planned next.</p>
             <button class="or-provider-action" type="button" disabled>Coming next</button>
           </div>
         </div>
         <div class="or-provider-working" id="openrabbitProviderWorking">${available ? '' : 'AI login helper is not installed yet. Relaunch after the desktop dependency finishes installing.'}</div>
-        <div class="or-provider-note">Experimental: the OpenAI path uses the official Codex ChatGPT login flow. If OpenAI does not authorize model access for the account, OpenRabbit will show the returned error rather than requesting your API key.</div>
+        <div class="or-provider-note">Your provider credentials stay local to this computer and are never committed to the OpenRabbit repository.</div>
       </div>`;
   }
 
@@ -159,9 +170,10 @@
     const working = document.getElementById('openrabbitProviderWorking');
     if (!window.openRabbitDesktop?.connectChatGPT) return;
     if (button) button.disabled = true;
-    if (working) working.textContent = 'Opening ChatGPT sign-in in your browser… Complete the OpenAI login, then return here.';
+    if (working) working.textContent = state.providerStatus?.connected ? 'Using your signed-in ChatGPT account…' : 'Opening ChatGPT sign-in in your browser… Complete the OpenAI login, then return here.';
     try {
-      const result = await window.openRabbitDesktop.connectChatGPT();
+      let result = state.providerStatus;
+      if (!result?.connected) result = await window.openRabbitDesktop.connectChatGPT();
       state.provider = result?.provider || 'openai-chatgpt';
       state.providerStatus = result;
       setProviderLabel('ChatGPT connected');
