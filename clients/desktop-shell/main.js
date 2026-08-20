@@ -47,7 +47,7 @@ function openRabbitCodexHome() {
 }
 
 function codexEnvironment() {
-  const env = { ...process.env, CODEX_HOME: openRabbitCodexHome() };
+  const env = { ...process.env, CODEX_HOME: openRabbitCodexHome(), CI: '1', NO_COLOR: '1' };
   delete env.OPENAI_API_KEY;
   delete env.CODEX_API_KEY;
   delete env.CODEX_ACCESS_TOKEN;
@@ -59,7 +59,7 @@ function runCodex(args, options = {}) {
     execFile(codexExecutable(), args, {
       cwd: options.cwd || app.getPath('temp'),
       env: options.env || codexEnvironment(),
-      timeout: options.timeout || 180000,
+      timeout: options.timeout || 60000,
       maxBuffer: 8 * 1024 * 1024,
       windowsHide: true
     }, (error, stdout, stderr) => {
@@ -114,9 +114,7 @@ async function startChatGPTLogin() {
   }
 
   const status = await codexAuthStatus();
-  if (!status.connected || status.authMode !== 'chatgpt') {
-    throw new Error(status.detail || 'ChatGPT sign-in did not complete.');
-  }
+  if (!status.connected || status.authMode !== 'chatgpt') throw new Error(status.detail || 'ChatGPT sign-in did not complete.');
   return status;
 }
 
@@ -157,12 +155,13 @@ async function runCodexAgent(rawMessages) {
   }
 
   const result = await runCodex([
+    '--ask-for-approval', 'never',
     'exec',
     '--ephemeral',
     '--skip-git-repo-check',
     '--sandbox', 'read-only',
     conversationPrompt(rawMessages)
-  ], { cwd: app.getPath('temp'), env: codexEnvironment(), timeout: 120000 });
+  ], { cwd: app.getPath('temp'), env: codexEnvironment(), timeout: 45000 });
 
   const text = result.stdout.trim();
   if (!text) throw new Error(result.stderr || 'ChatGPT returned an empty response.');
@@ -236,7 +235,6 @@ function workspaceDirectory() {
   if (app.isPackaged) return path.join(process.resourcesPath, 'workspace');
   return path.join(__dirname, '..', 'real-estate-workspace');
 }
-
 function enhancementScriptPath() { return path.join(workspaceDirectory(), 'startup-enhancements.js'); }
 function agentChatScriptPath() { return path.join(workspaceDirectory(), 'agent-chat.js'); }
 
@@ -249,7 +247,6 @@ function startWorkspaceServer() {
   if (workspaceServer && workspaceOrigin) return Promise.resolve(workspaceOrigin);
   const root = path.resolve(workspaceDirectory());
   const port = Number(process.env.OPENRABBIT_DESKTOP_PORT || 53683);
-
   return new Promise((resolve, reject) => {
     workspaceServer = http.createServer((req, res) => {
       try {
