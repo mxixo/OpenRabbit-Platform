@@ -8,14 +8,19 @@ const desktopPackage = JSON.parse(fs.readFileSync(path.join(desktopDir, 'package
 const mainSource = fs.readFileSync(path.join(desktopDir, 'main.js'), 'utf8');
 const preloadSource = fs.readFileSync(path.join(desktopDir, 'preload.js'), 'utf8');
 const workspaceHtml = fs.readFileSync(path.join(workspaceDir, 'index.html'), 'utf8');
+const connectionsHtml = fs.readFileSync(path.join(workspaceDir, 'connections.html'), 'utf8');
+const marketHtml = fs.readFileSync(path.join(workspaceDir, 'market.html'), 'utf8');
 const shellSource = fs.readFileSync(path.join(workspaceDir, 'shell.js'), 'utf8');
 const productivitySource = fs.readFileSync(path.join(workspaceDir, 'productivity-client.js'), 'utf8');
 assert.strictEqual(desktopPackage.main, 'main.js');
 for (const script of ['dist:mac','dist:win','dist:linux']) assert.ok(desktopPackage.scripts[script], `${script} packaging script is required`);
-for (const file of ['index.html','app.js','shell.js','productivity-client.js']) assert.ok(fs.existsSync(path.join(workspaceDir,file)), `${file} must exist`);
+for (const file of ['index.html','connections.html','market.html','app.js','shell.js','productivity-client.js']) assert.ok(fs.existsSync(path.join(workspaceDir,file)), `${file} must exist`);
 for (const view of ['dashboard','calendar','mail','agent','properties','crm','social']) {assert.match(workspaceHtml,new RegExp(`id=["']view-${view}["']`));assert.match(shellSource,new RegExp(view));}
 for (const id of ['dealTitle','dealMeta','setupPanel','app','newDealBtn','loadExistingBtn','createDealBtn','orgId','dealId','token','proposalQueue','proposalCalendar','scanMeetingMail','modeBadge','propertySearch','propertyFilter','mapPanel']) assert.match(workspaceHtml,new RegExp(`id=["']${id}["']`),`${id} must remain available`);
 for (const dashboardText of ['OpenRabbit command center','Calendar','Email','CRM','Social','Property map','Connections','DEMO MODE']) assert.match(workspaceHtml,new RegExp(dashboardText,'i'),`dashboard must surface ${dashboardText}`);
+for (const demoText of ['1638 W Mohave','Paris Robbins','Agent Activity','Today’s Focus']) assert.match(workspaceHtml,new RegExp(demoText,'i'),`last-night dashboard reference must retain ${demoText}`);
+for (const connectionsText of ['What is connected right now','Gmail','Google Calendar','OpenAI Agent','Google Maps','HubSpot']) assert.match(connectionsHtml,new RegExp(connectionsText,'i'),`connections screen must retain ${connectionsText}`);
+for (const marketText of ['Phoenix Opportunity Map','Royal Palm Inn','Opportunity Feed','Investor Criteria']) assert.match(marketHtml,new RegExp(marketText,'i'),`market screen must retain ${marketText}`);
 assert.match(workspaceHtml,/script src=["']\.\/productivity-client\.js["']/);
 assert.match(productivitySource,/\/meeting-proposals/,'desktop must consume meeting proposal API');
 for (const action of ['approve','reject','execute']) assert.match(productivitySource,new RegExp(`['\"]${action}['\"]`),`desktop must support ${action}`);
