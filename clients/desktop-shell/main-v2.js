@@ -39,7 +39,7 @@ async function startMicrosoftOAuth() {
 
 app.on('browser-window-created', (_event, window) => {
   window.webContents.on('did-finish-load', () => {
-    for (const name of ['live-data.js', 'map-fallback.js', 'microsoft-ui.js', 'ai-orb.js']) {
+    for (const name of ['live-data.js', 'map-fallback.js', 'microsoft-ui.js', 'ai-orb.js', 'proactive-brief.js']) {
       const file = path.join(workspaceDirectory(), name);
       try {
         const source = fs.readFileSync(file, 'utf8');
