@@ -40,12 +40,26 @@ function codexExecutable() {
   return process.platform === 'win32' ? 'codex.cmd' : 'codex';
 }
 
+function openRabbitCodexHome() {
+  const home = path.join(app.getPath('userData'), 'codex');
+  fs.mkdirSync(home, { recursive: true });
+  return home;
+}
+
+function codexEnvironment() {
+  const env = { ...process.env, CODEX_HOME: openRabbitCodexHome() };
+  delete env.OPENAI_API_KEY;
+  delete env.CODEX_API_KEY;
+  delete env.CODEX_ACCESS_TOKEN;
+  return env;
+}
+
 function runCodex(args, options = {}) {
   return new Promise((resolve, reject) => {
     execFile(codexExecutable(), args, {
       cwd: options.cwd || app.getPath('temp'),
-      env: options.env || process.env,
-      timeout: options.timeout || 300000,
+      env: options.env || codexEnvironment(),
+      timeout: options.timeout || 180000,
       maxBuffer: 8 * 1024 * 1024,
       windowsHide: true
     }, (error, stdout, stderr) => {
@@ -53,6 +67,7 @@ function runCodex(args, options = {}) {
         const detail = String(stderr || stdout || error.message || error).trim();
         const wrapped = new Error(detail || 'Codex command failed.');
         wrapped.code = error.code;
+        wrapped.signal = error.signal;
         return reject(wrapped);
       }
       resolve({ stdout: String(stdout || '').trim(), stderr: String(stderr || '').trim() });
@@ -62,37 +77,42 @@ function runCodex(args, options = {}) {
 
 async function codexAuthStatus() {
   try {
-    const result = await runCodex(['login', 'status'], { timeout: 20000 });
+    const result = await runCodex(['login', 'status'], { timeout: 15000 });
     const text = `${result.stdout}\n${result.stderr}`.trim();
     const lower = text.toLowerCase();
-    if (lower.includes('logged in using chatgpt')) return { connected: true, provider: 'openai-chatgpt', authMode: 'chatgpt', label: 'ChatGPT connected', detail: text };
-    if (lower.includes('logged in using an api key')) return { connected: true, provider: 'openai-api', authMode: 'apiKey', label: 'OpenAI API connected', detail: text };
-    if (lower.includes('not logged in')) return { connected: false, provider: null, authMode: null, label: 'Ready to connect your AI', detail: text };
-    return { connected: false, provider: null, authMode: null, label: 'Ready to connect your AI', detail: text || 'Codex login status unavailable.' };
+    if (lower.includes('logged in using chatgpt')) {
+      return { connected: true, provider: 'openai-chatgpt', authMode: 'chatgpt', label: 'ChatGPT connected', detail: text, codexAvailable: true };
+    }
+    return { connected: false, provider: null, authMode: null, label: 'Ready to connect your AI', detail: text || 'Not logged in', codexAvailable: true };
   } catch (error) {
-    return { connected: false, provider: null, authMode: null, label: 'Ready to connect your AI', detail: error.message, codexAvailable: false };
+    const detail = error.message || String(error);
+    const lower = detail.toLowerCase();
+    if (lower.includes('not logged in') || lower.includes('run codex login')) {
+      return { connected: false, provider: null, authMode: null, label: 'Ready to connect your AI', detail, codexAvailable: true };
+    }
+    const unavailable = /enoent|not found|is not recognized|no such file/i.test(detail);
+    return { connected: false, provider: null, authMode: null, label: 'Ready to connect your AI', detail, codexAvailable: !unavailable };
   }
 }
 
 async function agentProviderStatus() {
-  const codex = await codexAuthStatus();
-  if (codex.connected) return { ...codex, codexAvailable: true };
-  if ((process.env.OPENAI_API_KEY || '').trim()) {
-    return { connected: true, provider: 'openai-api', authMode: 'apiKey', label: 'OpenAI API connected', detail: 'Using the local OPENAI_API_KEY fallback.', codexAvailable: codex.codexAvailable !== false };
-  }
-  return { ...codex, codexAvailable: codex.codexAvailable !== false };
+  return codexAuthStatus();
 }
 
 async function startChatGPTLogin() {
+  const before = await codexAuthStatus();
+  if (before.connected && before.authMode === 'chatgpt') return before;
+
   try {
-    await runCodex(['login'], { timeout: 10 * 60 * 1000 });
+    await runCodex(['login'], { timeout: 10 * 60 * 1000, env: codexEnvironment() });
   } catch (error) {
     const message = error.message || String(error);
-    if (/enoent|not found|is not recognized/i.test(message)) {
-      throw new Error('The bundled OpenAI login helper is not installed yet. Close OpenRabbit, run npm run desktop:start once more, then try again.');
+    if (/enoent|not found|is not recognized|no such file/i.test(message)) {
+      throw new Error('The OpenAI login helper is not installed. Close OpenRabbit, run npm install, then launch OpenRabbit again.');
     }
-    throw error;
+    throw new Error(`ChatGPT sign-in did not complete: ${message}`);
   }
+
   const status = await codexAuthStatus();
   if (!status.connected || status.authMode !== 'chatgpt') {
     throw new Error(status.detail || 'ChatGPT sign-in did not complete.');
@@ -105,7 +125,7 @@ function integrationStatus() {
     google: fs.existsSync(googleTokenFile()),
     maps: Boolean(process.env.GOOGLE_MAPS_BROWSER_KEY || process.env.OPENRABBIT_MAPS_BROWSER_KEY),
     hubspot: Boolean(process.env.HUBSPOT_ACCESS_TOKEN),
-    openai: Boolean(process.env.OPENAI_API_KEY)
+    openai: false
   };
 }
 
@@ -132,48 +152,25 @@ function conversationPrompt(rawMessages) {
 
 async function runCodexAgent(rawMessages) {
   const status = await codexAuthStatus();
-  if (!status.connected || status.authMode !== 'chatgpt') throw new Error('ChatGPT is not connected yet. Choose Continue with ChatGPT first.');
-  const env = { ...process.env };
-  delete env.OPENAI_API_KEY;
+  if (!status.connected || status.authMode !== 'chatgpt') {
+    throw new Error('ChatGPT is not connected to OpenRabbit yet. Choose Continue with ChatGPT first.');
+  }
+
   const result = await runCodex([
     'exec',
     '--ephemeral',
     '--skip-git-repo-check',
     '--sandbox', 'read-only',
     conversationPrompt(rawMessages)
-  ], { cwd: app.getPath('temp'), env, timeout: 300000 });
+  ], { cwd: app.getPath('temp'), env: codexEnvironment(), timeout: 120000 });
+
   const text = result.stdout.trim();
   if (!text) throw new Error(result.stderr || 'ChatGPT returned an empty response.');
   return { text, model: 'ChatGPT via Codex', provider: 'openai-chatgpt' };
 }
 
-async function runOpenAIApiAgent(rawMessages) {
-  const apiKey = (process.env.OPENAI_API_KEY || '').trim();
-  if (!apiKey) throw new Error('OpenAI API fallback is not configured on this computer.');
-  const model = (process.env.OPENRABBIT_AGENT_MODEL || 'gpt-5.6').trim();
-  const messages = Array.isArray(rawMessages) ? rawMessages : [];
-  const input = messages.slice(-20).map((message) => ({
-    role: message?.role === 'assistant' ? 'assistant' : 'user',
-    content: String(message?.content || '').slice(0, 12000)
-  })).filter((message) => message.content.trim());
-  if (!input.length) throw new Error('Type a message for OpenRabbit first.');
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { 'authorization': `Bearer ${apiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ model, store: false, instructions: openRabbitAgentInstructions(), input })
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.error?.message || `OpenAI request failed (${response.status})`);
-  const text = (data.output_text || (Array.isArray(data.output) ? data.output.flatMap((item) => Array.isArray(item.content) ? item.content : []).filter((part) => part?.type === 'output_text' && part.text).map((part) => part.text).join('\n') : '')).trim();
-  if (!text) throw new Error('OpenAI returned an empty response.');
-  return { text, model, provider: 'openai-api', responseId: data.id || null };
-}
-
 async function runOpenRabbitAgent(rawMessages) {
-  const provider = await agentProviderStatus();
-  if (provider.provider === 'openai-chatgpt') return runCodexAgent(rawMessages);
-  if (provider.provider === 'openai-api') return runOpenAIApiAgent(rawMessages);
-  throw new Error('No AI provider is connected. Choose Continue with ChatGPT first.');
+  return runCodexAgent(rawMessages);
 }
 
 async function startGoogleOAuth() {
@@ -192,6 +189,7 @@ async function startGoogleOAuth() {
   auth.searchParams.set('access_type', 'offline');
   auth.searchParams.set('prompt', 'consent');
   auth.searchParams.set('state', state);
+
   return new Promise((resolve, reject) => {
     let settled = false;
     const finish = (error, value) => {
@@ -251,6 +249,7 @@ function startWorkspaceServer() {
   if (workspaceServer && workspaceOrigin) return Promise.resolve(workspaceOrigin);
   const root = path.resolve(workspaceDirectory());
   const port = Number(process.env.OPENRABBIT_DESKTOP_PORT || 53683);
+
   return new Promise((resolve, reject) => {
     workspaceServer = http.createServer((req, res) => {
       try {
