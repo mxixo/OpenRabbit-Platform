@@ -61,18 +61,27 @@ jobs:
             HUBSPOT_OAUTH_CLIENT_ID=${{ secrets.HUBSPOT_OAUTH_CLIENT_ID }}
             HUBSPOT_OAUTH_CLIENT_SECRET=${{ secrets.HUBSPOT_OAUTH_CLIENT_SECRET }}
             GOOGLE_MAPS_BROWSER_KEY=${{ secrets.GOOGLE_MAPS_BROWSER_KEY }}
+            META_APP_ID=${{ secrets.META_APP_ID }}
+            META_APP_SECRET=${{ secrets.META_APP_SECRET }}
+            META_GRAPH_VERSION=${{ vars.META_GRAPH_VERSION }}
+            LINKEDIN_CLIENT_ID=${{ secrets.LINKEDIN_CLIENT_ID }}
+            LINKEDIN_CLIENT_SECRET=${{ secrets.LINKEDIN_CLIENT_SECRET }}
+            TIKTOK_CLIENT_KEY=${{ secrets.TIKTOK_CLIENT_KEY }}
+            TIKTOK_CLIENT_SECRET=${{ secrets.TIKTOK_CLIENT_SECRET }}
 
       - name: Verify public gateway health
         env:
           OPENRABBIT_GATEWAY_URL: ${{ steps.gateway.outputs.url }}
         run: |
           for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
-            if curl --fail --silent --show-error --max-time 10 "$OPENRABBIT_GATEWAY_URL/health"; then
-              echo "OpenRabbit gateway is healthy and publicly reachable."
+            body="$(curl --fail --silent --show-error --max-time 10 "$OPENRABBIT_GATEWAY_URL/health" || true)"
+            if echo "$body" | grep -q '"version":5'; then
+              echo "$body"
+              echo "OpenRabbit live gateway v5 is healthy and publicly reachable."
               exit 0
             fi
-            echo "Gateway not ready yet (attempt $attempt/12)."
+            echo "Gateway v5 not ready yet (attempt $attempt/12)."
             sleep 10
           done
-          echo "OpenRabbit gateway health check failed."
+          echo "OpenRabbit gateway v5 health check failed."
           exit 1
