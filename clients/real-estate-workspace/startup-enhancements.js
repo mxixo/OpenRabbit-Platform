@@ -25,44 +25,57 @@
     crm.appendChild(secure);
   }
 
+  async function addAgentReadyOverlay() {
+    const activity = document.querySelector('.panel.activity');
+    if (!activity || activity.querySelector('[data-openrabbit-agent-overlay]')) return;
+
+    let connected = false;
+    try {
+      const status = await window.openRabbitDesktop?.getAgentProviderStatus?.();
+      connected = Boolean(status?.connected);
+    } catch {}
+
+    if (connected) return;
+
+    const body = activity.querySelector('.activity-body');
+    if (body) body.style.opacity = '.24';
+
+    const headSub = activity.querySelector('.head .sub');
+    if (headSub) headSub.textContent = 'Ready to connect';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay';
+    overlay.dataset.openrabbitAgentOverlay = 'true';
+    overlay.style.top = '58%';
+    overlay.style.width = '275px';
+    overlay.innerHTML = `
+      <div class="oi">✦</div>
+      <h2>Ready to connect<br>your AI</h2>
+      <p>Choose the AI provider that will power OpenRabbit on this computer.</p>
+      <button class="connect agent-btn" type="button" style="cursor:pointer">Connect AI provider</button>
+    `;
+    activity.appendChild(overlay);
+
+    const secure = document.createElement('div');
+    secure.className = 'secure';
+    secure.dataset.openrabbitAgentSecure = 'true';
+    secure.textContent = '🔒 Your AI account stays connected locally';
+    secure.style.bottom = '8px';
+    activity.appendChild(secure);
+  }
+
   function upgradeSocialBrandLogos() {
     const brands = [
-      {
-        selector: '.social-card.ig',
-        name: 'Instagram',
-        src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/instagram.svg',
-        background: 'linear-gradient(145deg,#833ab4 0%,#c13584 30%,#e1306c 52%,#fd1d1d 70%,#f77737 84%,#fcaf45 100%)'
-      },
-      {
-        selector: '.social-card.fb',
-        name: 'Facebook',
-        src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/facebook.svg',
-        background: '#1877F2'
-      },
-      {
-        selector: '.social-card.tt',
-        name: 'TikTok',
-        src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/tiktok.svg',
-        background: '#000000'
-      },
-      {
-        selector: '.social-card.li',
-        name: 'LinkedIn',
-        src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/linkedin.svg',
-        background: '#0A66C2'
-      },
-      {
-        selector: '.social-card.sc',
-        name: 'Snapchat',
-        src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/snapchat.svg',
-        background: '#FFFC00'
-      }
+      { selector: '.social-card.ig', name: 'Instagram', src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/instagram.svg', background: 'linear-gradient(145deg,#833ab4 0%,#c13584 30%,#e1306c 52%,#fd1d1d 70%,#f77737 84%,#fcaf45 100%)' },
+      { selector: '.social-card.fb', name: 'Facebook', src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/facebook.svg', background: '#1877F2' },
+      { selector: '.social-card.tt', name: 'TikTok', src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/tiktok.svg', background: '#000000' },
+      { selector: '.social-card.li', name: 'LinkedIn', src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/linkedin.svg', background: '#0A66C2' },
+      { selector: '.social-card.sc', name: 'Snapchat', src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/snapchat.svg', background: '#FFFC00' }
     ];
 
     brands.forEach((brand) => {
       const card = document.querySelector(brand.selector);
       if (!card || card.dataset.openrabbitBrandLogo === 'true') return;
-
       card.dataset.openrabbitBrandLogo = 'true';
       card.setAttribute('aria-label', brand.name);
       card.title = brand.name;
@@ -83,20 +96,17 @@
       logo.loading = 'eager';
       logo.decoding = 'async';
       logo.referrerPolicy = 'no-referrer';
-      logo.style.cssText = 'width:58px;height:58px;display:block;object-fit:contain;filter:invert(1);drop-shadow:0 2px 5px rgba(0,0,0,.18);';
-
+      logo.style.cssText = 'width:58px;height:58px;display:block;object-fit:contain;filter:invert(1) drop-shadow(0 2px 5px rgba(0,0,0,.18));';
       if (brand.name === 'Snapchat') {
         logo.style.width = '62px';
         logo.style.height = '62px';
         logo.style.filter = 'invert(1) drop-shadow(0 1px 1px rgba(0,0,0,.55))';
       }
-
       logo.addEventListener('error', () => {
         card.textContent = brand.name;
         card.style.fontSize = '13px';
         card.style.fontWeight = '900';
       }, { once: true });
-
       card.appendChild(logo);
     });
   }
@@ -105,21 +115,15 @@
     mapFrame.innerHTML = '';
     mapFrame.id = 'dashboardGoogleMap';
     mapFrame.style.background = '#07182a';
-
     const controls = document.createElement('div');
     controls.style.cssText = 'position:absolute;left:10px;right:10px;top:10px;z-index:5;display:flex;gap:6px;';
-    controls.innerHTML = `
-      <input id="dashboardMapSearch" aria-label="Search map" placeholder="Search address or place" style="flex:1;min-width:0;border:1px solid #315d89;background:rgba(6,17,31,.94);color:#fff;border-radius:8px;padding:9px 10px;font-size:11px;box-shadow:0 4px 14px rgba(0,0,0,.25)">
-      <button id="dashboardMapSearchButton" class="mini" type="button">Search</button>
-    `;
+    controls.innerHTML = `<input id="dashboardMapSearch" aria-label="Search map" placeholder="Search address or place" style="flex:1;min-width:0;border:1px solid #315d89;background:rgba(6,17,31,.94);color:#fff;border-radius:8px;padding:9px 10px;font-size:11px;box-shadow:0 4px 14px rgba(0,0,0,.25)"><button id="dashboardMapSearchButton" class="mini" type="button">Search</button>`;
     market.appendChild(controls);
-
     const status = document.createElement('div');
     status.id = 'dashboardMapStatus';
     status.style.cssText = 'position:absolute;left:12px;right:12px;bottom:116px;z-index:5;padding:7px 9px;border-radius:7px;background:rgba(6,17,31,.9);border:1px solid #214b75;color:#cfd9e5;font-size:10px;pointer-events:none;';
     status.textContent = 'Initializing Google Maps…';
     market.appendChild(status);
-
     return { status };
   }
 
@@ -136,12 +140,10 @@
     const mapFrame = market?.querySelector('.mapframe');
     if (!market || !mapFrame || mapFrame.dataset.openrabbitLiveMap === 'true') return;
     mapFrame.dataset.openrabbitLiveMap = 'true';
-
     const { status } = addMapUi(market, mapFrame);
     const input = document.getElementById('dashboardMapSearch');
     const button = document.getElementById('dashboardMapSearchButton');
     const key = window.openRabbitDesktop?.mapsBrowserKey || '';
-
     if (!key) {
       status.textContent = 'Maps key not found in this desktop environment.';
       setMapMessage('Google Maps is ready in OpenRabbit, but this computer still needs <b>GOOGLE_MAPS_BROWSER_KEY</b> in its local <b>.env</b> file. Relaunch OpenRabbit after adding it.');
@@ -150,18 +152,11 @@
 
     window.__openRabbitDashboardMapReady = function () {
       const center = { lat: 33.4484, lng: -112.0740 };
-      const map = new google.maps.Map(mapFrame, {
-        center,
-        zoom: 11,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false
-      });
+      const map = new google.maps.Map(mapFrame, { center, zoom: 11, mapTypeControl: false, streetViewControl: false, fullscreenControl: false });
       const geocoder = new google.maps.Geocoder();
       let marker = new google.maps.Marker({ map, position: center, title: 'Phoenix, AZ' });
       status.textContent = 'Google Maps live · search an address or place';
       setMapMessage('Live Google Maps is connected. Search Phoenix-area addresses or places here. Listings, pricing, DOM, inventory and comps will populate separately when an authoritative market-data source is connected.');
-
       async function search() {
         const query = (input?.value || '').trim();
         if (!query) return;
@@ -169,10 +164,7 @@
         try {
           const result = await geocoder.geocode({ address: query });
           const place = result.results?.[0];
-          if (!place) {
-            status.textContent = 'No matching place found.';
-            return;
-          }
+          if (!place) { status.textContent = 'No matching place found.'; return; }
           const location = place.geometry.location;
           map.setCenter(location);
           map.setZoom(15);
@@ -184,11 +176,8 @@
           status.textContent = `Map search failed: ${error.message || error}`;
         }
       }
-
       button?.addEventListener('click', search);
-      input?.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') search();
-      });
+      input?.addEventListener('keydown', (event) => { if (event.key === 'Enter') search(); });
     };
 
     const script = document.createElement('script');
@@ -204,6 +193,7 @@
 
   function start() {
     addCrmReadyOverlay();
+    addAgentReadyOverlay();
     upgradeSocialBrandLogos();
     initDashboardMap();
   }
