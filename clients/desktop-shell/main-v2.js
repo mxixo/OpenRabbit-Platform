@@ -22,17 +22,24 @@ async function pollForProvider(provider, timeoutMs = 5 * 60 * 1000) {
   throw new Error('Sign-in was not completed. You can try again whenever you are ready.');
 }
 
-async function startSocialOAuth(provider) {
-  const response = await gateway.startSocial(app, provider);
-  if (!response.authorizationUrl) throw new Error('OpenRabbit could not start social account sign-in.');
+async function openOAuth(start, provider, failure) {
+  const response = await start();
+  if (!response.authorizationUrl) throw new Error(failure);
   await shell.openExternal(response.authorizationUrl);
   await pollForProvider(provider);
   return { connected: true, verified: true, provider };
 }
 
+async function startSocialOAuth(provider) {
+  return openOAuth(() => gateway.startSocial(app, provider), provider, 'OpenRabbit could not start social account sign-in.');
+}
+async function startMicrosoftOAuth() {
+  return openOAuth(() => gateway.startMicrosoft(app), 'microsoft', 'OpenRabbit could not start Microsoft 365 sign-in.');
+}
+
 app.on('browser-window-created', (_event, window) => {
   window.webContents.on('did-finish-load', () => {
-    for (const name of ['live-data.js', 'map-fallback.js']) {
+    for (const name of ['live-data.js', 'map-fallback.js', 'microsoft-ui.js']) {
       const file = path.join(workspaceDirectory(), name);
       try {
         const source = fs.readFileSync(file, 'utf8');
@@ -47,4 +54,5 @@ app.on('browser-window-created', (_event, window) => {
 app.whenReady().then(() => {
   ipcMain.handle('openrabbit:live-snapshot', () => gateway.liveSnapshot(app));
   ipcMain.handle('openrabbit:start-social-oauth', (_event, provider) => startSocialOAuth(provider));
+  ipcMain.handle('openrabbit:start-microsoft-oauth', () => startMicrosoftOAuth());
 });
