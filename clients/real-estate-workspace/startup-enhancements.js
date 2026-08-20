@@ -25,20 +25,13 @@
     crm.appendChild(secure);
   }
 
-  async function addAgentReadyOverlay() {
+  function addAgentReadyOverlay() {
     const activity = document.querySelector('.panel.activity');
     if (!activity || activity.querySelector('[data-openrabbit-agent-overlay]')) return;
 
-    let connected = false;
-    try {
-      const status = await window.openRabbitDesktop?.getAgentProviderStatus?.();
-      connected = Boolean(status?.connected);
-    } catch {}
-
-    if (connected) return;
-
     const body = activity.querySelector('.activity-body');
-    if (body) body.style.opacity = '.24';
+    const originalTalkButton = body?.querySelector('.agent-btn');
+    if (body) body.style.opacity = '.18';
 
     const headSub = activity.querySelector('.head .sub');
     if (headSub) headSub.textContent = 'Ready to connect';
@@ -52,14 +45,18 @@
       <div class="oi">✦</div>
       <h2>Ready to connect<br>your AI</h2>
       <p>Choose the AI provider that will power OpenRabbit on this computer.</p>
-      <button class="connect agent-btn" type="button" style="cursor:pointer">Connect AI provider</button>
+      <button class="connect" id="openrabbitDashboardConnectAI" type="button" style="cursor:pointer">Connect AI provider</button>
     `;
     activity.appendChild(overlay);
+
+    overlay.querySelector('#openrabbitDashboardConnectAI')?.addEventListener('click', () => {
+      if (originalTalkButton) originalTalkButton.click();
+    });
 
     const secure = document.createElement('div');
     secure.className = 'secure';
     secure.dataset.openrabbitAgentSecure = 'true';
-    secure.textContent = '🔒 Your AI account stays connected locally';
+    secure.textContent = '🔒 Connect your own AI account · credentials stay local';
     secure.style.bottom = '8px';
     activity.appendChild(secure);
   }
