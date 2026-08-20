@@ -8,6 +8,7 @@
     "start": "node index.js",
     "start:real-estate-api": "node scripts/start-real-estate-api.js",
     "start:productivity-api": "node scripts/start-productivity-api.js",
+    "start:connection-gateway": "node services/connection-gateway/server.js",
     "setup:google-oauth": "node scripts/setup-google-oauth.js",
     "preflight:live": "node scripts/live-preflight.js",
     "preflight:productivity": "node scripts/productivity-preflight.js",
