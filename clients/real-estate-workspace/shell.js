@@ -6,6 +6,7 @@ const viewMeta={
   mail:["Mail","Prioritized by required action"],
   agent:["Agent Activity","Human-in-the-loop control"],
   properties:["Properties","Search, map and underwriting"],
+  crm:["CRM","Leads, clients and follow-up"],
   social:["Social","Approval-gated content automation"]
 };
 
@@ -37,9 +38,10 @@ commandBar?.addEventListener('keydown',(event)=>{
   const query=commandBar.value.trim().toLowerCase();
   if(!query)return;
   if(query.includes('calendar')||query.includes('meeting'))activateView('calendar');
-  else if(query.includes('mail')||query.includes('email'))activateView('mail');
+  else if(query.includes('mail')||query.includes('email')||query.includes('inbox'))activateView('mail');
   else if(query.includes('property')||query.includes('deal')||query.includes('map'))activateView('properties');
-  else if(query.includes('social')||query.includes('post'))activateView('social');
+  else if(query.includes('crm')||query.includes('lead')||query.includes('client')||query.includes('pipeline'))activateView('crm');
+  else if(query.includes('social')||query.includes('post')||query.includes('instagram')||query.includes('linkedin'))activateView('social');
   else if(query.includes('agent')||query.includes('approval'))activateView('agent');
   else activateView('dashboard');
   commandBar.value='';
@@ -48,8 +50,8 @@ commandBar?.addEventListener('keydown',(event)=>{
 function markApproved(button){
   const row=button.closest('.activity-row');
   if(!row)return;
-  row.querySelector('.pill')?.classList.remove('proposed');
   const pill=row.querySelector('.pill');
+  pill?.classList.remove('proposed');
   if(pill){pill.classList.add('approved');pill.textContent=button.textContent==='Reject'?'Rejected':'Approved';}
   row.querySelectorAll('.approval-action').forEach((action)=>action.disabled=true);
 }
