@@ -20,5 +20,10 @@ contextBridge.exposeInMainWorld('openRabbitDesktop', Object.freeze({
   disconnectIntegration: (provider) => ipcRenderer.invoke('openrabbit:disconnect-integration', provider),
   getAgentProviderStatus: () => ipcRenderer.invoke('openrabbit:agent-provider-status'),
   connectChatGPT: () => ipcRenderer.invoke('openrabbit:connect-chatgpt'),
-  agentChat: (messages) => ipcRenderer.invoke('openrabbit:agent-chat', messages)
+  agentChat: (messages) => ipcRenderer.invoke('openrabbit:agent-chat', messages),
+  listActions: (status) => ipcRenderer.invoke('openrabbit:actions-list', status || null),
+  enqueueAction: (action) => ipcRenderer.invoke('openrabbit:actions-enqueue', action || {}),
+  approveAction: (id) => ipcRenderer.invoke('openrabbit:actions-approve', id),
+  rejectAction: (id, reason) => ipcRenderer.invoke('openrabbit:actions-reject', id, reason || 'Dismissed by user'),
+  getActionAudit: () => ipcRenderer.invoke('openrabbit:actions-audit')
 }));
