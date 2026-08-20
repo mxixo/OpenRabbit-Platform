@@ -1,22 +1,25 @@
 {
   "name": "openrabbit-desktop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Desktop distribution shell for the OpenRabbit AI Operating Environment",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder",
-    "dist:mac": "electron-builder --mac dmg",
-    "dist:win": "electron-builder --win nsis",
-    "dist:linux": "electron-builder --linux AppImage"
+    "prepare:icon": "node build-icon.js",
+    "verify:desktop": "node verify-desktop-build.js",
+    "dist": "npm run prepare:icon && npm run verify:desktop && electron-builder",
+    "dist:mac": "npm run prepare:icon && npm run verify:desktop && electron-builder --mac dmg",
+    "dist:win": "npm run prepare:icon && npm run verify:desktop && electron-builder --win nsis",
+    "dist:linux": "npm run prepare:icon && npm run verify:desktop && electron-builder --linux AppImage"
   },
   "dependencies": {
     "@openai/codex": "0.147.0"
   },
   "devDependencies": {
     "electron": "^37.2.6",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "sharp": "^0.34.3"
   },
   "build": {
     "appId": "ai.openrabbit.desktop",
@@ -28,6 +31,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "hubspot-oauth.js",
       "node_modules/@openai/codex/**/*",
       "node_modules/@openai/codex-*/**/*"
     ],
@@ -40,14 +44,17 @@
     ],
     "mac": {
       "target": ["dmg"],
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png"
     },
     "win": {
-      "target": ["nsis"]
+      "target": ["nsis"],
+      "icon": "build/icon.png"
     },
     "linux": {
       "target": ["AppImage"],
-      "category": "Office"
+      "category": "Office",
+      "icon": "build/icon.png"
     }
   }
 }
