@@ -4,6 +4,7 @@ const fs = require('fs');
 const http = require('http');
 const { execFile, spawn } = require('child_process');
 const gateway = require('./gateway-client');
+const auth = require('./auth-client');
 
 const repoRoot = path.join(__dirname, '..', '..');
 let workspaceServer;
@@ -133,6 +134,12 @@ async function startChatGPTLogin() {
   return status;
 }
 
+async function requireOpenRabbitUser() {
+  const user = await auth.currentUser(app);
+  if (!user?.id) throw new Error('Sign in to OpenRabbit first.');
+  return user;
+}
+
 function mapConnections(list = []) {
   const byId = Object.fromEntries(list.map(item => [item.id, item]));
   return {
@@ -147,18 +154,21 @@ function mapConnections(list = []) {
 
 async function integrationStatus() {
   const ai = await codexAuthStatus();
+  const user = await auth.currentUser(app);
+  if (!user?.id) {
+    return {
+      gmail: false, calendar: false, hubspot: false, maps: false, mapsAvailable: false,
+      openai: Boolean(ai.connected), openaiDetail: ai.label,
+      gatewayConnected: false, gatewayConfigured: Boolean(gateway.gatewayBaseUrl()),
+      gatewayMessage: 'Sign in to OpenRabbit to connect your accounts.'
+    };
+  }
   const base = gateway.gatewayBaseUrl();
   if (!base) {
     return {
-      gmail: false,
-      calendar: false,
-      hubspot: false,
-      maps: false,
-      mapsAvailable: false,
-      openai: Boolean(ai.connected),
-      openaiDetail: ai.label,
-      gatewayConnected: false,
-      gatewayConfigured: false,
+      gmail: false, calendar: false, hubspot: false, maps: false, mapsAvailable: false,
+      openai: Boolean(ai.connected), openaiDetail: ai.label,
+      gatewayConnected: false, gatewayConfigured: false,
       gatewayMessage: 'OpenRabbit connection service is not configured yet.'
     };
   }
@@ -166,23 +176,15 @@ async function integrationStatus() {
     const [connectionResponse, health] = await Promise.all([gateway.status(app), gateway.health(app)]);
     return {
       ...mapConnections(connectionResponse.connections),
-      openai: Boolean(ai.connected),
-      openaiDetail: ai.label,
-      gatewayConnected: Boolean(health.ok),
-      gatewayConfigured: true,
+      openai: Boolean(ai.connected), openaiDetail: ai.label,
+      gatewayConnected: Boolean(health.ok), gatewayConfigured: true,
       gatewayMessage: health.ok ? 'OpenRabbit connection service online' : 'OpenRabbit connection service unavailable'
     };
   } catch (error) {
     return {
-      gmail: false,
-      calendar: false,
-      hubspot: false,
-      maps: false,
-      mapsAvailable: false,
-      openai: Boolean(ai.connected),
-      openaiDetail: ai.label,
-      gatewayConnected: false,
-      gatewayConfigured: true,
+      gmail: false, calendar: false, hubspot: false, maps: false, mapsAvailable: false,
+      openai: Boolean(ai.connected), openaiDetail: ai.label,
+      gatewayConnected: false, gatewayConfigured: true,
       gatewayMessage: error.message || 'OpenRabbit connection service unavailable'
     };
   }
@@ -201,6 +203,7 @@ async function pollForConnection(provider, timeoutMs = 5 * 60 * 1000) {
 }
 
 async function startGoogleOAuth(kind = 'gmail') {
+  await requireOpenRabbitUser();
   const provider = kind === 'calendar' ? 'google-calendar' : 'gmail';
   const response = await gateway.startGoogle(app, kind);
   if (!response.authorizationUrl) throw new Error('OpenRabbit could not start Google sign-in.');
@@ -210,6 +213,7 @@ async function startGoogleOAuth(kind = 'gmail') {
 }
 
 async function startHubSpotOAuth() {
+  await requireOpenRabbitUser();
   const response = await gateway.startHubSpot(app);
   if (!response.authorizationUrl) throw new Error('OpenRabbit could not start HubSpot sign-in.');
   await shell.openExternal(response.authorizationUrl);
@@ -218,9 +222,9 @@ async function startHubSpotOAuth() {
 }
 
 async function disconnectIntegration(provider) {
+  await requireOpenRabbitUser();
   const map = { calendar: 'google-calendar', gmail: 'gmail', hubspot: 'hubspot' };
-  const id = map[provider] || provider;
-  return gateway.disconnect(app, id);
+  return gateway.disconnect(app, map[provider] || provider);
 }
 
 async function getMapsConfig() {
@@ -254,6 +258,7 @@ function conversationPrompt(rawMessages) {
 }
 
 async function runOpenRabbitAgent(rawMessages) {
+  await requireOpenRabbitUser();
   const status = await codexAuthStatus();
   if (!status.connected || status.authMode !== 'chatgpt') throw new Error('ChatGPT is not connected to OpenRabbit yet. Choose Continue with ChatGPT first.');
   const prompt = conversationPrompt(rawMessages);
@@ -275,6 +280,7 @@ function contentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   return ({ '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon' }[ext] || 'application/octet-stream');
 }
+
 function startWorkspaceServer() {
   if (workspaceServer && workspaceOrigin) return Promise.resolve(workspaceOrigin);
   const root = path.resolve(workspaceDirectory());
@@ -304,16 +310,17 @@ function startWorkspaceServer() {
   });
 }
 
+async function navigateWindow(window, page) {
+  const origin = workspaceOrigin || await startWorkspaceServer();
+  await window.loadURL(`${origin}/${page}`);
+}
+
 async function createWindow() {
   const origin = await startWorkspaceServer();
+  const user = await auth.currentUser(app);
   const window = new BrowserWindow({
-    width: 1440,
-    height: 960,
-    minWidth: 1080,
-    minHeight: 720,
-    backgroundColor: '#0b0d10',
-    title: 'OpenRabbit',
-    show: false,
+    width: 1440, height: 960, minWidth: 1080, minHeight: 720,
+    backgroundColor: '#0b0d10', title: 'OpenRabbit', show: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   window.once('ready-to-show', () => window.show());
@@ -325,6 +332,8 @@ async function createWindow() {
     if (/^https?:\/\//i.test(url) && !url.startsWith(origin)) { event.preventDefault(); shell.openExternal(url); }
   });
   window.webContents.on('did-finish-load', () => {
+    const currentUrl = window.webContents.getURL();
+    if (/\/login\.html(?:$|\?)/.test(currentUrl)) return;
     for (const scriptPath of [enhancementScriptPath(), agentChatScriptPath()]) {
       try {
         const script = fs.readFileSync(scriptPath, 'utf8');
@@ -334,11 +343,38 @@ async function createWindow() {
       }
     }
   });
-  window.loadURL(`${origin}/index.html`);
+  window.loadURL(`${origin}/${user?.id ? 'index.html' : 'login.html'}`);
 }
 
 app.whenReady().then(async () => {
   loadLocalEnv();
+  gateway.setUserResolver(() => auth.currentUser(app));
+
+  ipcMain.handle('openrabbit:account-status', async () => {
+    const config = auth.authConfig();
+    const user = await auth.currentUser(app);
+    return { configured: Boolean(config.url && config.key), signedIn: Boolean(user?.id), user };
+  });
+  ipcMain.handle('openrabbit:account-sign-in', async (event, email, password) => {
+    const result = await auth.signIn(app, email, password);
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (window && result.signedIn) await navigateWindow(window, 'index.html');
+    return result;
+  });
+  ipcMain.handle('openrabbit:account-sign-up', async (_event, email, password) => auth.signUp(app, email, password));
+  ipcMain.handle('openrabbit:account-sign-out', async event => {
+    const result = await auth.signOut(app);
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (window) await navigateWindow(window, 'login.html');
+    return result;
+  });
+  ipcMain.handle('openrabbit:open-dashboard', async event => {
+    await requireOpenRabbitUser();
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (window) await navigateWindow(window, 'index.html');
+    return { opened: true };
+  });
+
   ipcMain.handle('openrabbit:integration-status', () => integrationStatus());
   ipcMain.handle('openrabbit:start-google-oauth', (_event, kind) => startGoogleOAuth(kind));
   ipcMain.handle('openrabbit:start-hubspot-oauth', () => startHubSpotOAuth());
@@ -347,6 +383,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('openrabbit:agent-provider-status', () => codexAuthStatus());
   ipcMain.handle('openrabbit:connect-chatgpt', () => startChatGPTLogin());
   ipcMain.handle('openrabbit:agent-chat', (_event, messages) => runOpenRabbitAgent(messages));
+
   try { await createWindow(); }
   catch (error) { console.error('OpenRabbit failed to start', error); app.quit(); }
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow().catch(console.error); });
