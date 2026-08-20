@@ -59,7 +59,9 @@ jobs:
         env:
           CONFIGURED_GATEWAY_URL: ${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL }}
           DEFAULT_GATEWAY_URL: https://openrabbit.93-188-163-198.sslip.io
-        run: node -e "const fs=require('fs');const url=process.env.CONFIGURED_GATEWAY_URL||process.env.DEFAULT_GATEWAY_URL||'';fs.writeFileSync('runtime-config.json',JSON.stringify({connectionGatewayUrl:url},null,2)+'\\n')"
+          SUPABASE_URL: https://djplmhglilcwqfotnjew.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_ZdtVEN0fzdTEQyfQRLfhDA_zjKarn2n
+        run: node -e "const fs=require('fs');const connectionGatewayUrl=process.env.CONFIGURED_GATEWAY_URL||process.env.DEFAULT_GATEWAY_URL||'';fs.writeFileSync('runtime-config.json',JSON.stringify({connectionGatewayUrl,supabaseUrl:process.env.SUPABASE_URL||'',supabasePublishableKey:process.env.SUPABASE_PUBLISHABLE_KEY||''},null,2)+'\\n')"
 
       - name: Install desktop build dependencies
         run: npm install --no-audit --no-fund
