@@ -11,6 +11,7 @@ const mainV2Source = fs.readFileSync(path.join(desktopDir, 'main-v2.js'), 'utf8'
 const preloadSource = fs.readFileSync(path.join(desktopDir, 'preload.js'), 'utf8');
 const gatewayClientSource = fs.readFileSync(path.join(desktopDir, 'gateway-client.js'), 'utf8');
 const authClientSource = fs.readFileSync(path.join(desktopDir, 'auth-client.js'), 'utf8');
+const actionQueueSource = fs.readFileSync(path.join(desktopDir, 'action-queue.js'), 'utf8');
 const runtimeConfig = JSON.parse(fs.readFileSync(path.join(desktopDir, 'runtime-config.json'), 'utf8'));
 const workspaceHtml = fs.readFileSync(path.join(workspaceDir, 'index.html'), 'utf8');
 const loginHtml = fs.readFileSync(path.join(workspaceDir, 'login.html'), 'utf8');
@@ -22,17 +23,16 @@ const liveDataSource = fs.readFileSync(path.join(workspaceDir, 'live-data.js'), 
 const microsoftUiSource = fs.readFileSync(path.join(workspaceDir, 'microsoft-ui.js'), 'utf8');
 const aiOrbSource = fs.readFileSync(path.join(workspaceDir, 'ai-orb.js'), 'utf8');
 const proactiveSource = fs.readFileSync(path.join(workspaceDir, 'proactive-brief.js'), 'utf8');
+const actionCenterSource = fs.readFileSync(path.join(workspaceDir, 'action-center.js'), 'utf8');
 
 assert.strictEqual(desktopPackage.main, 'main-v2.js');
-assert.strictEqual(desktopPackage.version, '0.1.5');
+assert.strictEqual(desktopPackage.version, '0.1.6');
 for (const script of ['dist:mac', 'dist:win', 'dist:linux']) assert.ok(desktopPackage.scripts[script], `${script} packaging script is required`);
-for (const file of ['main-v2.js','main.js','preload.js','gateway-client.js','auth-client.js','runtime-config.json']) {
+for (const file of ['main-v2.js','main.js','preload.js','gateway-client.js','auth-client.js','action-queue.js','runtime-config.json']) {
   assert.ok(fs.existsSync(path.join(desktopDir, file)), `${file} must exist`);
   assert.ok(desktopPackage.build.files.includes(file), `${file} must be packaged by electron-builder`);
 }
-for (const file of ['index.html','login.html','connections.html','market.html','market-map.js','live-data.js','map-fallback.js','microsoft-ui.js','ai-orb.js','proactive-brief.js']) {
-  assert.ok(fs.existsSync(path.join(workspaceDir, file)), `${file} must exist`);
-}
+for (const file of ['index.html','login.html','connections.html','market.html','market-map.js','live-data.js','map-fallback.js','microsoft-ui.js','ai-orb.js','proactive-brief.js','action-center.js']) assert.ok(fs.existsSync(path.join(workspaceDir, file)), `${file} must exist`);
 
 for (const loginText of ['Welcome to OpenRabbit','Sign in','Create account','normal sign-in screens']) assert.match(loginHtml,new RegExp(loginText,'i'));
 assert.doesNotMatch(loginHtml,/client secret|client_id|paste.*token|API key field/i);
@@ -43,11 +43,9 @@ for (const marketText of ['Phoenix Opportunity Map','Search map','Opportunity Fe
 assert.match(mainSource,/require\('\.\/auth-client'\)/);
 assert.match(mainSource,/gateway\.setUserResolver/);
 assert.match(mainSource,/login\.html/);
-assert.match(mainV2Source,/openrabbit:live-snapshot/);
-assert.match(mainV2Source,/openrabbit:start-social-oauth/);
-assert.match(mainV2Source,/openrabbit:start-microsoft-oauth/);
-for (const injected of ['live-data.js','map-fallback.js','microsoft-ui.js','ai-orb.js','proactive-brief.js']) assert.match(mainV2Source,new RegExp(injected.replace('.','\\.')));
-for (const method of ['getAccountStatus','signIn','signUp','signOut','getLiveSnapshot','connectSocial','connectMicrosoft']) assert.match(preloadSource,new RegExp(method));
+for (const token of ['openrabbit:live-snapshot','openrabbit:start-social-oauth','openrabbit:start-microsoft-oauth','openrabbit:actions-list','openrabbit:actions-enqueue','openrabbit:actions-approve','openrabbit:actions-reject']) assert.match(mainV2Source,new RegExp(token));
+for (const injected of ['live-data.js','map-fallback.js','microsoft-ui.js','ai-orb.js','proactive-brief.js','action-center.js']) assert.match(mainV2Source,new RegExp(injected.replace('.','\\.')));
+for (const method of ['getAccountStatus','signIn','signUp','signOut','getLiveSnapshot','connectSocial','connectMicrosoft','listActions','enqueueAction','approveAction','rejectAction','getActionAudit']) assert.match(preloadSource,new RegExp(method));
 assert.match(authClientSource,/safeStorage/);
 assert.match(gatewayClientSource,/\/v1\/live/);
 assert.match(gatewayClientSource,/startSocial/);
@@ -69,6 +67,18 @@ assert.match(proactiveSource,/OpenRabbit next moves/i);
 assert.match(proactiveSource,/getLiveSnapshot/i);
 assert.match(proactiveSource,/Connect signals across email, calendar, CRM and social/i);
 assert.match(proactiveSource,/approvalRequired/i);
+assert.match(proactiveSource,/openrabbit:proposals/i);
+assert.match(actionCenterSource,/Ready for you/i);
+assert.match(actionCenterSource,/approveAction/i);
+assert.match(actionCenterSource,/dedupeKey/i);
+assert.match(actionQueueSource,/openrabbit-action-queue\.json/i);
+assert.match(actionQueueSource,/proposed/);
+assert.match(actionQueueSource,/approved/);
+assert.match(actionQueueSource,/executing/);
+assert.match(actionQueueSource,/completed/);
+assert.match(mainV2Source,/send_email/);
+assert.match(mainV2Source,/publish_social/);
+assert.match(mainV2Source,/update_crm/);
 assert.match(workspaceHtml,/getIntegrationStatus/);
 assert.match(workspaceHtml,/getMapsConfig/);
 assert.match(connectionsHtml,/disconnectIntegration/);
@@ -83,5 +93,4 @@ assert.match(mainSource,/contextIsolation:\s*true/);
 assert.match(mainSource,/nodeIntegration:\s*false/);
 assert.match(mainSource,/sandbox:\s*true/);
 assert.match(mainSource,/shell\.openExternal/);
-
 console.log('desktop-shell.test.js: OK');
