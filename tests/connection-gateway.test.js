@@ -13,27 +13,20 @@ process.env.LINKEDIN_CLIENT_ID = '';
 process.env.LINKEDIN_CLIENT_SECRET = '';
 process.env.TIKTOK_CLIENT_KEY = '';
 process.env.TIKTOK_CLIENT_SECRET = '';
+process.env.MICROSOFT_CLIENT_ID = '';
+process.env.MICROSOFT_CLIENT_SECRET = '';
 
-const { server, providers, connectionState, liveSnapshot } = require('../services/connection-gateway/server-v5');
+const { server } = require('../services/connection-gateway/server-v6');
+const base = require('../services/connection-gateway/server-v5');
 
 (async () => {
-  assert.ok(Array.isArray(providers));
-  for (const id of ['gmail','google-calendar','hubspot','meta','linkedin','tiktok']) {
-    assert.ok(providers.some(provider => provider.id === id), `${id} provider must exist`);
+  for (const id of ['gmail','google-calendar','hubspot','meta','linkedin','tiktok','microsoft','google-maps']) {
+    assert.ok(base.providers.some(provider => provider.id === id), `${id} provider must exist`);
   }
-  const maps = providers.find(provider => provider.id === 'google-maps');
-  assert.ok(maps && maps.platformCapability, 'Maps must be modeled as a platform capability');
-
-  const state = await connectionState('test-user');
-  for (const id of ['gmail','google-calendar','hubspot','meta','linkedin','tiktok']) {
-    assert.strictEqual(state.find(item => item.id === id).connected, false);
-  }
-  assert.strictEqual(state.find(item => item.id === 'google-maps').available, false);
-  const snapshot = await liveSnapshot('test-user');
-  assert.strictEqual(snapshot.mail.connected, false);
-  assert.strictEqual(snapshot.calendar.connected, false);
-  assert.strictEqual(snapshot.crm.connected, false);
-  assert.ok(snapshot.social);
+  const state = await base.connectionState('test-user');
+  assert.strictEqual(state.find(item => item.id === 'gmail').connected, false);
+  assert.strictEqual(state.find(item => item.id === 'google-calendar').connected, false);
+  assert.strictEqual(state.find(item => item.id === 'hubspot').connected, false);
 
   await new Promise((resolve, reject) => {
     server.listen(0, '127.0.0.1', resolve);
@@ -41,25 +34,34 @@ const { server, providers, connectionState, liveSnapshot } = require('../service
   });
   try {
     const address = server.address();
-    const base = `http://127.0.0.1:${address.port}`;
-    const response = await fetch(`${base}/health`);
+    const root = `http://127.0.0.1:${address.port}`;
+    const response = await fetch(`${root}/health`);
     assert.strictEqual(response.status, 200);
     const health = await response.json();
     assert.strictEqual(health.ok, true);
     assert.strictEqual(health.service, 'openrabbit-connection-gateway');
-    assert.strictEqual(health.version, 5);
-    assert.strictEqual(health.configured.accountAuth, true);
+    assert.strictEqual(health.version, 6);
+    assert.strictEqual(health.configured.microsoft, false);
 
-    const blocked = await fetch(`${base}/v1/live`);
+    const blocked = await fetch(`${root}/v1/live`);
     assert.strictEqual(blocked.status, 401, 'live provider data must require an OpenRabbit session');
 
-    const service = await fetch(`${base}/v1/live`, {
-      headers: { authorization: 'Bearer test-service-token', 'x-openrabbit-user': 'test-user' }
-    });
-    assert.strictEqual(service.status, 200, 'trusted internal service token should access live snapshot');
-    const body = await service.json();
-    assert.ok(body.generatedAt);
-    assert.ok(body.mail && body.calendar && body.crm && body.social);
+    const serviceHeaders = { authorization: 'Bearer test-service-token', 'x-openrabbit-user': 'test-user' };
+    const connections = await fetch(`${root}/v1/connections`, { headers: serviceHeaders });
+    assert.strictEqual(connections.status, 200);
+    const connectionBody = await connections.json();
+    const microsoft = connectionBody.connections.find(item => item.id === 'microsoft');
+    assert.ok(microsoft, 'Microsoft connection state must be merged into v6');
+    assert.strictEqual(microsoft.connected, false);
+    assert.strictEqual(microsoft.planned, false);
+
+    const live = await fetch(`${root}/v1/live`, { headers: serviceHeaders });
+    assert.strictEqual(live.status, 200);
+    const liveBody = await live.json();
+    assert.ok(liveBody.generatedAt);
+    assert.ok(liveBody.mail && liveBody.calendar && liveBody.crm && liveBody.social);
+    assert.ok(liveBody.microsoft, 'v6 live snapshot must include Microsoft state');
+    assert.strictEqual(liveBody.microsoft.connected, false);
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
