@@ -20,6 +20,8 @@ const mapSource = fs.readFileSync(path.join(workspaceDir, 'market-map.js'), 'utf
 const mapFallback = fs.readFileSync(path.join(workspaceDir, 'map-fallback.js'), 'utf8');
 const liveDataSource = fs.readFileSync(path.join(workspaceDir, 'live-data.js'), 'utf8');
 const microsoftUiSource = fs.readFileSync(path.join(workspaceDir, 'microsoft-ui.js'), 'utf8');
+const aiOrbSource = fs.readFileSync(path.join(workspaceDir, 'ai-orb.js'), 'utf8');
+const proactiveSource = fs.readFileSync(path.join(workspaceDir, 'proactive-brief.js'), 'utf8');
 
 assert.strictEqual(desktopPackage.main, 'main-v2.js');
 assert.strictEqual(desktopPackage.version, '0.1.5');
@@ -28,7 +30,7 @@ for (const file of ['main-v2.js','main.js','preload.js','gateway-client.js','aut
   assert.ok(fs.existsSync(path.join(desktopDir, file)), `${file} must exist`);
   assert.ok(desktopPackage.build.files.includes(file), `${file} must be packaged by electron-builder`);
 }
-for (const file of ['index.html','login.html','connections.html','market.html','market-map.js','live-data.js','map-fallback.js','microsoft-ui.js']) {
+for (const file of ['index.html','login.html','connections.html','market.html','market-map.js','live-data.js','map-fallback.js','microsoft-ui.js','ai-orb.js','proactive-brief.js']) {
   assert.ok(fs.existsSync(path.join(workspaceDir, file)), `${file} must exist`);
 }
 
@@ -44,9 +46,7 @@ assert.match(mainSource,/login\.html/);
 assert.match(mainV2Source,/openrabbit:live-snapshot/);
 assert.match(mainV2Source,/openrabbit:start-social-oauth/);
 assert.match(mainV2Source,/openrabbit:start-microsoft-oauth/);
-assert.match(mainV2Source,/live-data\.js/);
-assert.match(mainV2Source,/map-fallback\.js/);
-assert.match(mainV2Source,/microsoft-ui\.js/);
+for (const injected of ['live-data.js','map-fallback.js','microsoft-ui.js','ai-orb.js','proactive-brief.js']) assert.match(mainV2Source,new RegExp(injected.replace('.','\\.')));
 for (const method of ['getAccountStatus','signIn','signUp','signOut','getLiveSnapshot','connectSocial','connectMicrosoft']) assert.match(preloadSource,new RegExp(method));
 assert.match(authClientSource,/safeStorage/);
 assert.match(gatewayClientSource,/\/v1\/live/);
@@ -63,6 +63,12 @@ assert.match(microsoftUiSource,/Microsoft Calendar/i);
 assert.match(mapFallback,/openstreetmap\.org/i);
 assert.match(mapFallback,/nominatim\.openstreetmap\.org/i);
 assert.match(mapFallback,/Built in/i);
+assert.match(aiOrbSource,/What do you want to accomplish/i);
+assert.match(aiOrbSource,/No workflow builder required/i);
+assert.match(proactiveSource,/OpenRabbit next moves/i);
+assert.match(proactiveSource,/getLiveSnapshot/i);
+assert.match(proactiveSource,/Connect signals across email, calendar, CRM and social/i);
+assert.match(proactiveSource,/approvalRequired/i);
 assert.match(workspaceHtml,/getIntegrationStatus/);
 assert.match(workspaceHtml,/getMapsConfig/);
 assert.match(connectionsHtml,/disconnectIntegration/);
