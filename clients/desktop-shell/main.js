@@ -54,6 +54,12 @@ function codexEnvironment() {
   return env;
 }
 
+function compactCodexError(stderr, stdout, fallback) {
+  const raw = String(stderr || stdout || fallback || 'Codex command failed.').trim();
+  const lines = raw.split(/\r?\n/).filter(Boolean);
+  return lines.slice(-14).join('\n') || 'Codex command failed.';
+}
+
 function runCodex(args, options = {}) {
   return new Promise((resolve, reject) => {
     execFile(codexExecutable(), args, {
@@ -64,8 +70,7 @@ function runCodex(args, options = {}) {
       windowsHide: true
     }, (error, stdout, stderr) => {
       if (error) {
-        const detail = String(stderr || stdout || error.message || error).trim();
-        const wrapped = new Error(detail || 'Codex command failed.');
+        const wrapped = new Error(compactCodexError(stderr, stdout, error.message || error));
         wrapped.code = error.code;
         wrapped.signal = error.signal;
         return reject(wrapped);
@@ -75,13 +80,13 @@ function runCodex(args, options = {}) {
   });
 }
 
-function runCodexWithStdin(args, input, options = {}) {
+function runCodexHeadless(args, options = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(codexExecutable(), args, {
       cwd: options.cwd || app.getPath('temp'),
       env: options.env || codexEnvironment(),
       windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe']
     });
 
     let stdout = '';
@@ -92,8 +97,7 @@ function runCodexWithStdin(args, input, options = {}) {
       if (settled) return;
       settled = true;
       try { child.kill('SIGKILL'); } catch {}
-      const detail = (stderr || stdout || `Codex timed out after ${Math.round(timeoutMs / 1000)} seconds.`).trim();
-      reject(new Error(detail));
+      reject(new Error(compactCodexError(stderr, stdout, `Codex timed out after ${Math.round(timeoutMs / 1000)} seconds.`)));
     }, timeoutMs);
 
     child.stdout.setEncoding('utf8');
@@ -111,16 +115,10 @@ function runCodexWithStdin(args, input, options = {}) {
       settled = true;
       clearTimeout(timer);
       if (code !== 0) {
-        const detail = (stderr || stdout || `Codex exited with code ${code}${signal ? ` (${signal})` : ''}.`).trim();
-        return reject(new Error(detail));
+        return reject(new Error(compactCodexError(stderr, stdout, `Codex exited with code ${code}${signal ? ` (${signal})` : ''}.`)));
       }
       resolve({ stdout: stdout.trim(), stderr: stderr.trim() });
     });
-
-    child.stdin.on('error', (error) => {
-      if (error.code !== 'EPIPE' && !settled) stderr += `\nstdin error: ${error.message}`;
-    });
-    child.stdin.end(String(input || ''), 'utf8');
   });
 }
 
@@ -203,17 +201,18 @@ async function runCodexAgent(rawMessages) {
     throw new Error('ChatGPT is not connected to OpenRabbit yet. Choose Continue with ChatGPT first.');
   }
 
-  const result = await runCodexWithStdin([
+  const prompt = conversationPrompt(rawMessages);
+  const result = await runCodexHeadless([
     '--ask-for-approval', 'never',
     'exec',
     '--ephemeral',
     '--skip-git-repo-check',
     '--sandbox', 'read-only',
-    '-'
-  ], conversationPrompt(rawMessages), { cwd: app.getPath('temp'), env: codexEnvironment(), timeout: 60000 });
+    prompt
+  ], { cwd: app.getPath('temp'), env: codexEnvironment(), timeout: 60000 });
 
   const text = result.stdout.trim();
-  if (!text) throw new Error(result.stderr || 'ChatGPT returned an empty response.');
+  if (!text) throw new Error(compactCodexError(result.stderr, '', 'ChatGPT returned an empty response.'));
   return { text, model: 'ChatGPT via Codex', provider: 'openai-chatgpt' };
 }
 
