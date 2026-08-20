@@ -3,104 +3,17 @@ const fs = require('fs');
 const path = require('path');
 const gateway = require('./gateway-client');
 const actionQueue = require('./action-queue');
+const actionExecutor = require('./action-executor');
 const aiProviders = require('./ai-provider-registry');
-
 require('./main');
-
-function workspaceDirectory() {
-  if (app.isPackaged) return path.join(process.resourcesPath, 'workspace');
-  return path.join(__dirname, '..', 'real-estate-workspace');
-}
-
-async function pollForProvider(provider, timeoutMs = 5 * 60 * 1000) {
-  const started = Date.now();
-  while (Date.now() - started < timeoutMs) {
-    try {
-      const state = await gateway.verify(app, provider);
-      if (state.connected && state.verified) return state;
-    } catch {}
-    await new Promise(resolve => setTimeout(resolve, 2000));
-  }
-  throw new Error('Sign-in was not completed. You can try again whenever you are ready.');
-}
-
-async function openOAuth(start, provider, failure) {
-  const response = await start();
-  if (!response.authorizationUrl) throw new Error(failure);
-  await shell.openExternal(response.authorizationUrl);
-  await pollForProvider(provider);
-  return { connected: true, verified: true, provider };
-}
-
-async function startSocialOAuth(provider) {
-  return openOAuth(() => gateway.startSocial(app, provider), provider, 'OpenRabbit could not start social account sign-in.');
-}
-async function startMicrosoftOAuth() {
-  return openOAuth(() => gateway.startMicrosoft(app), 'microsoft', 'OpenRabbit could not start Microsoft 365 sign-in.');
-}
-
-function sanitizeQueuedAction(input = {}) {
-  const externalWriteTypes = new Set(['send_email','create_calendar_event','update_calendar_event','update_crm','publish_social','financial_commitment','delete_record']);
-  const type = String(input.type || 'agent_task').slice(0,80);
-  return {
-    ...input,
-    type,
-    approvalRequired: externalWriteTypes.has(type) ? true : input.approvalRequired !== false,
-    source: String(input.source || 'openrabbit-ai').slice(0,100)
-  };
-}
-
-async function chatGPTConnected() {
-  try {
-    const local = path.join(__dirname, 'node_modules', '.bin', process.platform === 'win32' ? 'codex.cmd' : 'codex');
-    const executable = fs.existsSync(local) ? local : (process.platform === 'win32' ? 'codex.cmd' : 'codex');
-    const { execFile } = require('child_process');
-    return await new Promise(resolve => {
-      execFile(executable, ['login', 'status'], { timeout: 12000, windowsHide: true, env: { ...process.env, CODEX_HOME: path.join(app.getPath('userData'), 'codex') } }, (_error, stdout, stderr) => {
-        resolve(`${stdout || ''}\n${stderr || ''}`.toLowerCase().includes('logged in using chatgpt'));
-      });
-    });
-  } catch {
-    return false;
-  }
-}
-
-async function providerList() {
-  return aiProviders.list(app, { chatgptConnected: await chatGPTConnected() });
-}
-
-async function selectedProvider() {
-  return aiProviders.selected(app, { chatgptConnected: await chatGPTConnected() });
-}
-
-async function selectProvider(providerId) {
-  return aiProviders.select(app, providerId, { chatgptConnected: await chatGPTConnected() });
-}
-
-app.on('browser-window-created', (_event, window) => {
-  window.webContents.on('did-finish-load', () => {
-    for (const name of ['live-data.js', 'map-fallback.js', 'microsoft-ui.js', 'ai-orb.js', 'ai-provider-ui.js', 'proactive-brief.js', 'action-center.js']) {
-      const file = path.join(workspaceDirectory(), name);
-      try {
-        const source = fs.readFileSync(file, 'utf8');
-        window.webContents.executeJavaScript(source).catch(error => console.error(`OpenRabbit ${name} failed`, error));
-      } catch (error) {
-        console.error(`OpenRabbit ${name} unavailable`, error);
-      }
-    }
-  });
-});
-
-app.whenReady().then(() => {
-  ipcMain.handle('openrabbit:live-snapshot', () => gateway.liveSnapshot(app));
-  ipcMain.handle('openrabbit:start-social-oauth', (_event, provider) => startSocialOAuth(provider));
-  ipcMain.handle('openrabbit:start-microsoft-oauth', () => startMicrosoftOAuth());
-  ipcMain.handle('openrabbit:actions-list', (_event, status) => actionQueue.list(app, status ? { status } : {}));
-  ipcMain.handle('openrabbit:actions-enqueue', (_event, input) => actionQueue.enqueue(app, sanitizeQueuedAction(input)));
-  ipcMain.handle('openrabbit:actions-approve', (_event, id) => actionQueue.approve(app, String(id || '')));
-  ipcMain.handle('openrabbit:actions-reject', (_event, id, reason) => actionQueue.reject(app, String(id || ''), reason));
-  ipcMain.handle('openrabbit:actions-audit', () => actionQueue.auditLog(app));
-  ipcMain.handle('openrabbit:ai-providers-list', () => providerList());
-  ipcMain.handle('openrabbit:ai-provider-selected', () => selectedProvider());
-  ipcMain.handle('openrabbit:ai-provider-select', (_event, providerId) => selectProvider(providerId));
-});
+function workspaceDirectory(){return app.isPackaged?path.join(process.resourcesPath,'workspace'):path.join(__dirname,'..','real-estate-workspace');}
+async function pollForProvider(provider,timeoutMs=5*60*1000){const started=Date.now();while(Date.now()-started<timeoutMs){try{const state=await gateway.verify(app,provider);if(state.connected&&state.verified)return state}catch{}await new Promise(r=>setTimeout(r,2000))}throw new Error('Sign-in was not completed. You can try again whenever you are ready.')}
+async function openOAuth(start,provider,failure){const response=await start();if(!response.authorizationUrl)throw new Error(failure);await shell.openExternal(response.authorizationUrl);await pollForProvider(provider);return{connected:true,verified:true,provider}}
+async function startSocialOAuth(provider){return openOAuth(()=>gateway.startSocial(app,provider),provider,'OpenRabbit could not start social account sign-in.')}
+async function startMicrosoftOAuth(){return openOAuth(()=>gateway.startMicrosoft(app),'microsoft','OpenRabbit could not start Microsoft 365 sign-in.')}
+function sanitizeQueuedAction(input={}){const external=new Set(['send_email','create_calendar_event','update_calendar_event','update_crm','publish_social','financial_commitment','delete_record']);const type=String(input.type||'agent_task').slice(0,80);return{...input,type,approvalRequired:external.has(type)?true:input.approvalRequired!==false,source:String(input.source||'openrabbit-ai').slice(0,100)}}
+async function executeApproved(id){const item=actionQueue.list(app).find(a=>a.id===String(id||''));if(!item)throw new Error('Action not found.');if(item.status!=='approved')throw new Error('Action must be approved before execution.');if(!actionExecutor.executable(item.type))throw new Error(`${item.type} is queued but does not have a live executor yet.`);actionQueue.markExecuting(app,item.id);try{const result=await actionExecutor.execute(app,item);return actionQueue.complete(app,item.id,result)}catch(error){actionQueue.fail(app,item.id,error);throw error}}
+async function chatGPTConnected(){try{const local=path.join(__dirname,'node_modules','.bin',process.platform==='win32'?'codex.cmd':'codex'),executable=fs.existsSync(local)?local:(process.platform==='win32'?'codex.cmd':'codex'),{execFile}=require('child_process');return await new Promise(resolve=>execFile(executable,['login','status'],{timeout:12000,windowsHide:true,env:{...process.env,CODEX_HOME:path.join(app.getPath('userData'),'codex')}},(_e,out,err)=>resolve(`${out||''}\n${err||''}`.toLowerCase().includes('logged in using chatgpt'))))}catch{return false}}
+async function providerList(){return aiProviders.list(app,{chatgptConnected:await chatGPTConnected()})} async function selectedProvider(){return aiProviders.selected(app,{chatgptConnected:await chatGPTConnected()})} async function selectProvider(id){return aiProviders.select(app,id,{chatgptConnected:await chatGPTConnected()})}
+app.on('browser-window-created',(_event,window)=>{window.webContents.on('did-finish-load',()=>{for(const name of ['live-data.js','map-fallback.js','microsoft-ui.js','ai-orb.js','ai-provider-ui.js','proactive-brief.js','action-center.js']){const file=path.join(workspaceDirectory(),name);try{const source=fs.readFileSync(file,'utf8');window.webContents.executeJavaScript(source).catch(error=>console.error(`OpenRabbit ${name} failed`,error))}catch(error){console.error(`OpenRabbit ${name} unavailable`,error)}}})});
+app.whenReady().then(()=>{ipcMain.handle('openrabbit:live-snapshot',()=>gateway.liveSnapshot(app));ipcMain.handle('openrabbit:start-social-oauth',(_e,p)=>startSocialOAuth(p));ipcMain.handle('openrabbit:start-microsoft-oauth',()=>startMicrosoftOAuth());ipcMain.handle('openrabbit:actions-list',(_e,s)=>actionQueue.list(app,s?{status:s}:{}));ipcMain.handle('openrabbit:actions-enqueue',(_e,input)=>actionQueue.enqueue(app,sanitizeQueuedAction(input)));ipcMain.handle('openrabbit:actions-approve',(_e,id)=>actionQueue.approve(app,String(id||'')));ipcMain.handle('openrabbit:actions-execute',(_e,id)=>executeApproved(id));ipcMain.handle('openrabbit:actions-reject',(_e,id,reason)=>actionQueue.reject(app,String(id||''),reason));ipcMain.handle('openrabbit:actions-audit',()=>actionQueue.auditLog(app));ipcMain.handle('openrabbit:ai-providers-list',()=>providerList());ipcMain.handle('openrabbit:ai-provider-selected',()=>selectedProvider());ipcMain.handle('openrabbit:ai-provider-select',(_e,id)=>selectProvider(id));});
