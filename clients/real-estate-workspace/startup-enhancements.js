@@ -25,13 +25,91 @@
     crm.appendChild(secure);
   }
 
+  function openProviderChooser() {
+    const backdrop = document.getElementById('openrabbitAgentBackdrop');
+    const body = document.getElementById('openrabbitAgentBody');
+    const compose = document.getElementById('openrabbitAgentCompose');
+    const label = document.getElementById('openrabbitAgentProviderLabel');
+
+    if (!backdrop || !body || !compose) {
+      setTimeout(openProviderChooser, 80);
+      return;
+    }
+
+    backdrop.classList.add('open');
+    compose.hidden = true;
+    if (label) label.textContent = 'Choose your AI provider';
+
+    body.innerHTML = `
+      <div class="or-provider">
+        <h2>Choose your AI provider</h2>
+        <p>Select the intelligence provider that will power OpenRabbit on this computer. A saved login will never skip this provider-selection screen.</p>
+        <div class="or-provider-grid">
+          <div class="or-provider-card ready">
+            <div class="or-provider-logo">◎</div>
+            <h3>OpenAI / ChatGPT</h3>
+            <p id="openrabbitChatGPTChoiceDetail">Checking whether ChatGPT is already connected on this computer…</p>
+            <button class="or-provider-action" id="openrabbitUseChatGPT" type="button">Use ChatGPT</button>
+          </div>
+          <div class="or-provider-card disabled">
+            <div class="or-provider-logo" style="background:#fff;color:#4285f4">G</div>
+            <h3>Google Gemini</h3>
+            <p>Login-first Gemini support is planned next.</p>
+            <button class="or-provider-action" type="button" disabled>Coming next</button>
+          </div>
+          <div class="or-provider-card disabled">
+            <div class="or-provider-logo" style="background:#d9c4a8;color:#2a2118">A</div>
+            <h3>Anthropic Claude</h3>
+            <p>Account-based Claude support is planned next.</p>
+            <button class="or-provider-action" type="button" disabled>Coming next</button>
+          </div>
+        </div>
+        <div class="or-provider-working" id="openrabbitProviderChoiceStatus"></div>
+        <div class="or-provider-note">If ChatGPT is already authenticated locally, OpenRabbit will show that status here but will wait for you to choose it before opening the agent.</div>
+      </div>`;
+
+    const useButton = document.getElementById('openrabbitUseChatGPT');
+    const detail = document.getElementById('openrabbitChatGPTChoiceDetail');
+    const working = document.getElementById('openrabbitProviderChoiceStatus');
+
+    window.openRabbitDesktop?.getAgentProviderStatus?.().then((status) => {
+      if (status?.connected) {
+        if (detail) detail.textContent = 'ChatGPT is already authenticated locally. Choose it to open the agent, or select another provider when available.';
+        if (useButton) useButton.textContent = 'Use connected ChatGPT';
+      } else {
+        if (detail) detail.textContent = 'Continue with ChatGPT to sign in through the OpenAI/Codex login flow.';
+        if (useButton) useButton.textContent = 'Continue with ChatGPT';
+      }
+    }).catch(() => {
+      if (detail) detail.textContent = 'Choose ChatGPT to begin the OpenAI/Codex login flow.';
+    });
+
+    useButton?.addEventListener('click', async () => {
+      if (useButton.disabled) return;
+      useButton.disabled = true;
+      if (working) working.textContent = 'Checking ChatGPT connection…';
+      try {
+        const status = await window.openRabbitDesktop?.getAgentProviderStatus?.();
+        if (!status?.connected) {
+          if (working) working.textContent = 'Opening ChatGPT sign-in in your browser…';
+          await window.openRabbitDesktop?.connectChatGPT?.();
+        }
+        backdrop.classList.remove('open');
+        const launcher = document.querySelector('.panel.activity .activity-body .agent-btn');
+        if (launcher) launcher.click();
+      } catch (error) {
+        if (working) working.textContent = error?.message || String(error);
+        useButton.disabled = false;
+      }
+    });
+  }
+
   function addAgentReadyOverlay() {
     const activity = document.querySelector('.panel.activity');
     if (!activity || activity.querySelector('[data-openrabbit-agent-overlay]')) return;
 
     const body = activity.querySelector('.activity-body');
-    const originalTalkButton = body?.querySelector('.agent-btn');
-    if (body) body.style.opacity = '.18';
+    if (body) body.style.opacity = '.24';
 
     const headSub = activity.querySelector('.head .sub');
     if (headSub) headSub.textContent = 'Ready to connect';
@@ -45,13 +123,9 @@
       <div class="oi">✦</div>
       <h2>Ready to connect<br>your AI</h2>
       <p>Choose the AI provider that will power OpenRabbit on this computer.</p>
-      <button class="connect" id="openrabbitDashboardConnectAI" type="button" style="cursor:pointer">Connect AI provider</button>
+      <button class="connect" data-openrabbit-provider-select type="button" style="cursor:pointer">Connect AI provider</button>
     `;
     activity.appendChild(overlay);
-
-    overlay.querySelector('#openrabbitDashboardConnectAI')?.addEventListener('click', () => {
-      if (originalTalkButton) originalTalkButton.click();
-    });
 
     const secure = document.createElement('div');
     secure.className = 'secure';
@@ -59,6 +133,12 @@
     secure.textContent = '🔒 Connect your own AI account · credentials stay local';
     secure.style.bottom = '8px';
     activity.appendChild(secure);
+
+    overlay.querySelector('[data-openrabbit-provider-select]')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openProviderChooser();
+    });
   }
 
   function upgradeSocialBrandLogos() {
