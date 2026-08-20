@@ -11,6 +11,9 @@
     "dist:win": "electron-builder --win nsis",
     "dist:linux": "electron-builder --linux AppImage"
   },
+  "dependencies": {
+    "@openai/codex": "0.147.0"
+  },
   "devDependencies": {
     "electron": "^37.2.6",
     "electron-builder": "^26.0.12"
@@ -24,7 +27,9 @@
     },
     "files": [
       "main.js",
-      "preload.js"
+      "preload.js",
+      "node_modules/@openai/codex/**/*",
+      "node_modules/@openai/codex-*/**/*"
     ],
     "extraResources": [
       {
