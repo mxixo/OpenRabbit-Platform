@@ -3,6 +3,11 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('openRabbitDesktop', Object.freeze({
   platform: process.platform,
   desktop: true,
+  getAccountStatus: () => ipcRenderer.invoke('openrabbit:account-status'),
+  signIn: (email, password) => ipcRenderer.invoke('openrabbit:account-sign-in', email, password),
+  signUp: (email, password) => ipcRenderer.invoke('openrabbit:account-sign-up', email, password),
+  signOut: () => ipcRenderer.invoke('openrabbit:account-sign-out'),
+  openDashboard: () => ipcRenderer.invoke('openrabbit:open-dashboard'),
   getIntegrationStatus: () => ipcRenderer.invoke('openrabbit:integration-status'),
   getMapsConfig: () => ipcRenderer.invoke('openrabbit:maps-config'),
   startGoogleOAuth: (kind = 'gmail') => ipcRenderer.invoke('openrabbit:start-google-oauth', kind),
