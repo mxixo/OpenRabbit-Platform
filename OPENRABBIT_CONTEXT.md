@@ -12,10 +12,13 @@ OpenRabbit is an **AI Operating Environment**, not a chatbot and not a single AI
 
 - Customers buy **OpenRabbit** (the platform).  
 - **OpenClaw** is one **runtime**, not the product.  
+- Users may connect the **AI provider/runtime they prefer** through replaceable provider adapters; the OpenRabbit product and workflow model must not be hard-wired to one model vendor.  
 - **AI Workers** are configurable specialized roles (EA, Ops, Marketing, Acquisitions, Finance, Research, Support, …).  
 - **Industry Packs** extend core (Real Estate first) **without forking**.  
-- The end user is the **owner/CEO**: mission → workers/departments → goals → workflows → metrics → **approved** actions.  
+- The end user is the **owner/CEO**: describe goals and outcomes; OpenRabbit constructs and manages the underlying workflows, coordinates connected systems, surfaces what matters, and routes consequential actions through policy/approval gates.  
+- The normal user experience must **not** resemble Zapier or an automation builder. Workflows are an internal orchestration primitive managed by the OpenRabbit brain unless an advanced user deliberately opens deeper controls.  
 - Prefer **orchestration** of existing APIs/MCP/tools over rebuilding everything.  
+- Connections should be durable and reusable after authorization; users should not repeatedly reconnect services just to keep ordinary work moving.  
 - Stay **runtime-agnostic, modular, API-first, multi-tenant ready, permission-aware, auditable**.
 
 ---
@@ -40,9 +43,10 @@ Then inspect code under `packages/runtime-core`, `services/`, `runtimes/`, `capa
 |---|---|
 | OpenRabbit | Product / platform / operating environment |
 | Runtime | Execution engine adapter (OpenClaw = one) |
+| AI provider | Replaceable model/account transport behind the OpenRabbit brain contract |
 | AI Worker | Configurable specialized employee |
 | Tool | Callable capability |
-| Workflow | Portable ordered business process |
+| Workflow | Portable ordered business process, normally generated/managed by OpenRabbit rather than manually built by the user |
 | Integration | External system connection |
 | Industry Pack | Vertical bundle extending core |
 
@@ -55,7 +59,9 @@ Then inspect code under `packages/runtime-core`, `services/`, `runtimes/`, `capa
 3. **No fork-per-industry** repos or Core edits that only serve one vertical.  
 4. **No frontend-owned business rules** (Horizons/apps are clients of Platform APIs).  
 5. **Preserve working MVP behavior** (especially commercial investment workflow) while migrating shape.  
-6. Update `/docs` when you change architecture—chat is not documentation.
+6. Update `/docs` when you change architecture—chat is not documentation.  
+7. **Never silently fall back to a different AI provider** than the one the user selected; provider identity and execution must remain truthful and auditable.  
+8. Prefer one conversational control surface plus context-aware approvals over exposing workflow builders, connector plumbing, or internal orchestration to normal users.
 
 ---
 
