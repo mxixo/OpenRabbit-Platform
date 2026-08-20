@@ -18,14 +18,29 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      OPENRABBIT_DEFAULT_GATEWAY_URL: https://openrabbit.93-188-163-198.sslip.io
     steps:
       - name: Check out OpenRabbit
         uses: actions/checkout@v5
 
+      - name: Resolve public gateway URL
+        id: gateway
+        shell: bash
+        env:
+          CONFIGURED_URL: ${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL }}
+          CONFIGURED_SITE: ${{ vars.OPENRABBIT_GATEWAY_SITE }}
+        run: |
+          url="${CONFIGURED_URL:-$OPENRABBIT_DEFAULT_GATEWAY_URL}"
+          site="${CONFIGURED_SITE:-$url}"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "site=$site" >> "$GITHUB_OUTPUT"
+          echo "Using OpenRabbit gateway URL: $url"
+
       - name: Validate production compose
         env:
-          OPENRABBIT_GATEWAY_SITE: http://localhost
-          OPENRABBIT_CONNECTION_GATEWAY_PUBLIC_URL: http://localhost
+          OPENRABBIT_GATEWAY_SITE: ${{ steps.gateway.outputs.site }}
+          OPENRABBIT_CONNECTION_GATEWAY_PUBLIC_URL: ${{ steps.gateway.outputs.url }}
         run: docker compose -f deploy/vps/docker-compose.yml config --quiet
 
       - name: Deploy to Hostinger VPS
@@ -36,8 +51,8 @@ jobs:
           project-name: openrabbit
           docker-compose-path: deploy/vps/docker-compose.yml
           environment-variables: |
-            OPENRABBIT_GATEWAY_SITE=${{ vars.OPENRABBIT_GATEWAY_SITE }}
-            OPENRABBIT_CONNECTION_GATEWAY_PUBLIC_URL=${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL }}
+            OPENRABBIT_GATEWAY_SITE=${{ steps.gateway.outputs.site }}
+            OPENRABBIT_CONNECTION_GATEWAY_PUBLIC_URL=${{ steps.gateway.outputs.url }}
             OPENRABBIT_GATEWAY_APP_TOKEN=${{ secrets.OPENRABBIT_GATEWAY_APP_TOKEN }}
             OPENRABBIT_TOKEN_ENCRYPTION_KEY=${{ secrets.OPENRABBIT_TOKEN_ENCRYPTION_KEY }}
             OPENRABBIT_GATEWAY_CORS_ORIGIN=${{ vars.OPENRABBIT_GATEWAY_CORS_ORIGIN }}
@@ -48,16 +63,15 @@ jobs:
             GOOGLE_MAPS_BROWSER_KEY=${{ secrets.GOOGLE_MAPS_BROWSER_KEY }}
 
       - name: Verify public gateway health
-        if: ${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL != '' }}
         env:
-          OPENRABBIT_GATEWAY_URL: ${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL }}
+          OPENRABBIT_GATEWAY_URL: ${{ steps.gateway.outputs.url }}
         run: |
-          for attempt in 1 2 3 4 5 6 7 8 9; do
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
             if curl --fail --silent --show-error --max-time 10 "$OPENRABBIT_GATEWAY_URL/health"; then
               echo "OpenRabbit gateway is healthy and publicly reachable."
               exit 0
             fi
-            echo "Gateway not ready yet (attempt $attempt/9)."
+            echo "Gateway not ready yet (attempt $attempt/12)."
             sleep 10
           done
           echo "OpenRabbit gateway health check failed."
