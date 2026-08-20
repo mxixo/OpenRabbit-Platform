@@ -10,17 +10,24 @@ const preloadSource = fs.readFileSync(path.join(desktopDir, 'preload.js'), 'utf8
 const workspaceHtml = fs.readFileSync(path.join(workspaceDir, 'index.html'), 'utf8');
 const connectionsHtml = fs.readFileSync(path.join(workspaceDir, 'connections.html'), 'utf8');
 const marketHtml = fs.readFileSync(path.join(workspaceDir, 'market.html'), 'utf8');
+const faqHtml = fs.readFileSync(path.join(workspaceDir, 'faq.html'), 'utf8');
+const mapSource = fs.readFileSync(path.join(workspaceDir, 'market-map.js'), 'utf8');
 const shellSource = fs.readFileSync(path.join(workspaceDir, 'shell.js'), 'utf8');
 const productivitySource = fs.readFileSync(path.join(workspaceDir, 'productivity-client.js'), 'utf8');
 assert.strictEqual(desktopPackage.main, 'main.js');
 for (const script of ['dist:mac','dist:win','dist:linux']) assert.ok(desktopPackage.scripts[script], `${script} packaging script is required`);
-for (const file of ['index.html','connections.html','market.html','app.js','shell.js','productivity-client.js']) assert.ok(fs.existsSync(path.join(workspaceDir,file)), `${file} must exist`);
+for (const file of ['index.html','connections.html','market.html','faq.html','market-map.js','app.js','shell.js','productivity-client.js']) assert.ok(fs.existsSync(path.join(workspaceDir,file)), `${file} must exist`);
 for (const view of ['dashboard','calendar','mail','agent','properties','crm','social']) {assert.match(workspaceHtml,new RegExp(`id=["']view-${view}["']`));assert.match(shellSource,new RegExp(view));}
 for (const id of ['dealTitle','dealMeta','setupPanel','app','newDealBtn','loadExistingBtn','createDealBtn','orgId','dealId','token','proposalQueue','proposalCalendar','scanMeetingMail','modeBadge','propertySearch','propertyFilter','mapPanel']) assert.match(workspaceHtml,new RegExp(`id=["']${id}["']`),`${id} must remain available`);
-for (const dashboardText of ['OpenRabbit command center','Calendar','Email','CRM','Social','Property map','Connections','DEMO MODE']) assert.match(workspaceHtml,new RegExp(dashboardText,'i'),`dashboard must surface ${dashboardText}`);
-for (const demoText of ['1638 W Mohave','Paris Robbins','Agent Activity','Today’s Focus']) assert.match(workspaceHtml,new RegExp(demoText,'i'),`last-night dashboard reference must retain ${demoText}`);
+for (const dashboardText of ['OpenRabbit command center','Calendar','Email','CRM','Social','Property map','Connections','DEMO MODE','Ready to connect']) assert.match(workspaceHtml,new RegExp(dashboardText,'i'),`startup dashboard must surface ${dashboardText}`);
+for (const startupText of ['Ready to connect to your inbox','Ready to connect your calendar','Ready to connect your social accounts','Secure OAuth connection']) assert.match(workspaceHtml,new RegExp(startupText,'i'),`connection-first startup must retain ${startupText}`);
+for (const demoText of ['Fully Connected Demo','1638 W Mohave','Paris Robbins','Agent Activity','DEMO · FULL INTEGRATION']) assert.match(faqHtml,new RegExp(demoText,'i'),`FAQ demo must retain ${demoText}`);
 for (const connectionsText of ['What is connected right now','Gmail','Google Calendar','OpenAI Agent','Google Maps','HubSpot']) assert.match(connectionsHtml,new RegExp(connectionsText,'i'),`connections screen must retain ${connectionsText}`);
-for (const marketText of ['Phoenix Opportunity Map','Royal Palm Inn','Opportunity Feed','Investor Criteria']) assert.match(marketHtml,new RegExp(marketText,'i'),`market screen must retain ${marketText}`);
+for (const marketText of ['Phoenix Opportunity Map','Search map','Opportunity Feed','Investor Criteria','googleMap']) assert.match(marketHtml,new RegExp(marketText,'i'),`market screen must retain ${marketText}`);
+assert.match(mapSource,/maps\.googleapis\.com\/maps\/api\/js/,'market must load Google Maps JavaScript API');
+assert.match(mapSource,/geocoder\.geocode/,'market must support address search');
+assert.match(preloadSource,/mapsBrowserKey/,'desktop bridge must expose restricted browser map key');
+assert.match(mainSource,/GOOGLE_MAPS_BROWSER_KEY|loadLocalEnv/,'desktop must load map configuration without committing credentials');
 assert.match(workspaceHtml,/script src=["']\.\/productivity-client\.js["']/);
 assert.match(productivitySource,/\/meeting-proposals/,'desktop must consume meeting proposal API');
 for (const action of ['approve','reject','execute']) assert.match(productivitySource,new RegExp(`['\"]${action}['\"]`),`desktop must support ${action}`);
