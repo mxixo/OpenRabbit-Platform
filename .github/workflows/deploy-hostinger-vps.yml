@@ -30,12 +30,28 @@ jobs:
           project-name: openrabbit
           docker-compose-path: deploy/vps/docker-compose.yml
           environment-variables: |
-            OPENRABBIT_CONNECTION_GATEWAY_PUBLIC_URL=${{ secrets.OPENRABBIT_CONNECTION_GATEWAY_PUBLIC_URL }}
+            OPENRABBIT_CONNECTION_GATEWAY_PUBLIC_URL=${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL }}
             OPENRABBIT_GATEWAY_APP_TOKEN=${{ secrets.OPENRABBIT_GATEWAY_APP_TOKEN }}
             OPENRABBIT_TOKEN_ENCRYPTION_KEY=${{ secrets.OPENRABBIT_TOKEN_ENCRYPTION_KEY }}
-            OPENRABBIT_GATEWAY_CORS_ORIGIN=${{ secrets.OPENRABBIT_GATEWAY_CORS_ORIGIN }}
+            OPENRABBIT_GATEWAY_CORS_ORIGIN=${{ vars.OPENRABBIT_GATEWAY_CORS_ORIGIN }}
             GOOGLE_OAUTH_CLIENT_ID=${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
             GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
             HUBSPOT_OAUTH_CLIENT_ID=${{ secrets.HUBSPOT_OAUTH_CLIENT_ID }}
             HUBSPOT_OAUTH_CLIENT_SECRET=${{ secrets.HUBSPOT_OAUTH_CLIENT_SECRET }}
             GOOGLE_MAPS_BROWSER_KEY=${{ secrets.GOOGLE_MAPS_BROWSER_KEY }}
+
+      - name: Verify public gateway health
+        if: ${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL != '' }}
+        env:
+          OPENRABBIT_GATEWAY_URL: ${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL }}
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl --fail --silent --show-error --max-time 10 "$OPENRABBIT_GATEWAY_URL/health"; then
+              echo "OpenRabbit gateway is healthy."
+              exit 0
+            fi
+            echo "Gateway not ready yet (attempt $attempt/6)."
+            sleep 10
+          done
+          echo "OpenRabbit gateway health check failed."
+          exit 1
