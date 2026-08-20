@@ -4,6 +4,7 @@
   window.__openRabbitProviderUiLoaded=true;
   const api=window.openRabbitDesktop;
   if(!api?.listAiProviders)return;
+  let activeProvider=null;
 
   function addStyles(){
     if(document.getElementById('orProviderStyles'))return;
@@ -16,6 +17,11 @@
       .orProviderNote{font-size:9px;color:#8f9bb0;white-space:nowrap}
     `;
     document.head.appendChild(style);
+  }
+
+  function setStatus(text,type='warn'){
+    const status=document.getElementById('orBrainStatus');
+    if(status){status.textContent=text;status.className=`orBrainStatus ${type}`;}
   }
 
   async function sync(){
@@ -32,9 +38,12 @@
         option.selected=Boolean(provider.selected);
         select.appendChild(option);
       });
-      const active=providers.find(p=>p.selected)||providers[0];
-      note.textContent=active?.connected?'connected':(active?.available?'ready to connect':'adapter queued');
+      activeProvider=providers.find(p=>p.selected)||providers[0]||null;
+      note.textContent=activeProvider?.connected?'connected':(activeProvider?.available?'ready to connect':'adapter queued');
+      const providerLabel=document.getElementById('orBrainProvider');
+      if(providerLabel&&activeProvider)providerLabel.textContent=activeProvider.name;
     }catch{
+      activeProvider=null;
       note.textContent='provider status unavailable';
     }
   }
@@ -43,25 +52,31 @@
     const providerId=event.target.value;
     const note=document.getElementById('orProviderNote');
     try{
-      const selected=await api.selectAiProvider(providerId);
-      if(selected.available){
-        note.textContent=selected.connected?'connected':'ready to connect';
+      activeProvider=await api.selectAiProvider(providerId);
+      if(activeProvider.available){
+        note.textContent=activeProvider.connected?'connected':'ready to connect';
       }else{
         note.textContent='adapter queued';
       }
       const providerLabel=document.getElementById('orBrainProvider');
-      if(providerLabel)providerLabel.textContent=selected.name||'AI brain';
-      if(selected.id==='openai-chatgpt'&&!selected.connected){
+      if(providerLabel)providerLabel.textContent=activeProvider.name||'AI brain';
+      if(activeProvider.id==='openai-chatgpt'&&!activeProvider.connected){
         const connect=document.getElementById('orBrainConnect');
         if(connect){connect.hidden=false;connect.textContent='Continue with ChatGPT';}
       }
-      if(!selected.available){
-        const status=document.getElementById('orBrainStatus');
-        if(status){status.textContent=`${selected.name} is reserved in the OpenRabbit brain layer; its connection adapter is not active yet.`;status.className='orBrainStatus warn';}
+      if(!activeProvider.available){
+        setStatus(`${activeProvider.name} is reserved in the OpenRabbit brain layer; its connection adapter is not active yet.`);
       }
     }catch(error){
       note.textContent=error?.message||'could not change provider';
     }
+  }
+
+  function blockUnsupported(event){
+    if(!activeProvider||activeProvider.available)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    setStatus(`${activeProvider.name} is selected, but its OpenRabbit adapter is not active yet. Choose ChatGPT to continue now.`);
   }
 
   function install(){
@@ -75,6 +90,10 @@
     bar.innerHTML='<label for="orProviderSelect">AI brain</label><select id="orProviderSelect" class="orProviderSelect" aria-label="Choose AI provider"></select><span id="orProviderNote" class="orProviderNote"></span>';
     head.insertAdjacentElement('afterend',bar);
     document.getElementById('orProviderSelect').addEventListener('change',change);
+    document.getElementById('orBrainSend')?.addEventListener('click',blockUnsupported,true);
+    document.getElementById('orBrainInput')?.addEventListener('keydown',event=>{
+      if(event.key==='Enter'&&!event.shiftKey)blockUnsupported(event);
+    },true);
     sync();
     return true;
   }
