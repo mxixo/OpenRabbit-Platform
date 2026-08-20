@@ -3,8 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const gateway = require('./gateway-client');
 
-// Load the existing OpenRabbit desktop runtime first. It owns account auth,
-// the primary window, ChatGPT, Gmail/Calendar/CRM connection handlers, and maps.
 require('./main');
 
 function workspaceDirectory() {
@@ -32,25 +30,21 @@ async function startSocialOAuth(provider) {
   return { connected: true, verified: true, provider };
 }
 
-// Inject the live dashboard binding without changing the static dashboard shell.
-// This keeps disconnected cards intact and only replaces them with real provider data.
 app.on('browser-window-created', (_event, window) => {
   window.webContents.on('did-finish-load', () => {
-    const file = path.join(workspaceDirectory(), 'live-data.js');
-    try {
-      const source = fs.readFileSync(file, 'utf8');
-      window.webContents.executeJavaScript(source).catch(error => console.error('OpenRabbit live dashboard binding failed', error));
-    } catch (error) {
-      console.error('OpenRabbit live dashboard binding unavailable', error);
+    for (const name of ['live-data.js', 'map-fallback.js']) {
+      const file = path.join(workspaceDirectory(), name);
+      try {
+        const source = fs.readFileSync(file, 'utf8');
+        window.webContents.executeJavaScript(source).catch(error => console.error(`OpenRabbit ${name} failed`, error));
+      } catch (error) {
+        console.error(`OpenRabbit ${name} unavailable`, error);
+      }
     }
   });
 });
 
 app.whenReady().then(() => {
-  if (!ipcMain.listenerCount('openrabbit:live-snapshot')) {
-    ipcMain.handle('openrabbit:live-snapshot', () => gateway.liveSnapshot(app));
-  }
-  if (!ipcMain.listenerCount('openrabbit:start-social-oauth')) {
-    ipcMain.handle('openrabbit:start-social-oauth', (_event, provider) => startSocialOAuth(provider));
-  }
+  ipcMain.handle('openrabbit:live-snapshot', () => gateway.liveSnapshot(app));
+  ipcMain.handle('openrabbit:start-social-oauth', (_event, provider) => startSocialOAuth(provider));
 });
