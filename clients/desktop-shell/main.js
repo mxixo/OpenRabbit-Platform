@@ -4,6 +4,7 @@ const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
 const { execFile, spawn } = require('child_process');
+const hubspotOAuth = require('./hubspot-oauth');
 
 const repoRoot = path.join(__dirname, '..', '..');
 let workspaceServer;
@@ -103,8 +104,16 @@ async function startChatGPTLogin(){
 }
 
 async function integrationStatus(){
-  const ai=await codexAuthStatus();
-  return {gmail:fs.existsSync(integrationTokenFile('gmail')),calendar:fs.existsSync(integrationTokenFile('calendar')),maps:Boolean(process.env.GOOGLE_MAPS_BROWSER_KEY||process.env.OPENRABBIT_MAPS_BROWSER_KEY),hubspot:Boolean(process.env.HUBSPOT_ACCESS_TOKEN),openai:Boolean(ai.connected),openaiDetail:ai.label};
+  const [ai, hubspot] = await Promise.all([codexAuthStatus(), hubspotOAuth.status()]);
+  return {
+    gmail:fs.existsSync(integrationTokenFile('gmail')),
+    calendar:fs.existsSync(integrationTokenFile('calendar')),
+    maps:Boolean(process.env.GOOGLE_MAPS_BROWSER_KEY||process.env.OPENRABBIT_MAPS_BROWSER_KEY),
+    hubspot:Boolean(hubspot.connected),
+    hubspotDetail:hubspot,
+    openai:Boolean(ai.connected),
+    openaiDetail:ai.label
+  };
 }
 
 function openRabbitAgentInstructions(){return ['You are OpenRabbit, the AI operating agent inside the OpenRabbit desktop application.','Be concise, practical and action-oriented.','You may explain what OpenRabbit can do, help the user plan work, analyze supplied information, and guide them through the interface.','Do not claim that an external action, email, calendar change, CRM write, social post, or property-data lookup happened unless a connected OpenRabbit tool actually performed it.','When an integration is not connected, clearly say what connection is required.','This desktop chat is currently conversational only. Do not modify local files or execute external actions.'].join(' ')}
@@ -132,5 +141,5 @@ function agentChatScriptPath(){return path.join(workspaceDirectory(),'agent-chat
 function contentType(filePath){const ext=path.extname(filePath).toLowerCase();return ({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon'}[ext]||'application/octet-stream')}
 function startWorkspaceServer(){if(workspaceServer&&workspaceOrigin)return Promise.resolve(workspaceOrigin);const root=path.resolve(workspaceDirectory()),port=Number(process.env.OPENRABBIT_DESKTOP_PORT||53683);return new Promise((resolve,reject)=>{workspaceServer=http.createServer((req,res)=>{try{const requestUrl=new URL(req.url,`http://127.0.0.1:${port}`);let pathname=decodeURIComponent(requestUrl.pathname);if(pathname==='/')pathname='/index.html';const relative=pathname.replace(/^\/+/,''),filePath=path.resolve(root,relative);if(filePath!==root&&!filePath.startsWith(root+path.sep)){res.writeHead(403);return res.end('Forbidden')}if(!fs.existsSync(filePath)||!fs.statSync(filePath).isFile()){res.writeHead(404);return res.end('Not found')}res.writeHead(200,{'content-type':contentType(filePath),'cache-control':'no-store'});fs.createReadStream(filePath).pipe(res)}catch{res.writeHead(500);res.end('OpenRabbit workspace server error')}});workspaceServer.once('error',reject);workspaceServer.listen(port,'127.0.0.1',()=>{workspaceOrigin=`http://127.0.0.1:${port}`;resolve(workspaceOrigin)})})}
 async function createWindow(){const origin=await startWorkspaceServer();const window=new BrowserWindow({width:1440,height:960,minWidth:1080,minHeight:720,backgroundColor:'#0b0d10',title:'OpenRabbit',show:false,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}});window.once('ready-to-show',()=>window.show());window.webContents.setWindowOpenHandler(({url})=>{if(/^https?:\/\//i.test(url)&&!url.startsWith(origin))shell.openExternal(url);return{action:'deny'}});window.webContents.on('will-navigate',(event,url)=>{if(/^https?:\/\//i.test(url)&&!url.startsWith(origin)){event.preventDefault();shell.openExternal(url)}});window.webContents.on('did-finish-load',()=>{for(const scriptPath of[enhancementScriptPath(),agentChatScriptPath()]){try{const script=fs.readFileSync(scriptPath,'utf8');window.webContents.executeJavaScript(script).catch(error=>console.error('OpenRabbit renderer enhancement failed',error))}catch(error){console.error('OpenRabbit renderer enhancement unavailable',scriptPath,error)}}});window.loadURL(`${origin}/index.html`)}
-app.whenReady().then(async()=>{loadLocalEnv();ipcMain.handle('openrabbit:integration-status',()=>integrationStatus());ipcMain.handle('openrabbit:start-google-oauth',(_event,kind)=>startGoogleOAuth(kind));ipcMain.handle('openrabbit:agent-provider-status',()=>agentProviderStatus());ipcMain.handle('openrabbit:connect-chatgpt',()=>startChatGPTLogin());ipcMain.handle('openrabbit:agent-chat',(_event,messages)=>runOpenRabbitAgent(messages));try{await createWindow()}catch(error){console.error('OpenRabbit failed to start',error);app.quit()}app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow().catch(console.error)})});
+app.whenReady().then(async()=>{loadLocalEnv();ipcMain.handle('openrabbit:integration-status',()=>integrationStatus());ipcMain.handle('openrabbit:start-google-oauth',(_event,kind)=>startGoogleOAuth(kind));ipcMain.handle('openrabbit:start-hubspot-oauth',()=>hubspotOAuth.startOAuth());ipcMain.handle('openrabbit:agent-provider-status',()=>agentProviderStatus());ipcMain.handle('openrabbit:connect-chatgpt',()=>startChatGPTLogin());ipcMain.handle('openrabbit:agent-chat',(_event,messages)=>runOpenRabbitAgent(messages));try{await createWindow()}catch(error){console.error('OpenRabbit failed to start',error);app.quit()}app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow().catch(console.error)})});
 app.on('window-all-closed',()=>{if(workspaceServer){try{workspaceServer.close()}catch{}}if(process.platform!=='darwin')app.quit()});
