@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const gateway = require('./gateway-client');
 const actionQueue = require('./action-queue');
+const aiProviders = require('./ai-provider-registry');
 
 require('./main');
 
@@ -49,6 +50,42 @@ function sanitizeQueuedAction(input = {}) {
   };
 }
 
+async function providerRuntimeStatus() {
+  try {
+    const status = await ipcMain.emit;
+    void status;
+  } catch {}
+  return { chatgptConnected: false };
+}
+
+async function chatGPTConnected() {
+  try {
+    const local = path.join(__dirname, 'node_modules', '.bin', process.platform === 'win32' ? 'codex.cmd' : 'codex');
+    const executable = fs.existsSync(local) ? local : (process.platform === 'win32' ? 'codex.cmd' : 'codex');
+    const { execFile } = require('child_process');
+    const result = await new Promise(resolve => {
+      execFile(executable, ['login', 'status'], { timeout: 12000, windowsHide: true, env: { ...process.env, CODEX_HOME: path.join(app.getPath('userData'), 'codex') } }, (_error, stdout, stderr) => {
+        resolve(`${stdout || ''}\n${stderr || ''}`.toLowerCase().includes('logged in using chatgpt'));
+      });
+    });
+    return Boolean(result);
+  } catch {
+    return false;
+  }
+}
+
+async function providerList() {
+  return aiProviders.list(app, { chatgptConnected: await chatGPTConnected() });
+}
+
+async function selectedProvider() {
+  return aiProviders.selected(app, { chatgptConnected: await chatGPTConnected() });
+}
+
+async function selectProvider(providerId) {
+  return aiProviders.select(app, providerId, { chatgptConnected: await chatGPTConnected() });
+}
+
 app.on('browser-window-created', (_event, window) => {
   window.webContents.on('did-finish-load', () => {
     for (const name of ['live-data.js', 'map-fallback.js', 'microsoft-ui.js', 'ai-orb.js', 'proactive-brief.js', 'action-center.js']) {
@@ -72,4 +109,7 @@ app.whenReady().then(() => {
   ipcMain.handle('openrabbit:actions-approve', (_event, id) => actionQueue.approve(app, String(id || '')));
   ipcMain.handle('openrabbit:actions-reject', (_event, id, reason) => actionQueue.reject(app, String(id || ''), reason));
   ipcMain.handle('openrabbit:actions-audit', () => actionQueue.auditLog(app));
+  ipcMain.handle('openrabbit:ai-providers-list', () => providerList());
+  ipcMain.handle('openrabbit:ai-provider-selected', () => selectedProvider());
+  ipcMain.handle('openrabbit:ai-provider-select', (_event, providerId) => selectProvider(providerId));
 });
