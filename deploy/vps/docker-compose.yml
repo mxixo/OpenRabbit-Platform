@@ -1,0 +1,20 @@
+services:
+  connection-gateway:
+    build:
+      context: ../..
+      dockerfile: services/connection-gateway/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ../../services/connection-gateway/.env
+    ports:
+      - "127.0.0.1:8790:8790"
+    volumes:
+      - openrabbit_gateway_data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8790/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+volumes:
+  openrabbit_gateway_data:
