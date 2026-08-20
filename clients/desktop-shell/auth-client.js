@@ -138,7 +138,7 @@ async function currentUser(app) {
     const user = await parseResponse(response);
     if (user?.id) {
       writeSession(app, { ...session, user });
-      return { id: user.id, email: user.email || '', createdAt: user.created_at || null };
+      return { id: user.id, email: user.email || '', createdAt: user.created_at || null, accessToken: session.access_token };
     }
   } catch {
     clearSession(app);
