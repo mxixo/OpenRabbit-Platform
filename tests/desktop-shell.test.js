@@ -74,7 +74,7 @@ assert.ok(runtimeConfig.supabasePublishableKey.startsWith('sb_publishable_'));
 
 assert.match(workspaceHtml, /getIntegrationStatus/, 'dashboard must refresh real connection state');
 assert.match(workspaceHtml, /getMapsConfig/, 'dashboard Maps must use OpenRabbit-managed configuration');
-assert.match(workspaceHtml, /Built in/, 'Maps should be described as a platform capability, not a user account connection');
+assert.match(workspaceHtml, /built into OpenRabbit/i, 'Maps should be described as a platform capability, not a user account connection');
 assert.match(connectionsHtml, /disconnectIntegration/, 'connections center must allow disconnecting accounts');
 assert.doesNotMatch(connectionsHtml, /client secret|client_id|API key field|paste.*token/i, 'customer connection UI must not ask for technical credentials');
 assert.match(mapSource, /maps\.googleapis\.com\/maps\/api\/js/, 'market must load Google Maps JavaScript API');
