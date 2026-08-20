@@ -93,13 +93,18 @@ async function request(app, route, options = {}) {
 
 async function health(app) { return request(app, '/health'); }
 async function status(app) { return request(app, '/v1/connections'); }
+async function liveSnapshot(app) { return request(app, '/v1/live'); }
 async function mapsConfig(app) { return request(app, '/v1/platform/maps'); }
 async function startGoogle(app, kind = 'gmail') {
   const safeKind = kind === 'calendar' ? 'calendar' : 'gmail';
   return request(app, `/v1/connections/google/start?kind=${encodeURIComponent(safeKind)}`, { method: 'POST' });
 }
 async function startHubSpot(app) { return request(app, '/v1/connections/hubspot/start', { method: 'POST' }); }
+async function startSocial(app, provider) {
+  const safe = ['meta', 'linkedin', 'tiktok'].includes(provider) ? provider : 'meta';
+  return request(app, `/v1/connections/${safe}/start`, { method: 'POST' });
+}
 async function verify(app, provider) { return request(app, `/v1/connections/${encodeURIComponent(provider)}/verify`, { method: 'POST' }); }
 async function disconnect(app, provider) { return request(app, `/v1/connections/${encodeURIComponent(provider)}`, { method: 'DELETE' }); }
 
-module.exports = { gatewayBaseUrl, installationUserId, setUserResolver, health, status, mapsConfig, startGoogle, startHubSpot, verify, disconnect };
+module.exports = { gatewayBaseUrl, installationUserId, setUserResolver, health, status, liveSnapshot, mapsConfig, startGoogle, startHubSpot, startSocial, verify, disconnect };
