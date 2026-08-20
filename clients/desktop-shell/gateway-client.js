@@ -23,4 +23,5 @@ async function startMicrosoft(app){return request(app,'/v1/connections/microsoft
 async function startSocial(app,provider){const safe=['meta','linkedin','tiktok'].includes(provider)?provider:'meta';return request(app,`/v1/connections/${safe}/start`,{method:'POST'});}
 async function verify(app,provider){return request(app,`/v1/connections/${encodeURIComponent(provider)}/verify`,{method:'POST'});}
 async function disconnect(app,provider){return request(app,`/v1/connections/${encodeURIComponent(provider)}`,{method:'DELETE'});}
-module.exports={gatewayBaseUrl,installationUserId,setUserResolver,health,status,liveSnapshot,mapsConfig,startGoogle,startHubSpot,startMicrosoft,startSocial,verify,disconnect};
+async function executeAction(app,action,payload={}){return request(app,`/v1/actions/${encodeURIComponent(action)}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload||{})});}
+module.exports={gatewayBaseUrl,installationUserId,setUserResolver,health,status,liveSnapshot,mapsConfig,startGoogle,startHubSpot,startMicrosoft,startSocial,verify,disconnect,executeAction};
