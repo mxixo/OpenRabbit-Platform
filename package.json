@@ -16,7 +16,7 @@
     "bootstrap:local": "node scripts/bootstrap/setup-local.js",
     "verify:shareable": "node scripts/bootstrap/verify-shareable.js",
     "desktop:install": "npm --prefix clients/desktop-shell install",
-    "desktop:start": "npm --prefix clients/desktop-shell start",
+    "desktop:start": "npm --prefix clients/desktop-shell install --silent && npm --prefix clients/desktop-shell start",
     "desktop:dist": "npm --prefix clients/desktop-shell run dist",
     "desktop:test": "node tests/desktop-shell.test.js",
     "ci:quality-gates": "bash ./scripts/ci/run-quality-gates.sh",
