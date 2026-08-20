@@ -2,6 +2,18 @@
 
 This guide is for anyone who receives the OpenRabbit repository and wants to test it on their own computer or development environment.
 
+## Fastest tester path
+
+```bash
+git clone https://github.com/mxixo/OpenRabbit-Platform.git
+cd OpenRabbit-Platform
+npm run bootstrap:local
+npm run verify:shareable
+npm run desktop:start
+```
+
+If those commands succeed and the OpenRabbit desktop window opens, the base collaborator test has passed.
+
 ## What you can test without private credentials
 
 The repository can be cloned, bootstrapped, validated, and the desktop workspace can be launched without access to the owner's private integrations.
@@ -128,4 +140,15 @@ A fresh tester should be able to:
 4. launch the workspace with `npm run desktop:start`;
 5. optionally run `npm test` for the broader repository suite.
 
-If any of those fail on a clean machine, please open a GitHub issue with the operating system, Node.js version, command run, and full error output.
+## Report a problem
+
+Use the repository's **OpenRabbit tester feedback** GitHub issue form. Include:
+
+- operating system and version;
+- `node --version`;
+- `git rev-parse --short HEAD`;
+- the exact command that failed;
+- the relevant error output;
+- steps to reproduce the problem.
+
+Never include API keys, OAuth tokens, passwords, signing certificates, or other secrets in a GitHub issue.
