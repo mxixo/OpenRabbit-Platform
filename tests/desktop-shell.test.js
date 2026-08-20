@@ -13,13 +13,16 @@ const productivitySource = fs.readFileSync(path.join(workspaceDir, 'productivity
 assert.strictEqual(desktopPackage.main, 'main.js');
 for (const script of ['dist:mac','dist:win','dist:linux']) assert.ok(desktopPackage.scripts[script], `${script} packaging script is required`);
 for (const file of ['index.html','app.js','shell.js','productivity-client.js']) assert.ok(fs.existsSync(path.join(workspaceDir,file)), `${file} must exist`);
-for (const view of ['dashboard','calendar','mail','agent','properties','social']) {assert.match(workspaceHtml,new RegExp(`id=["']view-${view}["']`));assert.match(shellSource,new RegExp(view));}
-for (const id of ['dealTitle','dealMeta','setupPanel','app','newDealBtn','loadExistingBtn','createDealBtn','orgId','dealId','token','proposalQueue','proposalCalendar','scanMeetingMail']) assert.match(workspaceHtml,new RegExp(`id=["']${id}["']`),`${id} must remain available`);
+for (const view of ['dashboard','calendar','mail','agent','properties','crm','social']) {assert.match(workspaceHtml,new RegExp(`id=["']view-${view}["']`));assert.match(shellSource,new RegExp(view));}
+for (const id of ['dealTitle','dealMeta','setupPanel','app','newDealBtn','loadExistingBtn','createDealBtn','orgId','dealId','token','proposalQueue','proposalCalendar','scanMeetingMail','modeBadge','propertySearch','propertyFilter','mapPanel']) assert.match(workspaceHtml,new RegExp(`id=["']${id}["']`),`${id} must remain available`);
+for (const dashboardText of ['OpenRabbit command center','Calendar','Email','CRM','Social','Property map','Connections','DEMO MODE']) assert.match(workspaceHtml,new RegExp(dashboardText,'i'),`dashboard must surface ${dashboardText}`);
 assert.match(workspaceHtml,/script src=["']\.\/productivity-client\.js["']/);
 assert.match(productivitySource,/\/meeting-proposals/,'desktop must consume meeting proposal API');
 for (const action of ['approve','reject','execute']) assert.match(productivitySource,new RegExp(`['\"]${action}['\"]`),`desktop must support ${action}`);
 assert.match(productivitySource,/method:'PATCH'/,'desktop must support proposal edits');
 assert.match(productivitySource,/scanMeetingMail/,'mail view must trigger meeting scan');
+assert.match(productivitySource,/demoProposals/,'desktop must retain seeded demo proposals when live services are unavailable');
+assert.match(productivitySource,/state\.mode='live'/,'desktop must distinguish live connected mode from demo mode');
 assert.match(shellSource,/openrabbit\.activeView/);
 assert.match(shellSource,/metaKey\|\|event\.ctrlKey/);
 const resources=desktopPackage.build&&desktopPackage.build.extraResources;assert.ok(Array.isArray(resources));assert.ok(resources.some(e=>e.from==='../real-estate-workspace'&&e.to==='workspace'));
