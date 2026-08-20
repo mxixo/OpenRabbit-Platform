@@ -1,6 +1,17 @@
 "use strict";
 
 (function () {
+  const BRAND_ASSETS = {
+    chatgpt: 'https://cdn.jsdelivr.net/npm/@thesvg/icons/icons/openai-chatgpt.svg',
+    gemini: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/google-gemini/default.svg',
+    claude: 'https://upload.wikimedia.org/wikipedia/commons/b/b0/Claude_AI_symbol.svg',
+    gmail: 'https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/gmail-2026/default.svg'
+  };
+
+  function brandLogo(src, alt, extraStyle = '') {
+    return `<img src="${src}" alt="${alt}" loading="eager" decoding="async" referrerpolicy="no-referrer" style="width:34px;height:34px;display:block;object-fit:contain;${extraStyle}">`;
+  }
+
   function addCrmReadyOverlay() {
     const crm = document.querySelector('.panel.crm');
     if (!crm || crm.querySelector('[data-openrabbit-crm-overlay]')) return;
@@ -25,6 +36,29 @@
     crm.appendChild(secure);
   }
 
+  function upgradeGmailBranding() {
+    const email = document.querySelector('.panel.email');
+    if (!email || email.dataset.openrabbitGmailBranded === 'true') return;
+    email.dataset.openrabbitGmailBranded = 'true';
+
+    const icon = email.querySelector('.overlay .oi');
+    if (icon) {
+      icon.innerHTML = brandLogo(BRAND_ASSETS.gmail, 'Gmail logo', 'width:38px;height:38px;');
+      icon.style.background = '#fff';
+      icon.style.borderColor = '#d8e0ea';
+    }
+
+    const connect = email.querySelector('.overlay .connect');
+    if (connect) {
+      connect.innerHTML = `${brandLogo(BRAND_ASSETS.gmail, 'Gmail logo', 'width:20px;height:20px;')}<span>Connect Gmail</span>`;
+      connect.style.display = 'inline-flex';
+      connect.style.alignItems = 'center';
+      connect.style.justifyContent = 'center';
+      connect.style.gap = '9px';
+      connect.style.textDecoration = 'none';
+    }
+  }
+
   function openProviderChooser() {
     const backdrop = document.getElementById('openrabbitAgentBackdrop');
     const body = document.getElementById('openrabbitAgentBody');
@@ -43,45 +77,50 @@
     body.innerHTML = `
       <div class="or-provider">
         <h2>Choose your AI provider</h2>
-        <p>Select the intelligence provider that will power OpenRabbit on this computer. A saved login will never skip this provider-selection screen.</p>
+        <p>Select the intelligence provider that will power OpenRabbit on this computer. If you have already signed in, OpenRabbit will remember that login locally while still letting you choose your provider each time.</p>
         <div class="or-provider-grid">
           <div class="or-provider-card ready">
-            <div class="or-provider-logo">◎</div>
+            <div class="or-provider-logo" style="background:#fff">${brandLogo(BRAND_ASSETS.chatgpt, 'ChatGPT logo')}</div>
             <h3>OpenAI / ChatGPT</h3>
-            <p id="openrabbitChatGPTChoiceDetail">Checking whether ChatGPT is already connected on this computer…</p>
-            <button class="or-provider-action" id="openrabbitUseChatGPT" type="button">Use ChatGPT</button>
+            <p id="openrabbitChatGPTChoiceDetail">Checking your ChatGPT sign-in status on this computer…</p>
+            <div id="openrabbitChatGPTSignedIn" style="min-height:18px;color:#8df4c8;font-size:11px;font-weight:800"></div>
+            <button class="or-provider-action" id="openrabbitUseChatGPT" type="button">Continue with ChatGPT</button>
           </div>
           <div class="or-provider-card disabled">
-            <div class="or-provider-logo" style="background:#fff;color:#4285f4">G</div>
+            <div class="or-provider-logo" style="background:#fff">${brandLogo(BRAND_ASSETS.gemini, 'Google Gemini logo', 'width:36px;height:36px;')}</div>
             <h3>Google Gemini</h3>
             <p>Login-first Gemini support is planned next.</p>
             <button class="or-provider-action" type="button" disabled>Coming next</button>
           </div>
           <div class="or-provider-card disabled">
-            <div class="or-provider-logo" style="background:#d9c4a8;color:#2a2118">A</div>
+            <div class="or-provider-logo" style="background:#f7f1e8">${brandLogo(BRAND_ASSETS.claude, 'Claude logo', 'width:38px;height:38px;')}</div>
             <h3>Anthropic Claude</h3>
             <p>Account-based Claude support is planned next.</p>
             <button class="or-provider-action" type="button" disabled>Coming next</button>
           </div>
         </div>
         <div class="or-provider-working" id="openrabbitProviderChoiceStatus"></div>
-        <div class="or-provider-note">If ChatGPT is already authenticated locally, OpenRabbit will show that status here but will wait for you to choose it before opening the agent.</div>
+        <div class="or-provider-note">Your provider credentials stay local to this computer. OpenRabbit does not place your ChatGPT credentials in the GitHub repository.</div>
       </div>`;
 
     const useButton = document.getElementById('openrabbitUseChatGPT');
     const detail = document.getElementById('openrabbitChatGPTChoiceDetail');
+    const signedIn = document.getElementById('openrabbitChatGPTSignedIn');
     const working = document.getElementById('openrabbitProviderChoiceStatus');
 
     window.openRabbitDesktop?.getAgentProviderStatus?.().then((status) => {
       if (status?.connected) {
-        if (detail) detail.textContent = 'ChatGPT is already authenticated locally. Choose it to open the agent, or select another provider when available.';
-        if (useButton) useButton.textContent = 'Use connected ChatGPT';
+        if (detail) detail.textContent = 'Your ChatGPT account is already authenticated on this computer.';
+        if (signedIn) signedIn.textContent = '✓ Signed in';
+        if (useButton) useButton.textContent = 'Continue with ChatGPT';
       } else {
-        if (detail) detail.textContent = 'Continue with ChatGPT to sign in through the OpenAI/Codex login flow.';
+        if (detail) detail.textContent = 'Continue to sign in securely through the OpenAI / Codex login flow.';
+        if (signedIn) signedIn.textContent = '';
         if (useButton) useButton.textContent = 'Continue with ChatGPT';
       }
     }).catch(() => {
-      if (detail) detail.textContent = 'Choose ChatGPT to begin the OpenAI/Codex login flow.';
+      if (detail) detail.textContent = 'Continue with ChatGPT to begin the secure OpenAI / Codex sign-in flow.';
+      if (signedIn) signedIn.textContent = '';
     });
 
     useButton?.addEventListener('click', async () => {
@@ -271,6 +310,7 @@
   function start() {
     addCrmReadyOverlay();
     addAgentReadyOverlay();
+    upgradeGmailBranding();
     upgradeSocialBrandLogos();
     initDashboardMap();
   }
