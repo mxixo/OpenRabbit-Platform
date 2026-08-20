@@ -7,22 +7,33 @@ process.env.GOOGLE_OAUTH_CLIENT_SECRET = '';
 process.env.HUBSPOT_OAUTH_CLIENT_ID = '';
 process.env.HUBSPOT_OAUTH_CLIENT_SECRET = '';
 process.env.GOOGLE_MAPS_BROWSER_KEY = '';
+process.env.META_APP_ID = '';
+process.env.META_APP_SECRET = '';
+process.env.LINKEDIN_CLIENT_ID = '';
+process.env.LINKEDIN_CLIENT_SECRET = '';
+process.env.TIKTOK_CLIENT_KEY = '';
+process.env.TIKTOK_CLIENT_SECRET = '';
 
-const { server, providers, connectionState } = require('../services/connection-gateway/server');
+const { server, providers, connectionState, liveSnapshot } = require('../services/connection-gateway/server-v5');
 
 (async () => {
   assert.ok(Array.isArray(providers));
-  assert.ok(providers.some(provider => provider.id === 'gmail'));
-  assert.ok(providers.some(provider => provider.id === 'google-calendar'));
-  assert.ok(providers.some(provider => provider.id === 'hubspot'));
+  for (const id of ['gmail','google-calendar','hubspot','meta','linkedin','tiktok']) {
+    assert.ok(providers.some(provider => provider.id === id), `${id} provider must exist`);
+  }
   const maps = providers.find(provider => provider.id === 'google-maps');
   assert.ok(maps && maps.platformCapability, 'Maps must be modeled as a platform capability');
 
   const state = await connectionState('test-user');
-  assert.strictEqual(state.find(item => item.id === 'gmail').connected, false);
-  assert.strictEqual(state.find(item => item.id === 'google-calendar').connected, false);
-  assert.strictEqual(state.find(item => item.id === 'hubspot').connected, false);
+  for (const id of ['gmail','google-calendar','hubspot','meta','linkedin','tiktok']) {
+    assert.strictEqual(state.find(item => item.id === id).connected, false);
+  }
   assert.strictEqual(state.find(item => item.id === 'google-maps').available, false);
+  const snapshot = await liveSnapshot('test-user');
+  assert.strictEqual(snapshot.mail.connected, false);
+  assert.strictEqual(snapshot.calendar.connected, false);
+  assert.strictEqual(snapshot.crm.connected, false);
+  assert.ok(snapshot.social);
 
   await new Promise((resolve, reject) => {
     server.listen(0, '127.0.0.1', resolve);
@@ -36,18 +47,19 @@ const { server, providers, connectionState } = require('../services/connection-g
     const health = await response.json();
     assert.strictEqual(health.ok, true);
     assert.strictEqual(health.service, 'openrabbit-connection-gateway');
-    assert.strictEqual(health.version, 4);
+    assert.strictEqual(health.version, 5);
     assert.strictEqual(health.configured.accountAuth, true);
 
-    const blocked = await fetch(`${base}/v1/connections`);
-    assert.strictEqual(blocked.status, 401, 'connection state must require an OpenRabbit session');
+    const blocked = await fetch(`${base}/v1/live`);
+    assert.strictEqual(blocked.status, 401, 'live provider data must require an OpenRabbit session');
 
-    const service = await fetch(`${base}/v1/connections`, {
+    const service = await fetch(`${base}/v1/live`, {
       headers: { authorization: 'Bearer test-service-token', 'x-openrabbit-user': 'test-user' }
     });
-    assert.strictEqual(service.status, 200, 'trusted service token should remain available for internal tooling');
+    assert.strictEqual(service.status, 200, 'trusted internal service token should access live snapshot');
     const body = await service.json();
-    assert.strictEqual(body.user, 'test-user');
+    assert.ok(body.generatedAt);
+    assert.ok(body.mail && body.calendar && body.crm && body.social);
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
