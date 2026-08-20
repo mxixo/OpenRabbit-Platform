@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('openRabbitDesktop', Object.freeze({
   startGoogleOAuth: (kind = 'gmail') => ipcRenderer.invoke('openrabbit:start-google-oauth', kind),
   connectGmail: () => ipcRenderer.invoke('openrabbit:start-google-oauth', 'gmail'),
   connectGoogleCalendar: () => ipcRenderer.invoke('openrabbit:start-google-oauth', 'calendar'),
+  connectMicrosoft: () => ipcRenderer.invoke('openrabbit:start-microsoft-oauth'),
   connectHubSpot: () => ipcRenderer.invoke('openrabbit:start-hubspot-oauth'),
   connectSocial: (provider = 'meta') => ipcRenderer.invoke('openrabbit:start-social-oauth', provider),
   disconnectIntegration: (provider) => ipcRenderer.invoke('openrabbit:disconnect-integration', provider),
