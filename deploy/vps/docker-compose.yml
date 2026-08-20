@@ -18,8 +18,8 @@ services:
       HUBSPOT_OAUTH_CLIENT_SECRET: ${HUBSPOT_OAUTH_CLIENT_SECRET:-}
       HUBSPOT_OAUTH_SCOPES: ${HUBSPOT_OAUTH_SCOPES:-crm.objects.contacts.read crm.objects.companies.read crm.objects.deals.read}
       GOOGLE_MAPS_BROWSER_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
-    ports:
-      - "127.0.0.1:8790:8790"
+    expose:
+      - "8790"
     volumes:
       - openrabbit_gateway_data:/data
     healthcheck:
@@ -28,5 +28,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  gateway-edge:
+    image: caddy:2.9-alpine
+    restart: unless-stopped
+    depends_on:
+      connection-gateway:
+        condition: service_healthy
+    environment:
+      OPENRABBIT_GATEWAY_SITE: ${OPENRABBIT_GATEWAY_SITE:-http://0.0.0.0}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - openrabbit_caddy_data:/data
+      - openrabbit_caddy_config:/config
+
 volumes:
   openrabbit_gateway_data:
+  openrabbit_caddy_data:
+  openrabbit_caddy_config:
