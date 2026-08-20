@@ -1,6 +1,6 @@
 {
   "name": "openrabbit-desktop",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Desktop distribution shell for the OpenRabbit AI Operating Environment",
   "main": "main-v2.js",
@@ -34,6 +34,7 @@
       "preload.js",
       "gateway-client.js",
       "auth-client.js",
+      "action-queue.js",
       "runtime-config.json",
       "hubspot-oauth.js",
       "node_modules/@openai/codex/**/*",
