@@ -28,6 +28,10 @@ services:
       TIKTOK_CLIENT_KEY: ${TIKTOK_CLIENT_KEY:-}
       TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}
       TIKTOK_OAUTH_SCOPES: ${TIKTOK_OAUTH_SCOPES:-user.info.basic,video.list}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_TENANT: ${MICROSOFT_TENANT:-common}
+      MICROSOFT_OAUTH_SCOPES: ${MICROSOFT_OAUTH_SCOPES:-openid profile email offline_access User.Read Mail.Read Calendars.Read}
     expose:
       - "8790"
     volumes:
