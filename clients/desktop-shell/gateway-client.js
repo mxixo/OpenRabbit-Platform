@@ -4,10 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-let userResolver = null;
+let identityResolver = null;
 
 function setUserResolver(resolver) {
-  userResolver = typeof resolver === 'function' ? resolver : null;
+  identityResolver = typeof resolver === 'function' ? resolver : null;
 }
 
 function packagedConfig() {
@@ -30,10 +30,6 @@ function gatewayBaseUrl() {
   ).trim().replace(/\/$/, '');
 }
 
-function sessionToken() {
-  return String(process.env.OPENRABBIT_SESSION_TOKEN || process.env.OPENRABBIT_GATEWAY_APP_TOKEN || '').trim();
-}
-
 function identityFile(app) {
   return path.join(app.getPath('userData'), 'openrabbit-identity.json');
 }
@@ -53,23 +49,25 @@ function installationUserId(app) {
   return userId;
 }
 
-async function resolvedUserId(app) {
-  if (userResolver) {
+async function resolvedIdentity(app) {
+  if (identityResolver) {
     try {
-      const value = await userResolver();
-      if (value?.id) return String(value.id);
-      if (typeof value === 'string' && value.trim()) return value.trim();
+      const value = await identityResolver();
+      if (value?.id) return { id: String(value.id), accessToken: value.accessToken || value.access_token || '' };
+      if (typeof value === 'string' && value.trim()) return { id: value.trim(), accessToken: '' };
     } catch {}
   }
-  return installationUserId(app);
+  return { id: installationUserId(app), accessToken: '' };
 }
 
 async function headers(app, extra = {}) {
-  const token = sessionToken();
+  const identity = await resolvedIdentity(app);
+  const legacyToken = String(process.env.OPENRABBIT_GATEWAY_APP_TOKEN || '').trim();
+  const bearer = identity.accessToken || legacyToken;
   return {
     accept: 'application/json',
-    'x-openrabbit-user': await resolvedUserId(app),
-    ...(token ? { authorization: `Bearer ${token}` } : {}),
+    'x-openrabbit-user': identity.id,
+    ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
     ...extra
   };
 }
