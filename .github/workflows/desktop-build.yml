@@ -57,8 +57,9 @@ jobs:
       - name: Write public OpenRabbit runtime configuration
         shell: bash
         env:
-          OPENRABBIT_PUBLIC_GATEWAY_URL: ${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL }}
-        run: node -e "const fs=require('fs');fs.writeFileSync('runtime-config.json',JSON.stringify({connectionGatewayUrl:process.env.OPENRABBIT_PUBLIC_GATEWAY_URL||''},null,2)+'\\n')"
+          CONFIGURED_GATEWAY_URL: ${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL }}
+          DEFAULT_GATEWAY_URL: https://openrabbit.93-188-163-198.sslip.io
+        run: node -e "const fs=require('fs');const url=process.env.CONFIGURED_GATEWAY_URL||process.env.DEFAULT_GATEWAY_URL||'';fs.writeFileSync('runtime-config.json',JSON.stringify({connectionGatewayUrl:url},null,2)+'\\n')"
 
       - name: Install desktop build dependencies
         run: npm install --no-audit --no-fund
