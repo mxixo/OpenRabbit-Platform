@@ -5,6 +5,8 @@ const http = require('http');
 const crypto = require('crypto');
 
 const repoRoot = path.join(__dirname, '..', '..');
+let workspaceServer;
+let workspaceOrigin;
 
 function loadLocalEnv() {
   if (app.isPackaged) return;
@@ -99,21 +101,61 @@ async function startGoogleOAuth() {
   });
 }
 
-function workspacePath() {
-  if (app.isPackaged) return path.join(process.resourcesPath, 'workspace', 'index.html');
-  return path.join(__dirname, '..', 'real-estate-workspace', 'index.html');
+function workspaceDirectory() {
+  if (app.isPackaged) return path.join(process.resourcesPath, 'workspace');
+  return path.join(__dirname, '..', 'real-estate-workspace');
 }
 
 function enhancementScriptPath() {
-  if (app.isPackaged) return path.join(process.resourcesPath, 'workspace', 'startup-enhancements.js');
-  return path.join(__dirname, '..', 'real-estate-workspace', 'startup-enhancements.js');
+  return path.join(workspaceDirectory(), 'startup-enhancements.js');
 }
 
-function createWindow() {
+function contentType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  return ({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon'}[ext] || 'application/octet-stream');
+}
+
+function startWorkspaceServer() {
+  if (workspaceServer && workspaceOrigin) return Promise.resolve(workspaceOrigin);
+  const root = path.resolve(workspaceDirectory());
+  const port = Number(process.env.OPENRABBIT_DESKTOP_PORT || 53683);
+
+  return new Promise((resolve, reject) => {
+    workspaceServer = http.createServer((req, res) => {
+      try {
+        const requestUrl = new URL(req.url, `http://127.0.0.1:${port}`);
+        let pathname = decodeURIComponent(requestUrl.pathname);
+        if (pathname === '/') pathname = '/index.html';
+        const relative = pathname.replace(/^\/+/, '');
+        const filePath = path.resolve(root, relative);
+        if (filePath !== root && !filePath.startsWith(root + path.sep)) {
+          res.writeHead(403); return res.end('Forbidden');
+        }
+        if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+          res.writeHead(404); return res.end('Not found');
+        }
+        res.writeHead(200, {'content-type': contentType(filePath), 'cache-control': 'no-store'});
+        fs.createReadStream(filePath).pipe(res);
+      } catch (error) {
+        res.writeHead(500); res.end('OpenRabbit workspace server error');
+      }
+    });
+    workspaceServer.once('error', reject);
+    workspaceServer.listen(port, '127.0.0.1', () => {
+      workspaceOrigin = `http://127.0.0.1:${port}`;
+      resolve(workspaceOrigin);
+    });
+  });
+}
+
+async function createWindow() {
+  const origin = await startWorkspaceServer();
   const window = new BrowserWindow({width:1440,height:960,minWidth:1080,minHeight:720,backgroundColor:'#0b0d10',title:'OpenRabbit',show:false,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   window.once('ready-to-show', () => window.show());
-  window.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) shell.openExternal(url); return { action: 'deny' }; });
-  window.webContents.on('will-navigate', (event, url) => { if (/^https?:\/\//i.test(url)) { event.preventDefault(); shell.openExternal(url); } });
+  window.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url) && !url.startsWith(origin)) shell.openExternal(url); return { action: 'deny' }; });
+  window.webContents.on('will-navigate', (event, url) => {
+    if (/^https?:\/\//i.test(url) && !url.startsWith(origin)) { event.preventDefault(); shell.openExternal(url); }
+  });
   window.webContents.on('did-finish-load', () => {
     try {
       const script = fs.readFileSync(enhancementScriptPath(), 'utf8');
@@ -122,15 +164,18 @@ function createWindow() {
       console.error('OpenRabbit startup enhancements unavailable', error);
     }
   });
-  window.loadFile(workspacePath());
+  window.loadURL(`${origin}/index.html`);
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   loadLocalEnv();
   ipcMain.handle('openrabbit:integration-status', () => integrationStatus());
   ipcMain.handle('openrabbit:start-google-oauth', () => startGoogleOAuth());
-  createWindow();
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+  try { await createWindow(); } catch (error) { console.error('OpenRabbit failed to start', error); app.quit(); }
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow().catch(console.error); });
 });
 
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('window-all-closed', () => {
+  if (workspaceServer) { try { workspaceServer.close(); } catch {} }
+  if (process.platform !== 'darwin') app.quit();
+});
