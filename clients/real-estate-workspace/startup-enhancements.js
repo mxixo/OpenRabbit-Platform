@@ -25,6 +25,82 @@
     crm.appendChild(secure);
   }
 
+  function upgradeSocialBrandLogos() {
+    const brands = [
+      {
+        selector: '.social-card.ig',
+        name: 'Instagram',
+        src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/instagram.svg',
+        background: 'linear-gradient(145deg,#833ab4 0%,#c13584 30%,#e1306c 52%,#fd1d1d 70%,#f77737 84%,#fcaf45 100%)'
+      },
+      {
+        selector: '.social-card.fb',
+        name: 'Facebook',
+        src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/facebook.svg',
+        background: '#1877F2'
+      },
+      {
+        selector: '.social-card.tt',
+        name: 'TikTok',
+        src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/tiktok.svg',
+        background: '#000000'
+      },
+      {
+        selector: '.social-card.li',
+        name: 'LinkedIn',
+        src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/linkedin.svg',
+        background: '#0A66C2'
+      },
+      {
+        selector: '.social-card.sc',
+        name: 'Snapchat',
+        src: 'https://cdn.jsdelivr.net/npm/simple-icons@v16/icons/snapchat.svg',
+        background: '#FFFC00'
+      }
+    ];
+
+    brands.forEach((brand) => {
+      const card = document.querySelector(brand.selector);
+      if (!card || card.dataset.openrabbitBrandLogo === 'true') return;
+
+      card.dataset.openrabbitBrandLogo = 'true';
+      card.setAttribute('aria-label', brand.name);
+      card.title = brand.name;
+      card.textContent = '';
+      card.style.background = brand.background;
+      card.style.alignItems = 'center';
+      card.style.justifyContent = 'center';
+      card.style.paddingTop = '0';
+      card.style.opacity = '1';
+      card.style.position = 'relative';
+      card.style.overflow = 'hidden';
+
+      const logo = document.createElement('img');
+      logo.src = brand.src;
+      logo.alt = `${brand.name} logo`;
+      logo.width = 58;
+      logo.height = 58;
+      logo.loading = 'eager';
+      logo.decoding = 'async';
+      logo.referrerPolicy = 'no-referrer';
+      logo.style.cssText = 'width:58px;height:58px;display:block;object-fit:contain;filter:invert(1);drop-shadow:0 2px 5px rgba(0,0,0,.18);';
+
+      if (brand.name === 'Snapchat') {
+        logo.style.width = '62px';
+        logo.style.height = '62px';
+        logo.style.filter = 'invert(1) drop-shadow(0 1px 1px rgba(0,0,0,.55))';
+      }
+
+      logo.addEventListener('error', () => {
+        card.textContent = brand.name;
+        card.style.fontSize = '13px';
+        card.style.fontWeight = '900';
+      }, { once: true });
+
+      card.appendChild(logo);
+    });
+  }
+
   function addMapUi(market, mapFrame) {
     mapFrame.innerHTML = '';
     mapFrame.id = 'dashboardGoogleMap';
@@ -128,6 +204,7 @@
 
   function start() {
     addCrmReadyOverlay();
+    upgradeSocialBrandLogos();
     initDashboardMap();
   }
 
