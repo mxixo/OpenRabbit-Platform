@@ -1,79 +1,29 @@
 "use strict";
-
-const http = require('http');
-const crypto = require('crypto');
-
-const port = Number(process.env.OPENRABBIT_CONNECTION_GATEWAY_PORT || 8790);
-const host = process.env.OPENRABBIT_CONNECTION_GATEWAY_HOST || '127.0.0.1';
-const publicBaseUrl = process.env.OPENRABBIT_CONNECTION_GATEWAY_PUBLIC_URL || `http://${host}:${port}`;
-
-const providers = [
-  { id: 'gmail', label: 'Gmail', category: 'mail', oauth: true, status: 'planned' },
-  { id: 'google-calendar', label: 'Google Calendar', category: 'calendar', oauth: true, status: 'planned' },
-  { id: 'hubspot', label: 'HubSpot', category: 'crm', oauth: true, status: 'planned' },
-  { id: 'microsoft', label: 'Microsoft 365', category: 'mail-calendar', oauth: true, status: 'planned' },
-  { id: 'meta', label: 'Meta / Instagram / Facebook', category: 'social', oauth: true, status: 'planned' },
-  { id: 'linkedin', label: 'LinkedIn', category: 'social', oauth: true, status: 'planned' }
-];
-
-function json(res, status, body) {
-  const payload = JSON.stringify(body);
-  res.writeHead(status, {
-    'content-type': 'application/json; charset=utf-8',
-    'content-length': Buffer.byteLength(payload),
-    'cache-control': 'no-store'
-  });
-  res.end(payload);
-}
-
-function requestId() {
-  return crypto.randomBytes(12).toString('hex');
-}
-
-function route(req, res) {
-  const id = requestId();
-  const url = new URL(req.url, publicBaseUrl);
-
-  if (req.method === 'GET' && url.pathname === '/health') {
-    return json(res, 200, {
-      ok: true,
-      service: 'openrabbit-connection-gateway',
-      version: 1,
-      requestId: id
-    });
-  }
-
-  if (req.method === 'GET' && url.pathname === '/v1/providers') {
-    return json(res, 200, {
-      providers,
-      requestId: id
-    });
-  }
-
-  if (url.pathname.startsWith('/v1/connections/') || url.pathname.startsWith('/oauth/')) {
-    return json(res, 501, {
-      error: 'CONNECTION_GATEWAY_NOT_CONFIGURED',
-      message: 'OpenRabbit user authentication and encrypted server-side token storage must be configured before production OAuth routes are enabled.',
-      requestId: id
-    });
-  }
-
-  return json(res, 404, { error: 'NOT_FOUND', requestId: id });
-}
-
-const server = http.createServer((req, res) => {
-  try {
-    route(req, res);
-  } catch (error) {
-    console.error(error);
-    json(res, 500, { error: 'INTERNAL_ERROR', message: 'Connection gateway request failed.' });
-  }
-});
-
-if (require.main === module) {
-  server.listen(port, host, () => {
-    console.log(`OpenRabbit Connection Gateway listening on ${publicBaseUrl}`);
-  });
-}
-
-module.exports = { server, providers };
+const http=require('http');const crypto=require('crypto');const fs=require('fs');const path=require('path');
+const port=Number(process.env.OPENRABBIT_CONNECTION_GATEWAY_PORT||8790);const host=process.env.OPENRABBIT_CONNECTION_GATEWAY_HOST||'0.0.0.0';const publicBaseUrl=(process.env.OPENRABBIT_CONNECTION_GATEWAY_PUBLIC_URL||`http://127.0.0.1:${port}`).replace(/\/$/,'');
+const dataDir=process.env.OPENRABBIT_GATEWAY_DATA_DIR||path.join(process.cwd(),'.openrabbit-gateway');const tokenFile=path.join(dataDir,'tokens.enc.json');const appToken=(process.env.OPENRABBIT_GATEWAY_APP_TOKEN||'').trim();const encSecret=(process.env.OPENRABBIT_TOKEN_ENCRYPTION_KEY||'').trim();const states=new Map();
+const providers=[{id:'gmail',label:'Gmail',category:'mail',oauth:true},{id:'google-calendar',label:'Google Calendar',category:'calendar',oauth:true},{id:'hubspot',label:'HubSpot',category:'crm',oauth:true},{id:'microsoft',label:'Microsoft 365',category:'mail-calendar',oauth:true,planned:true},{id:'meta',label:'Meta / Instagram / Facebook',category:'social',oauth:true,planned:true},{id:'linkedin',label:'LinkedIn',category:'social',oauth:true,planned:true},{id:'google-maps',label:'Google Maps',category:'maps',oauth:false}];
+function json(res,status,body,extra={}){const payload=JSON.stringify(body);res.writeHead(status,{'content-type':'application/json; charset=utf-8','content-length':Buffer.byteLength(payload),'cache-control':'no-store','access-control-allow-origin':process.env.OPENRABBIT_GATEWAY_CORS_ORIGIN||'*','access-control-allow-headers':'authorization,content-type,x-openrabbit-user','access-control-allow-methods':'GET,POST,DELETE,OPTIONS',...extra});res.end(payload)}
+function html(res,status,body){res.writeHead(status,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(body)}
+function requestId(){return crypto.randomBytes(12).toString('hex')}function key(){if(!encSecret)throw new Error('OPENRABBIT_TOKEN_ENCRYPTION_KEY is required');return crypto.createHash('sha256').update(encSecret).digest()}
+function encrypt(obj){const iv=crypto.randomBytes(12),cipher=crypto.createCipheriv('aes-256-gcm',key(),iv);const clear=Buffer.from(JSON.stringify(obj));const encrypted=Buffer.concat([cipher.update(clear),cipher.final()]);return {v:1,iv:iv.toString('base64'),tag:cipher.getAuthTag().toString('base64'),data:encrypted.toString('base64')}}
+function decrypt(blob){const d=crypto.createDecipheriv('aes-256-gcm',key(),Buffer.from(blob.iv,'base64'));d.setAuthTag(Buffer.from(blob.tag,'base64'));return JSON.parse(Buffer.concat([d.update(Buffer.from(blob.data,'base64')),d.final()]).toString('utf8'))}
+function readStore(){try{if(!fs.existsSync(tokenFile))return{};return decrypt(JSON.parse(fs.readFileSync(tokenFile,'utf8')))}catch(e){console.error('Token store read failed',e.message);return{}}}
+function writeStore(store){fs.mkdirSync(dataDir,{recursive:true});const tmp=tokenFile+'.tmp';fs.writeFileSync(tmp,JSON.stringify(encrypt(store)),{mode:0o600});fs.renameSync(tmp,tokenFile);try{fs.chmodSync(tokenFile,0o600)}catch{}}
+function userId(req,url){return String(req.headers['x-openrabbit-user']||url.searchParams.get('user')||'default').replace(/[^a-zA-Z0-9._@-]/g,'').slice(0,160)||'default'}
+function authorized(req){if(!appToken)return true;const auth=String(req.headers.authorization||'');const supplied=auth.startsWith('Bearer ')?auth.slice(7):'';if(!supplied)return false;const a=Buffer.from(supplied),b=Buffer.from(appToken);return a.length===b.length&&crypto.timingSafeEqual(a,b)}
+function requireAuth(req,res,id){if(authorized(req))return true;json(res,401,{error:'UNAUTHORIZED',message:'Missing or invalid gateway app token.',requestId:id});return false}
+function providerConfigured(id){if(id==='gmail'||id==='google-calendar')return Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID&&process.env.GOOGLE_OAUTH_CLIENT_SECRET);if(id==='hubspot')return Boolean(process.env.HUBSPOT_OAUTH_CLIENT_ID&&process.env.HUBSPOT_OAUTH_CLIENT_SECRET);if(id==='google-maps')return Boolean(process.env.GOOGLE_MAPS_BROWSER_KEY||process.env.OPENRABBIT_MAPS_BROWSER_KEY);return false}
+function connectionState(uid){const store=readStore(),u=store[uid]||{};return providers.map(p=>({id:p.id,label:p.label,configured:providerConfigured(p.id),connected:p.id==='google-maps'?providerConfigured(p.id):Boolean(u[p.id]?.refresh_token||u[p.id]?.access_token),planned:Boolean(p.planned),updatedAt:u[p.id]?.updated_at||null}))}
+function saveToken(uid,id,tokens){const store=readStore();store[uid]=store[uid]||{};store[uid][id]={...tokens,updated_at:new Date().toISOString()};writeStore(store)}
+function deleteToken(uid,id){const store=readStore();if(store[uid])delete store[uid][id];writeStore(store)}
+function googleStart(uid,kind){const id=kind==='calendar'?'google-calendar':'gmail';if(!providerConfigured(id))throw new Error('Google OAuth is not configured on the gateway.');const state=crypto.randomBytes(24).toString('hex');states.set(state,{uid,id,created:Date.now()});const redirect=`${publicBaseUrl}/oauth/google/callback`;const scope=id==='gmail'?'https://www.googleapis.com/auth/gmail.readonly':'https://www.googleapis.com/auth/calendar.readonly';const u=new URL('https://accounts.google.com/o/oauth2/v2/auth');u.searchParams.set('client_id',process.env.GOOGLE_OAUTH_CLIENT_ID);u.searchParams.set('redirect_uri',redirect);u.searchParams.set('response_type','code');u.searchParams.set('scope',`openid email ${scope}`);u.searchParams.set('access_type','offline');u.searchParams.set('prompt','consent');u.searchParams.set('state',state);return u.toString()}
+function hubspotStart(uid){if(!providerConfigured('hubspot'))throw new Error('HubSpot OAuth is not configured on the gateway.');const state=crypto.randomBytes(24).toString('hex');states.set(state,{uid,id:'hubspot',created:Date.now()});const scopes=(process.env.HUBSPOT_OAUTH_SCOPES||'crm.objects.contacts.read crm.objects.companies.read crm.objects.deals.read').trim();const u=new URL('https://app.hubspot.com/oauth/authorize');u.searchParams.set('client_id',process.env.HUBSPOT_OAUTH_CLIENT_ID);u.searchParams.set('redirect_uri',`${publicBaseUrl}/oauth/hubspot/callback`);u.searchParams.set('scope',scopes);u.searchParams.set('state',state);return u.toString()}
+async function exchangeGoogle(code,stateRec){const redirect=`${publicBaseUrl}/oauth/google/callback`;const r=await fetch('https://oauth2.googleapis.com/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:process.env.GOOGLE_OAUTH_CLIENT_ID,client_secret:process.env.GOOGLE_OAUTH_CLIENT_SECRET,code,grant_type:'authorization_code',redirect_uri:redirect})});const t=await r.json();if(!r.ok)throw new Error(t.error_description||t.error||`Google token exchange failed (${r.status})`);saveToken(stateRec.uid,stateRec.id,{refresh_token:t.refresh_token,access_token:t.access_token,expires_in:t.expires_in,scope:t.scope,token_type:t.token_type});}
+async function exchangeHubspot(code,stateRec){const r=await fetch('https://api.hubapi.com/oauth/v1/token',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({grant_type:'authorization_code',client_id:process.env.HUBSPOT_OAUTH_CLIENT_ID,client_secret:process.env.HUBSPOT_OAUTH_CLIENT_SECRET,redirect_uri:`${publicBaseUrl}/oauth/hubspot/callback`,code})});const t=await r.json();if(!r.ok)throw new Error(t.message||t.error||`HubSpot token exchange failed (${r.status})`);saveToken(stateRec.uid,'hubspot',{refresh_token:t.refresh_token,access_token:t.access_token,expires_in:t.expires_in,token_type:t.token_type});}
+function popState(value){const rec=states.get(value);states.delete(value);if(!rec||Date.now()-rec.created>10*60*1000)return null;return rec}
+async function route(req,res){const id=requestId(),url=new URL(req.url,publicBaseUrl);if(req.method==='OPTIONS')return json(res,204,{});if(req.method==='GET'&&url.pathname==='/health')return json(res,200,{ok:true,service:'openrabbit-connection-gateway',version:2,configured:{encryption:Boolean(encSecret),auth:Boolean(appToken),google:providerConfigured('gmail'),hubspot:providerConfigured('hubspot'),maps:providerConfigured('google-maps')},requestId:id});if(req.method==='GET'&&url.pathname==='/v1/providers')return json(res,200,{providers:providers.map(p=>({...p,configured:providerConfigured(p.id)})),requestId:id});
+if(url.pathname==='/oauth/google/callback'&&req.method==='GET'){const rec=popState(url.searchParams.get('state'));if(!rec)return html(res,400,'<h1>OpenRabbit authorization expired</h1><p>Please return to OpenRabbit and try again.</p>');if(url.searchParams.get('error'))return html(res,400,`<h1>Google authorization failed</h1><p>${url.searchParams.get('error')}</p>`);try{await exchangeGoogle(url.searchParams.get('code'),rec);return html(res,200,'<style>body{font-family:system-ui;background:#0b1020;color:#fff;display:grid;place-items:center;height:100vh}.c{text-align:center}h1{color:#a78bfa}</style><div class="c"><h1>OpenRabbit connected</h1><p>Google authorization completed. You can close this window.</p></div>')}catch(e){return html(res,500,`<h1>OpenRabbit connection failed</h1><p>${e.message}</p>`)}}
+if(url.pathname==='/oauth/hubspot/callback'&&req.method==='GET'){const rec=popState(url.searchParams.get('state'));if(!rec)return html(res,400,'<h1>OpenRabbit authorization expired</h1>');if(url.searchParams.get('error'))return html(res,400,`<h1>HubSpot authorization failed</h1><p>${url.searchParams.get('error')}</p>`);try{await exchangeHubspot(url.searchParams.get('code'),rec);return html(res,200,'<style>body{font-family:system-ui;background:#0b1020;color:#fff;display:grid;place-items:center;height:100vh}.c{text-align:center}h1{color:#a78bfa}</style><div class="c"><h1>OpenRabbit connected</h1><p>HubSpot authorization completed. You can close this window.</p></div>')}catch(e){return html(res,500,`<h1>OpenRabbit connection failed</h1><p>${e.message}</p>`)}}
+if(!requireAuth(req,res,id))return;const uid=userId(req,url);if(req.method==='GET'&&url.pathname==='/v1/connections')return json(res,200,{user:uid,connections:connectionState(uid),requestId:id});if(req.method==='POST'&&url.pathname==='/v1/connections/google/start'){try{return json(res,200,{authorizationUrl:googleStart(uid,url.searchParams.get('kind')||'gmail'),requestId:id})}catch(e){return json(res,503,{error:'PROVIDER_NOT_CONFIGURED',message:e.message,requestId:id})}}if(req.method==='POST'&&url.pathname==='/v1/connections/hubspot/start'){try{return json(res,200,{authorizationUrl:hubspotStart(uid),requestId:id})}catch(e){return json(res,503,{error:'PROVIDER_NOT_CONFIGURED',message:e.message,requestId:id})}}const m=url.pathname.match(/^\/v1\/connections\/([a-z0-9-]+)$/);if(m&&req.method==='DELETE'){deleteToken(uid,m[1]);return json(res,200,{connected:false,provider:m[1],requestId:id})}return json(res,404,{error:'NOT_FOUND',requestId:id})}
+const server=http.createServer((req,res)=>{route(req,res).catch(e=>{console.error(e);json(res,500,{error:'INTERNAL_ERROR',message:'Connection gateway request failed.'})})});if(require.main===module)server.listen(port,host,()=>console.log(`OpenRabbit Connection Gateway listening on ${publicBaseUrl}`));module.exports={server,providers,connectionState};
