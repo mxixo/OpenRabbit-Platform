@@ -42,6 +42,58 @@ function integrationStatus() {
   };
 }
 
+function openRabbitAgentInstructions() {
+  return [
+    'You are OpenRabbit, the AI operating agent inside the OpenRabbit desktop application.',
+    'Be concise, practical and action-oriented.',
+    'You may explain what OpenRabbit can do, help the user plan work, analyze supplied information, and guide them through the interface.',
+    'Do not claim that an external action, email, calendar change, CRM write, social post, or property-data lookup happened unless a connected OpenRabbit tool actually performed it.',
+    'When an integration is not connected, clearly say what connection is required.',
+    'This desktop chat is the conversational layer; additional tools and approval-gated actions will be connected incrementally.'
+  ].join(' ');
+}
+
+async function runOpenRabbitAgent(rawMessages) {
+  const apiKey = (process.env.OPENAI_API_KEY || '').trim();
+  if (!apiKey) {
+    throw new Error('OpenAI is not configured on this computer. Add OPENAI_API_KEY to the local OpenRabbit .env file and relaunch the app.');
+  }
+
+  const model = (process.env.OPENRABBIT_AGENT_MODEL || 'gpt-5.6').trim();
+  const messages = Array.isArray(rawMessages) ? rawMessages : [];
+  const input = messages.slice(-20).map((message) => ({
+    role: message?.role === 'assistant' ? 'assistant' : 'user',
+    content: String(message?.content || '').slice(0, 12000)
+  })).filter((message) => message.content.trim());
+
+  if (!input.length) throw new Error('Type a message for OpenRabbit first.');
+
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'authorization': `Bearer ${apiKey}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      model,
+      store: false,
+      instructions: openRabbitAgentInstructions(),
+      input
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data?.error?.message || `OpenAI request failed (${response.status})`;
+    throw new Error(message);
+  }
+
+  const text = (data.output_text || (Array.isArray(data.output) ? data.output.flatMap((item) => Array.isArray(item.content) ? item.content : []).filter((part) => part?.type === 'output_text' && part.text).map((part) => part.text).join('\n') : '')).trim();
+  if (!text) throw new Error('OpenAI returned an empty response.');
+
+  return { text, model, responseId: data.id || null };
+}
+
 async function startGoogleOAuth() {
   const clientId = (process.env.GOOGLE_OAUTH_CLIENT_ID || '').trim();
   const clientSecret = (process.env.GOOGLE_OAUTH_CLIENT_SECRET || '').trim();
@@ -110,6 +162,10 @@ function enhancementScriptPath() {
   return path.join(workspaceDirectory(), 'startup-enhancements.js');
 }
 
+function agentChatScriptPath() {
+  return path.join(workspaceDirectory(), 'agent-chat.js');
+}
+
 function contentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   return ({'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon'}[ext] || 'application/octet-stream');
@@ -157,11 +213,13 @@ async function createWindow() {
     if (/^https?:\/\//i.test(url) && !url.startsWith(origin)) { event.preventDefault(); shell.openExternal(url); }
   });
   window.webContents.on('did-finish-load', () => {
-    try {
-      const script = fs.readFileSync(enhancementScriptPath(), 'utf8');
-      window.webContents.executeJavaScript(script).catch((error) => console.error('OpenRabbit startup enhancements failed', error));
-    } catch (error) {
-      console.error('OpenRabbit startup enhancements unavailable', error);
+    for (const scriptPath of [enhancementScriptPath(), agentChatScriptPath()]) {
+      try {
+        const script = fs.readFileSync(scriptPath, 'utf8');
+        window.webContents.executeJavaScript(script).catch((error) => console.error('OpenRabbit renderer enhancement failed', error));
+      } catch (error) {
+        console.error('OpenRabbit renderer enhancement unavailable', scriptPath, error);
+      }
     }
   });
   window.loadURL(`${origin}/index.html`);
@@ -171,6 +229,7 @@ app.whenReady().then(async () => {
   loadLocalEnv();
   ipcMain.handle('openrabbit:integration-status', () => integrationStatus());
   ipcMain.handle('openrabbit:start-google-oauth', () => startGoogleOAuth());
+  ipcMain.handle('openrabbit:agent-chat', (_event, messages) => runOpenRabbitAgent(messages));
   try { await createWindow(); } catch (error) { console.error('OpenRabbit failed to start', error); app.quit(); }
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow().catch(console.error); });
 });
