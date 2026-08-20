@@ -14,4 +14,4 @@ if [ -z "${OPENRABBIT_TOKEN_ENCRYPTION_KEY:-}" ]; then
   export OPENRABBIT_TOKEN_ENCRYPTION_KEY="$(cat "$KEY_FILE")"
 fi
 
-exec node services/connection-gateway/server-v5.js
+exec node services/connection-gateway/server-v6.js
