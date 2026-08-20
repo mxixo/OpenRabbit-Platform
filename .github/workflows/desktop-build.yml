@@ -23,12 +23,22 @@ jobs:
           - os: macos-latest
             command: dist:mac
             artifact: macOS
+            artifact_paths: |
+              clients/desktop-shell/dist/*.dmg
+              clients/desktop-shell/dist/*.dmg.blockmap
+            release_assets: clients/desktop-shell/dist/*.dmg clients/desktop-shell/dist/*.dmg.blockmap
           - os: windows-latest
             command: dist:win
             artifact: Windows
+            artifact_paths: |
+              clients/desktop-shell/dist/*.exe
+              clients/desktop-shell/dist/*.exe.blockmap
+            release_assets: clients/desktop-shell/dist/*.exe clients/desktop-shell/dist/*.exe.blockmap
           - os: ubuntu-latest
             command: dist:linux
             artifact: Linux
+            artifact_paths: clients/desktop-shell/dist/*.AppImage
+            release_assets: clients/desktop-shell/dist/*.AppImage
 
     runs-on: ${{ matrix.os }}
     defaults:
@@ -54,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: OpenRabbit-${{ matrix.artifact }}
-          path: clients/desktop-shell/dist/*
+          path: ${{ matrix.artifact_paths }}
           if-no-files-found: error
 
       - name: Attach installer to published GitHub release
@@ -63,4 +73,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
-        run: gh release upload "${{ github.event.release.tag_name }}" clients/desktop-shell/dist/* --clobber
+        run: gh release upload "${{ github.event.release.tag_name }}" ${{ matrix.release_assets }} --clobber
