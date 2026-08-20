@@ -1,0 +1,8 @@
+{$OPENRABBIT_GATEWAY_SITE:http://0.0.0.0} {
+  encode zstd gzip
+
+  @health path /health
+  header @health Cache-Control "no-store"
+
+  reverse_proxy connection-gateway:8790
+}
