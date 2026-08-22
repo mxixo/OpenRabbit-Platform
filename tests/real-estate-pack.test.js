@@ -14,7 +14,7 @@ async function runTests() {
 
   assert.strictEqual(realEstatePack.manifest.id, "pack.real-estate");
   assert.deepStrictEqual(realEstatePack.manifest.capabilities, ["real-estate"]);
-  assert.strictEqual(realEstatePack.manifest.workerPresets.length, 2);
+  assert.strictEqual(realEstatePack.manifest.workerPresets.length, 3);
   assert.strictEqual(
     realEstatePack.manifest.workerPresets[0].role,
     "acquisitions_analyst"
@@ -22,6 +22,18 @@ async function runTests() {
   assert.strictEqual(
     realEstatePack.manifest.workerPresets[0].allowedTools[0],
     "deal.underwrite"
+  );
+  const leadToDealWorker = realEstatePack.manifest.workerPresets.find(
+    (worker) => worker.id === "lead-to-deal-operations"
+  );
+  assert.ok(leadToDealWorker);
+  assert.strictEqual(leadToDealWorker.role, "operations_manager");
+  assert.deepStrictEqual(leadToDealWorker.allowedTools, ["deal.underwrite"]);
+  assert.strictEqual(leadToDealWorker.memoryScope, "team");
+  assert.strictEqual(leadToDealWorker.approvalPolicy.requiresApproval, true);
+  assert.strictEqual(
+    leadToDealWorker.metadata.sideEffectPolicy,
+    "draft-only-until-approved"
   );
 
   const canonical = capability.workflows.commercialInvestmentWorkflow;
