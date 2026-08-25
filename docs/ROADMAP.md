@@ -64,7 +64,8 @@ Deliverables:
    - org bootstrap  
    - worker list/create from presets  
    - run task / view result  
-   - approval stub for consequential actions  
+   - approval stub for consequential actions
+   - trusted-node registration, capability status, and revocation
 3. **`capabilities/real-estate`** hosts commercial investment workflow  
 4. **`packs/real-estate`** installs capabilities + materializes Acquisitions/Research workers  
 5. WorkerOrchestrator is the only supported task path for new features  
@@ -81,13 +82,15 @@ Deliverables:
 
 - Auth + multi-tenant org hardening  
 - CEO dashboard views (workers, approvals, deal pipeline metrics)  
+- Mobile companion surfaces for Today, Workers, Work, Approvals, and Command, with push deep links
 - CRM integration (HubSpot or equivalent) via IntegrationAdapter  
 - Property data integration (Rentcast/MLS as available)  
 - Billing-ready packaging of Real Estate Pack  
 - Audit log for worker actions and approvals  
+- Productized trusted-node enrollment, persistent reconnect, health, and offline handling
 - Support runbooks and promotion gates used for real releases  
 
-**Exit criteria:** Onboard paying org; pack install; workers active; underwriting + CRM path in production-like env; approval trail exists.
+**Exit criteria:** Onboard paying org; pack install; workers active; opportunity alert → analysis → mobile approval → CRM update works in a production-like environment; approval and node audit trails exist.
 
 ---
 
@@ -172,4 +175,5 @@ See also the PR summary accompanying this docs change. Maintainers should approv
 - `OPENRABBIT_CONTEXT.md`
 - `docs/VISION.md`
 - `docs/ARCHITECTURE.md`
+- `docs/MOBILE-NODE-ARCHITECTURE.md`
 - `docs/architecture/*` (historical engineering notes; yield to this roadmap on product sequencing)
