@@ -2,13 +2,13 @@ import {
   InMemoryConfigurationManager,
   InMemoryEventBus,
   InMemoryLogSink,
-  MemoryQuery,
   MemoryRecord,
   ServiceReliabilitySnapshot,
   StructuredLogger
 } from "@openrabbit/runtime-core";
 import {
   DecisionProvenance,
+  MemoryAccessContext,
   MemoryConsolidationRequest,
   MemoryConsolidationResult,
   MemoryDeleteResult,
@@ -69,6 +69,26 @@ export function createMemoryService(
     return undefined;
   };
 
+  const captureContext = (context: MemoryAccessContext): MemoryAccessContext | undefined => {
+    const orgId = context?.orgId;
+    const subjectId = context?.subjectId;
+    const namespace = context?.namespace;
+    if (
+      isNonBlankString(orgId) &&
+      isNonBlankString(subjectId) &&
+      isNonBlankString(namespace)
+    ) {
+      return {
+        orgId,
+        subjectId,
+        namespace
+      };
+    }
+    operationsFailed += 1;
+    lastErrorCode = "INVALID_MEMORY_ACCESS_CONTEXT";
+    return undefined;
+  };
+
   return {
     async start(): Promise<void> {
       try {
@@ -113,24 +133,36 @@ export function createMemoryService(
         lastErrorCode
       };
     },
-    async putMemory(input: MemoryWriteInput): Promise<MemoryWriteResult> {
+    async putMemory(
+      context: MemoryAccessContext,
+      input: MemoryWriteInput
+    ): Promise<MemoryWriteResult> {
       const notStartedReason = requiresStarted();
       if (notStartedReason) {
         return { saved: false, reason: notStartedReason };
       }
-      if (!input.id || !input.namespace || !input.content) {
+      const scope = captureContext(context);
+      if (!scope) {
+        return { saved: false, reason: "authenticated memory context is required" };
+      }
+      if (!input.id || !input.content) {
         operationsFailed += 1;
         lastErrorCode = "INVALID_MEMORY_RECORD";
-        return { saved: false, reason: "id, namespace, and content are required" };
+        return { saved: false, reason: "id and content are required" };
       }
       try {
-        const record = await repository.put({
-          ...input,
-          metadata: buildMemoryMetadata(input)
-        });
+        const record = cloneMemoryRecord(
+          await repository.put({
+            ...input,
+            orgId: scope.orgId,
+            namespace: scope.namespace,
+            metadata: buildMemoryMetadata(input)
+          })
+        );
+        assertRecordInContext(record, scope, input.id);
         await eventBus.publish({
           type: "memory.record.upserted",
-          payload: { id: record.id, namespace: record.namespace },
+          payload: { id: record.id, orgId: record.orgId, namespace: record.namespace },
           timestamp: new Date().toISOString()
         });
         if (input.reasoningHistory || input.decisionProvenance) {
@@ -138,6 +170,7 @@ export function createMemoryService(
             type: "memory.provenance.tracked",
             payload: {
               id: record.id,
+              orgId: record.orgId,
               namespace: record.namespace,
               reasoningStepCount: input.reasoningHistory?.length ?? 0,
               decisionId: input.decisionProvenance?.decisionId
@@ -146,7 +179,7 @@ export function createMemoryService(
           });
         }
         operationsSucceeded += 1;
-        return { saved: true, record };
+        return { saved: true, record: cloneMemoryRecord(record) };
       } catch (error) {
         operationsFailed += 1;
         lastErrorCode = "PERSISTENCE_WRITE_FAILED";
@@ -158,38 +191,59 @@ export function createMemoryService(
         return { saved: false, reason: "failed to persist memory record" };
       }
     },
-    async getMemory(id: string): Promise<MemoryRecord | undefined> {
+    async getMemory(
+      context: MemoryAccessContext,
+      address
+    ): Promise<MemoryRecord | undefined> {
       const notStartedReason = requiresStarted();
       if (notStartedReason) {
         return undefined;
       }
+      const scope = captureContext(context);
+      if (!scope || !address?.id?.trim()) {
+        return undefined;
+      }
       try {
-        const record = await repository.get(id);
+        const repositoryRecord = await repository.get({
+          id: address.id,
+          orgId: scope.orgId,
+          namespace: scope.namespace
+        });
+        const record = repositoryRecord ? cloneMemoryRecord(repositoryRecord) : undefined;
+        if (record) {
+          assertRecordInContext(record, scope, address.id);
+        }
         operationsSucceeded += 1;
-        return record;
+        return record ? cloneMemoryRecord(record) : undefined;
       } catch (error) {
         operationsFailed += 1;
         lastErrorCode = "PERSISTENCE_READ_FAILED";
         persistenceState = "error";
         await logger.error("memory read persistence failure", {
           error: toErrorMessage(error),
-          id
+          id: address.id
         });
         return undefined;
       }
     },
-    async searchMemory(query: MemoryQuery): Promise<MemoryRecord[]> {
+    async searchMemory(context: MemoryAccessContext, query): Promise<MemoryRecord[]> {
       const notStartedReason = requiresStarted();
       if (notStartedReason) {
         return [];
       }
-      if (!query.namespace) {
-        operationsFailed += 1;
-        lastErrorCode = "INVALID_MEMORY_QUERY";
+      const scope = captureContext(context);
+      if (!scope) {
         return [];
       }
       try {
-        const results = await repository.search(query);
+        const results = (await repository.search({
+          ...query,
+          orgId: scope.orgId,
+          namespace: scope.namespace
+        })).map(cloneMemoryRecord);
+        for (const record of results) {
+          assertRecordInContext(record, scope);
+        }
         operationsSucceeded += 1;
         return results;
       } catch (error) {
@@ -198,22 +252,30 @@ export function createMemoryService(
         persistenceState = "error";
         await logger.error("memory search persistence failure", {
           error: toErrorMessage(error),
-          namespace: query.namespace
+          namespace: scope.namespace
         });
         return [];
       }
     },
-    async deleteMemory(id: string): Promise<MemoryDeleteResult> {
+    async deleteMemory(context: MemoryAccessContext, address): Promise<MemoryDeleteResult> {
       const notStartedReason = requiresStarted();
       if (notStartedReason) {
         return { deleted: false, reason: notStartedReason };
       }
+      const scope = captureContext(context);
+      if (!scope || !address?.id?.trim()) {
+        return { deleted: false, reason: "memory record not found" };
+      }
       try {
-        const deleted = await repository.delete(id);
+        const deleted = await repository.delete({
+          id: address.id,
+          orgId: scope.orgId,
+          namespace: scope.namespace
+        });
         if (deleted) {
           await eventBus.publish({
             type: "memory.record.deleted",
-            payload: { id },
+            payload: { id: address.id, orgId: scope.orgId, namespace: scope.namespace },
             timestamp: new Date().toISOString()
           });
           operationsSucceeded += 1;
@@ -228,52 +290,60 @@ export function createMemoryService(
         persistenceState = "error";
         await logger.error("memory delete persistence failure", {
           error: toErrorMessage(error),
-          id
+          id: address.id
         });
         return { deleted: false, reason: "failed to persist memory deletion" };
       }
     },
     async consolidateMemory(
+      context: MemoryAccessContext,
       request: MemoryConsolidationRequest
     ): Promise<MemoryConsolidationResult> {
       const notStartedReason = requiresStarted();
       if (notStartedReason) {
         return { promotedCount: 0, promotedRecordIds: [] };
       }
-      if (!request.namespace) {
-        operationsFailed += 1;
-        lastErrorCode = "INVALID_CONSOLIDATION_REQUEST";
+      const scope = captureContext(context);
+      if (!scope) {
         return { promotedCount: 0, promotedRecordIds: [] };
       }
       const minAccessCount = request.minAccessCount ?? 3;
       const maxPromotions = request.maxPromotions ?? 50;
       try {
-        const candidates = await repository.search({
-          namespace: request.namespace,
+        const candidates = (await repository.search({
+          orgId: scope.orgId,
+          namespace: scope.namespace,
           sessionId: request.sessionId,
           limit: maxPromotions * 5
-        });
+        })).map(cloneMemoryRecord);
+        for (const record of candidates) {
+          assertRecordInContext(record, scope);
+        }
         const toPromote = candidates
           .filter((record) => isWorkingTier(record))
           .filter((record) => getAccessCount(record) >= minAccessCount)
           .slice(0, maxPromotions);
         const promotedRecordIds: string[] = [];
         for (const record of toPromote) {
-          const promoted = await repository.put({
-            ...record,
-            metadata: {
-              ...record.metadata,
-              storageTier: "long-term",
-              promotedAt: new Date().toISOString()
-            }
-          });
+          const promoted = cloneMemoryRecord(
+            await repository.put({
+              ...record,
+              metadata: {
+                ...record.metadata,
+                storageTier: "long-term",
+                promotedAt: new Date().toISOString()
+              }
+            })
+          );
+          assertRecordInContext(promoted, scope, record.id);
           promotedRecordIds.push(promoted.id);
         }
         if (promotedRecordIds.length > 0) {
           await eventBus.publish({
             type: "memory.records.consolidated",
             payload: {
-              namespace: request.namespace,
+              namespace: scope.namespace,
+              orgId: scope.orgId,
               promotedRecordIds
             },
             timestamp: new Date().toISOString()
@@ -290,7 +360,7 @@ export function createMemoryService(
         persistenceState = "error";
         await logger.error("memory consolidation persistence failure", {
           error: toErrorMessage(error),
-          namespace: request.namespace
+          namespace: scope.namespace
         });
         return { promotedCount: 0, promotedRecordIds: [] };
       }
@@ -342,6 +412,28 @@ function getAccessCount(record: MemoryRecord): number {
 function isWorkingTier(record: MemoryRecord): boolean {
   const tier = record.metadata?.storageTier;
   return tier === undefined || tier === "working";
+}
+
+function assertRecordInContext(
+  record: MemoryRecord,
+  context: MemoryAccessContext,
+  expectedId?: string
+): void {
+  if (
+    record.orgId !== context.orgId ||
+    record.namespace !== context.namespace ||
+    (expectedId !== undefined && record.id !== expectedId)
+  ) {
+    throw new Error("memory repository returned a record outside the authenticated scope");
+  }
+}
+
+function cloneMemoryRecord(record: MemoryRecord): MemoryRecord {
+  return JSON.parse(JSON.stringify(record)) as MemoryRecord;
+}
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function normalizeReasoningHistory(

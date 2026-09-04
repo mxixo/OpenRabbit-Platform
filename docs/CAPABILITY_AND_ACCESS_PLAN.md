@@ -112,7 +112,10 @@ The default product posture is seamless autonomy after one-time account consent:
 
 - Workflow policy checks now honor explicit denials while preserving seamless execution when no stricter per-step decision is configured.
 - The real-estate capability manifest records the validated OpenClaw workflow suite without making OpenClaw the product boundary.
-- The next implementation gates are tenant-bound integration handles, enforced worker approval, durable audit/state storage, webhook authenticity/replay protection, and runtime adapter contract tests.
+- Worker execution and session lifecycle now require a trusted organization/subject context, keep sessions tenant-bound, reject runtime identity mismatches, and recreate sessions when projected authority changes.
+- Memory and knowledge records now include organization scope in their storage keys and APIs, bind service namespaces to trusted execution context, reject unscoped persisted records, serialize development-store writes, and return defensive copies so one request cannot mutate shared tenant state.
+- These controls are service-side and do not introduce user prompts; the seamless autonomy loop remains the default experience.
+- The next implementation gates are tenant-bound integration handles, durable tamper-evident audit/state storage, webhook authenticity/replay protection, and runtime adapter contract tests.
 
 ## Definition of ready for broad beta
 

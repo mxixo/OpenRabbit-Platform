@@ -1,5 +1,6 @@
 export interface MemoryRecord {
   id: string;
+  orgId: string;
   namespace: string;
   sessionId?: string;
   content: string;
@@ -9,15 +10,22 @@ export interface MemoryRecord {
 }
 
 export interface MemoryQuery {
+  orgId: string;
   namespace: string;
   sessionId?: string;
   text?: string;
   limit?: number;
 }
 
+export interface MemoryRecordAddress {
+  orgId: string;
+  namespace: string;
+  id: string;
+}
+
 export interface MemoryStore {
   put(record: Omit<MemoryRecord, "createdAt" | "updatedAt">): MemoryRecord;
-  get(id: string): MemoryRecord | undefined;
-  delete(id: string): boolean;
+  get(address: MemoryRecordAddress): MemoryRecord | undefined;
+  delete(address: MemoryRecordAddress): boolean;
   search(query: MemoryQuery): MemoryRecord[];
 }
