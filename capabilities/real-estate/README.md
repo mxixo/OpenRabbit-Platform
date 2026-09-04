@@ -21,6 +21,11 @@ Target home for real-estate domain functionality.
 - OpenRabbit app commercial investment workflow skill
 - underwriting/analysis logic
 - MLS / Rentcast connectors via `integrations/`
+- validated local OpenClaw real-estate skills listed in `manifest.json`
+
+`manifest.json` is the runtime-neutral capability inventory. It records the
+business tools and workflows OpenRabbit intends to expose without making
+OpenClaw, Codex, or any single model provider the owner of that logic.
 
 ## Pack relationship
 

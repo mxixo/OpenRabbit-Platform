@@ -13,7 +13,10 @@ Read in order before architectural changes:
 6. [INDUSTRY_PACKS.md](INDUSTRY_PACKS.md)
 7. [ROADMAP.md](ROADMAP.md)
 
+Operational capability and access roadmap:
+
+- [CAPABILITY_AND_ACCESS_PLAN.md](CAPABILITY_AND_ACCESS_PLAN.md)
+
 Root entrypoint for all AI tools: [`OPENRABBIT_CONTEXT.md`](../OPENRABBIT_CONTEXT.md)
 
 Historical phase notes under `docs/architecture/` yield to the canonical files above on conflict.
-

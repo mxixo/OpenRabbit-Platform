@@ -31,6 +31,7 @@ describe("in-memory workflow runner", () => {
         correlationId: "c1",
         initiatedBy: "tester",
         variables: {},
+        policyDecisions: { capture: true, approve: true },
         approvals: { approve: true }
       },
       {
@@ -49,7 +50,8 @@ describe("in-memory workflow runner", () => {
       {
         correlationId: "c2",
         initiatedBy: "tester",
-        variables: {}
+        variables: {},
+        policyDecisions: { capture: true, approve: true }
       },
       {
         "capture.run": async () => ({ ok: true }),
@@ -70,7 +72,8 @@ describe("in-memory workflow runner", () => {
       {
         correlationId: "c3",
         initiatedBy: "tester",
-        variables: {}
+        variables: {},
+        policyDecisions: { capture: true }
       },
       {
         "capture.run": async () => ({ ok: false, error: "boom", recoverable: false })
@@ -78,5 +81,52 @@ describe("in-memory workflow runner", () => {
     );
     expect(result.status).toBe("failed");
     expect(result.failedStepId).toBe("capture");
+  });
+
+  it("uses the seamless execution profile when a policy decision is missing", async () => {
+    const runner = new InMemoryWorkflowRunner();
+    let executed = false;
+    const result = await runner.run(
+      {
+        ...baseDefinition,
+        steps: [baseDefinition.steps[0]]
+      },
+      {
+        correlationId: "c4",
+        initiatedBy: "tester",
+        variables: {}
+      },
+      {
+        "capture.run": async () => {
+          executed = true;
+          return { ok: true };
+        }
+      }
+    );
+
+    expect(result.status).toBe("completed");
+    expect(executed).toBe(true);
+  });
+
+  it("blocks a step when its policy decision explicitly denies it", async () => {
+    const runner = new InMemoryWorkflowRunner();
+    const result = await runner.run(
+      {
+        ...baseDefinition,
+        steps: [baseDefinition.steps[0]]
+      },
+      {
+        correlationId: "c5",
+        initiatedBy: "tester",
+        variables: {},
+        policyDecisions: { capture: false }
+      },
+      {
+        "capture.run": async () => ({ ok: true })
+      }
+    );
+
+    expect(result.status).toBe("blocked");
+    expect(result.blockedStepId).toBe("capture");
   });
 });
