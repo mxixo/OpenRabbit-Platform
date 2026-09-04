@@ -60,7 +60,9 @@ Recommended production components:
 ## Local development
 
 ```bash
-OPENRABBIT_CONNECTION_GATEWAY_PORT=8790 node services/connection-gateway/server.js
+OPENRABBIT_CONNECTION_GATEWAY_PORT=8790 node services/connection-gateway/server-v6.js
 ```
 
 Then open `http://127.0.0.1:8790/health`.
+
+The `server-v6.js` filename is retained for deployment compatibility; its health response reports the current gateway contract version (`7`).

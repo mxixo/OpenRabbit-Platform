@@ -16,7 +16,7 @@ services:
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
       HUBSPOT_OAUTH_CLIENT_ID: ${HUBSPOT_OAUTH_CLIENT_ID:-}
       HUBSPOT_OAUTH_CLIENT_SECRET: ${HUBSPOT_OAUTH_CLIENT_SECRET:-}
-      HUBSPOT_OAUTH_SCOPES: ${HUBSPOT_OAUTH_SCOPES:-crm.objects.contacts.read crm.objects.companies.read crm.objects.deals.read}
+      HUBSPOT_OAUTH_SCOPES: ${HUBSPOT_OAUTH_SCOPES:-crm.objects.contacts.read crm.objects.contacts.write crm.objects.companies.read crm.objects.companies.write crm.objects.deals.read crm.objects.deals.write}
       GOOGLE_MAPS_BROWSER_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
       META_APP_ID: ${META_APP_ID:-}
       META_APP_SECRET: ${META_APP_SECRET:-}
