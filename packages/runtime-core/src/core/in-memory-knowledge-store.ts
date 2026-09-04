@@ -1,7 +1,9 @@
 import {
   KnowledgeEntity,
+  KnowledgeEntityAddress,
   KnowledgeQuery,
   KnowledgeRecord,
+  KnowledgeRecordAddress,
   KnowledgeRelationship,
   KnowledgeSearchResult,
   KnowledgeStore
@@ -13,25 +15,31 @@ export class InMemoryKnowledgeStore implements KnowledgeStore {
   private readonly relationships = new Map<string, KnowledgeRelationship>();
 
   putRecord(record: Omit<KnowledgeRecord, "createdAt" | "updatedAt">): KnowledgeRecord {
+    assertKnowledgeAddress(record);
     const now = new Date().toISOString();
-    const existing = this.records.get(record.id);
+    const key = knowledgeKey(record);
+    const existing = this.records.get(key);
     const next: KnowledgeRecord = {
       ...normalizeRecord(record, now),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now
     };
-    this.records.set(record.id, next);
-    return next;
+    this.records.set(key, cloneKnowledgeRecord(next));
+    return cloneKnowledgeRecord(next);
   }
 
-  getRecord(id: string): KnowledgeRecord | undefined {
-    return this.records.get(id);
+  getRecord(address: KnowledgeRecordAddress): KnowledgeRecord | undefined {
+    assertKnowledgeAddress(address);
+    const record = this.records.get(knowledgeKey(address));
+    return record ? cloneKnowledgeRecord(record) : undefined;
   }
 
   search(query: KnowledgeQuery): KnowledgeSearchResult[] {
+    assertKnowledgePartition(query);
     const topK = query.topK ?? 10;
     const now = new Date();
     const scored = [...this.records.values()]
+      .filter((record) => record.orgId === query.orgId)
       .filter((record) => record.namespace === query.namespace)
       .filter((record) => matchesTagFilter(record, query.tags))
       .filter((record) =>
@@ -45,48 +53,78 @@ export class InMemoryKnowledgeStore implements KnowledgeStore {
       )
       .sort((a, b) => b.score - a.score || b.record.updatedAt.localeCompare(a.record.updatedAt))
       .slice(0, topK);
-    return scored;
+    return scored.map((result) => ({
+      ...result,
+      record: cloneKnowledgeRecord(result.record),
+      signals: [...result.signals]
+    }));
   }
 
-  deleteRecord(id: string): boolean {
-    return this.records.delete(id);
+  deleteRecord(address: KnowledgeRecordAddress): boolean {
+    assertKnowledgeAddress(address);
+    return this.records.delete(knowledgeKey(address));
   }
 
   upsertEntity(entity: Omit<KnowledgeEntity, "createdAt" | "updatedAt">): KnowledgeEntity {
+    assertKnowledgeAddress(entity);
     const now = new Date().toISOString();
-    const existing = this.entities.get(entity.id);
+    const key = knowledgeKey(entity);
+    const existing = this.entities.get(key);
     const next: KnowledgeEntity = {
       ...entity,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now
     };
-    this.entities.set(entity.id, next);
-    return next;
+    this.entities.set(key, cloneKnowledgeEntity(next));
+    return cloneKnowledgeEntity(next);
   }
 
   upsertRelationship(
     relationship: Omit<KnowledgeRelationship, "createdAt" | "updatedAt">
   ): KnowledgeRelationship {
+    assertKnowledgeAddress(relationship);
+    if (
+      !isNonBlankString(relationship.fromEntityId) ||
+      !isNonBlankString(relationship.toEntityId)
+    ) {
+      throw new Error("knowledge relationship requires both endpoint ids");
+    }
     const now = new Date().toISOString();
-    const existing = this.relationships.get(relationship.id);
+    const key = knowledgeKey(relationship);
+    const existing = this.relationships.get(key);
     const next: KnowledgeRelationship = {
       ...relationship,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now
     };
-    this.relationships.set(relationship.id, next);
-    return next;
+    this.relationships.set(key, cloneKnowledgeRelationship(next));
+    return cloneKnowledgeRelationship(next);
   }
 
-  listRelationships(namespace: string, entityId: string): KnowledgeRelationship[] {
+  listRelationships(address: KnowledgeEntityAddress): KnowledgeRelationship[] {
+    assertKnowledgePartition(address);
+    if (!isNonBlankString(address.entityId)) {
+      throw new Error("knowledge relationship lookup requires entityId");
+    }
     return [...this.relationships.values()]
-      .filter((relationship) => relationship.namespace === namespace)
+      .filter((relationship) => relationship.orgId === address.orgId)
+      .filter((relationship) => relationship.namespace === address.namespace)
       .filter(
         (relationship) =>
-          relationship.fromEntityId === entityId || relationship.toEntityId === entityId
+          relationship.fromEntityId === address.entityId ||
+          relationship.toEntityId === address.entityId
       )
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map(cloneKnowledgeRelationship);
   }
+}
+
+function knowledgeKey(address: {
+  orgId: string;
+  namespace: string;
+  id: string;
+}): string {
+  return JSON.stringify([address.orgId, address.namespace, address.id]);
 }
 
 function matchesTagFilter(record: KnowledgeRecord, queryTags?: string[]): boolean {
@@ -223,4 +261,45 @@ function cosineSimilarity(a: number[], b: number[]): number {
     return 0;
   }
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+function cloneKnowledgeRecord(record: KnowledgeRecord): KnowledgeRecord {
+  return JSON.parse(JSON.stringify(record)) as KnowledgeRecord;
+}
+
+function cloneKnowledgeEntity(entity: KnowledgeEntity): KnowledgeEntity {
+  return JSON.parse(JSON.stringify(entity)) as KnowledgeEntity;
+}
+
+function cloneKnowledgeRelationship(
+  relationship: KnowledgeRelationship
+): KnowledgeRelationship {
+  return JSON.parse(JSON.stringify(relationship)) as KnowledgeRelationship;
+}
+
+function assertKnowledgeAddress(address: {
+  orgId?: string;
+  namespace?: string;
+  id?: string;
+}): void {
+  if (
+    !isNonBlankString(address.orgId) ||
+    !isNonBlankString(address.namespace) ||
+    !isNonBlankString(address.id)
+  ) {
+    throw new Error("knowledge access requires orgId, namespace, and id");
+  }
+}
+
+function assertKnowledgePartition(partition: {
+  orgId?: string;
+  namespace?: string;
+}): void {
+  if (!isNonBlankString(partition.orgId) || !isNonBlankString(partition.namespace)) {
+    throw new Error("knowledge access requires orgId and namespace");
+  }
+}
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
 }

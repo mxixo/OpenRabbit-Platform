@@ -58,7 +58,9 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
 
     for (const step of definition.steps) {
       events.push(createEvent("workflow.step.started", definition.workflowId, undefined, step.id));
-      const guardrail = evaluateGuardrails(step, context, { policyAllowed: true });
+      const guardrail = evaluateGuardrails(step, context, {
+        policyAllowed: context.policyDecisions?.[step.id] !== false
+      });
       if (!guardrail.allowed) {
         events.push(
           createEvent(

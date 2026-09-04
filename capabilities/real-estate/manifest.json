@@ -1,0 +1,65 @@
+{
+  "id": "real-estate-operations",
+  "version": "0.1.0",
+  "name": "Real Estate Operations",
+  "description": "Runtime-neutral real-estate workflows distilled from validated OpenRabbit, Codex, and OpenClaw operating tests.",
+  "tools": [
+    { "name": "lead.qualify", "tags": ["read", "analysis"] },
+    { "name": "lead.prospect", "tags": ["read", "external-data"] },
+    { "name": "crm.upsert", "tags": ["write", "connected-account"] },
+    { "name": "nurture.prepare", "tags": ["draft"] },
+    { "name": "message.send", "tags": ["external-write", "connected-account"] },
+    { "name": "social.prepare", "tags": ["draft", "compliance"] },
+    { "name": "social.publish", "tags": ["external-write", "connected-account", "compliance"] },
+    { "name": "showing.prepare", "tags": ["read", "analysis"] },
+    { "name": "offer.prepare", "tags": ["draft", "high-impact"] },
+    { "name": "esign.send", "tags": ["external-write", "high-impact"] },
+    { "name": "transaction.coordinate", "tags": ["write", "connected-account"] },
+    { "name": "listing.publish", "tags": ["external-write", "connected-account", "compliance"] }
+  ],
+  "workflows": [
+    { "id": "lead-intelligence", "name": "Lead intelligence and qualification" },
+    { "id": "lead-prospecting", "name": "Lead prospecting" },
+    { "id": "crm-pipeline", "name": "CRM and pipeline operations" },
+    { "id": "nurture-automation", "name": "Lead nurturing" },
+    { "id": "social-pipeline", "name": "Compliant social publishing" },
+    { "id": "showing-offer", "name": "Showing and offer preparation" },
+    { "id": "esign", "name": "E-sign packet workflow" },
+    { "id": "transaction-close", "name": "Transaction coordination and close" },
+    { "id": "real-estate-command-center", "name": "End-to-end real-estate orchestration" }
+  ],
+  "permissions": [],
+  "integrations": [
+    "google-workspace",
+    "microsoft-365",
+    "hubspot",
+    "meta",
+    "linkedin",
+    "tiktok",
+    "mls-reso",
+    "jointly",
+    "esign",
+    "transaction-management"
+  ],
+  "tags": ["real-estate", "runtime-neutral", "openclaw-compatible"],
+  "metadata": {
+    "maturity": "prototype-catalog",
+    "defaultAutonomyProfile": "seamless",
+    "optionalAutonomyProfiles": ["review-important-actions", "strict"],
+    "runtimeAdapters": ["openclaw"],
+    "sourceSkills": [
+      "openclaw-lead-intelligence",
+      "openclaw-lead-prospecting",
+      "openclaw-crm-pipeline",
+      "openclaw-nurture-automation",
+      "openclaw-social-pipeline",
+      "openclaw-social-publisher",
+      "openclaw-realestate-compliance",
+      "openclaw-social-browser",
+      "openclaw-showing-offer-workflow",
+      "openclaw-esign-workflow",
+      "openclaw-transaction-close",
+      "openclaw-realestate-command-center"
+    ]
+  }
+}

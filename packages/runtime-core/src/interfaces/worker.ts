@@ -78,7 +78,10 @@ export interface WorkerRegistry {
   register(worker: WorkerDefinition): void;
   get(workerId: string): WorkerDefinition | undefined;
   list(filter?: { orgId?: string; role?: string; status?: WorkerStatus }): WorkerDefinition[];
-  update(workerId: string, patch: Partial<Omit<WorkerDefinition, "id">>): WorkerDefinition;
+  update(
+    workerId: string,
+    patch: Partial<Omit<WorkerDefinition, "id" | "orgId">>
+  ): WorkerDefinition;
   unregister(workerId: string): void;
 }
 
@@ -104,6 +107,16 @@ export interface WorkerTaskRequest {
   sessionId?: string;
   timeoutMs?: number;
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * Trusted caller context supplied by authenticated platform ingress.
+ * Keep this separate from WorkerTaskRequest so tenant authority is never
+ * inferred from caller-controlled task input or metadata.
+ */
+export interface WorkerExecutionContext {
+  orgId: string;
+  subjectId: string;
 }
 
 export type WorkerTaskStatus =
@@ -148,17 +161,20 @@ export interface WorkerOrchestrator {
   /**
    * Ensure a runtime session exists for the worker (creates one if needed).
    */
-  ensureSession(workerId: string): Promise<RuntimeSession>;
+  ensureSession(context: WorkerExecutionContext, workerId: string): Promise<RuntimeSession>;
 
   /**
    * Run a task for a worker: resolve worker → enforce approval when needed → pick runtime → project tools → runTask.
    */
-  runTask(request: WorkerTaskRequest): Promise<WorkerTaskResult>;
+  runTask(
+    context: WorkerExecutionContext,
+    request: WorkerTaskRequest
+  ): Promise<WorkerTaskResult>;
 
   /**
    * Stop an active session for a worker (no-op if none).
    */
-  stopSession(workerId: string): Promise<void>;
+  stopSession(context: WorkerExecutionContext, workerId: string): Promise<void>;
 }
 
 /**

@@ -3,6 +3,8 @@ import {
   ToolRef
 } from "../interfaces/runtime-provider.js";
 import {
+  WorkerDefinition,
+  WorkerExecutionContext,
   WorkerOrchestrator,
   WorkerOrchestratorDeps,
   WorkerTaskRequest,
@@ -12,6 +14,7 @@ import {
 interface ActiveSession {
   session: RuntimeSession;
   runtimeProviderId: string;
+  policyFingerprint: string;
 }
 
 /**
@@ -26,18 +29,32 @@ export class InMemoryWorkerOrchestrator implements WorkerOrchestrator {
     this.deps = deps;
   }
 
-  async ensureSession(workerId: string): Promise<RuntimeSession> {
-    const existing = this.sessionsByWorker.get(workerId);
-    if (existing && existing.session.status !== "stopped" && existing.session.status !== "failed") {
-      return existing.session;
-    }
-
-    const worker = this.deps.workers.get(workerId);
-    if (!worker) {
-      throw new Error(`Worker not found: ${workerId}`);
-    }
+  async ensureSession(
+    context: WorkerExecutionContext,
+    workerId: string
+  ): Promise<RuntimeSession> {
+    this.assertExecutionContext(context);
+    const worker = this.getWorkerForOrg(context.orgId, workerId);
     if ((worker.status ?? "active") !== "active") {
       throw new Error(`Worker is not active: ${workerId}`);
+    }
+
+    const key = sessionKey(context.orgId, workerId);
+    const fingerprint = workerPolicyFingerprint(worker);
+    const existing = this.sessionsByWorker.get(key);
+    if (existing && existing.session.status !== "stopped" && existing.session.status !== "failed") {
+      if (
+        existing.session.orgId === context.orgId &&
+        existing.session.workerId === worker.id &&
+        existing.policyFingerprint === fingerprint
+      ) {
+        return cloneSession(existing.session);
+      }
+      const existingProvider = this.deps.runtimes.resolvePreference([
+        existing.runtimeProviderId
+      ]);
+      await existingProvider.stopSession(existing.session.sessionId);
+      this.sessionsByWorker.delete(key);
     }
 
     const provider = this.deps.runtimes.resolvePreference(worker.runtimePreference);
@@ -52,24 +69,57 @@ export class InMemoryWorkerOrchestrator implements WorkerOrchestrator {
       memoryScope: worker.memoryScope,
       metadata: {
         role: worker.role,
+        initiatedBy: context.subjectId,
         approvalPolicyId: worker.approvalPolicy.policyId,
         requiresApproval: worker.approvalPolicy.requiresApproval ?? false
       }
     });
 
-    this.sessionsByWorker.set(workerId, {
-      session,
-      runtimeProviderId: provider.id
+    if (
+      session.orgId !== context.orgId ||
+      session.workerId !== worker.id ||
+      session.runtimeProviderId !== provider.id
+    ) {
+      await provider.stopSession(session.sessionId).catch(() => undefined);
+      throw new Error(`Runtime returned a session outside the authorized worker boundary`);
+    }
+
+    const currentWorker = this.getWorkerForOrg(context.orgId, workerId);
+    if (workerPolicyFingerprint(currentWorker) !== fingerprint) {
+      await provider.stopSession(session.sessionId).catch(() => undefined);
+      return this.ensureSession(context, workerId);
+    }
+
+    this.sessionsByWorker.set(key, {
+      session: cloneSession(session),
+      runtimeProviderId: provider.id,
+      policyFingerprint: fingerprint
     });
 
-    return session;
+    return cloneSession(session);
   }
 
-  async runTask(request: WorkerTaskRequest): Promise<WorkerTaskResult> {
+  async runTask(
+    context: WorkerExecutionContext,
+    request: WorkerTaskRequest
+  ): Promise<WorkerTaskResult> {
     const completedAt = () => new Date().toISOString();
 
+    if (!context?.orgId?.trim() || !context?.subjectId?.trim()) {
+      return {
+        workerId: request.workerId,
+        taskId: request.taskId,
+        status: "rejected",
+        error: {
+          code: "invalid_execution_context",
+          message: "Authenticated organization and subject are required"
+        },
+        completedAt: completedAt()
+      };
+    }
+
     const worker = this.deps.workers.get(request.workerId);
-    if (!worker) {
+    if (!worker || worker.orgId !== context.orgId) {
       return {
         workerId: request.workerId,
         taskId: request.taskId,
@@ -116,8 +166,23 @@ export class InMemoryWorkerOrchestrator implements WorkerOrchestrator {
       let runtimeProviderId: string;
 
       if (request.sessionId) {
-        const active = this.sessionsByWorker.get(worker.id);
-        if (!active || active.session.sessionId !== request.sessionId) {
+        const key = sessionKey(context.orgId, worker.id);
+        const active = this.sessionsByWorker.get(key);
+        const currentFingerprint = workerPolicyFingerprint(worker);
+        const sessionIsCurrent =
+          active &&
+          active.session.sessionId === request.sessionId &&
+          active.session.orgId === context.orgId &&
+          active.session.workerId === worker.id &&
+          active.policyFingerprint === currentFingerprint;
+        if (!sessionIsCurrent) {
+          if (active && active.policyFingerprint !== currentFingerprint) {
+            const staleProvider = this.deps.runtimes.resolvePreference([
+              active.runtimeProviderId
+            ]);
+            await staleProvider.stopSession(active.session.sessionId);
+            this.sessionsByWorker.delete(key);
+          }
           return {
             workerId: worker.id,
             taskId: request.taskId,
@@ -132,8 +197,10 @@ export class InMemoryWorkerOrchestrator implements WorkerOrchestrator {
         session = active.session;
         runtimeProviderId = active.runtimeProviderId;
       } else {
-        session = await this.ensureSession(worker.id);
-        runtimeProviderId = this.sessionsByWorker.get(worker.id)!.runtimeProviderId;
+        session = await this.ensureSession(context, worker.id);
+        runtimeProviderId = this.sessionsByWorker.get(
+          sessionKey(context.orgId, worker.id)
+        )!.runtimeProviderId;
       }
 
       const provider = this.deps.runtimes.resolvePreference([runtimeProviderId]);
@@ -147,6 +214,7 @@ export class InMemoryWorkerOrchestrator implements WorkerOrchestrator {
           ...request.metadata,
           workerId: worker.id,
           orgId: worker.orgId,
+          initiatedBy: context.subjectId,
           allowedTools: worker.allowedTools,
           allowedCapabilities: worker.allowedCapabilities,
           actionKind,
@@ -198,14 +266,31 @@ export class InMemoryWorkerOrchestrator implements WorkerOrchestrator {
     }
   }
 
-  async stopSession(workerId: string): Promise<void> {
-    const active = this.sessionsByWorker.get(workerId);
+  async stopSession(context: WorkerExecutionContext, workerId: string): Promise<void> {
+    this.assertExecutionContext(context);
+    this.getWorkerForOrg(context.orgId, workerId);
+    const key = sessionKey(context.orgId, workerId);
+    const active = this.sessionsByWorker.get(key);
     if (!active) {
       return;
     }
     const provider = this.deps.runtimes.resolvePreference([active.runtimeProviderId]);
     await provider.stopSession(active.session.sessionId);
-    this.sessionsByWorker.delete(workerId);
+    this.sessionsByWorker.delete(key);
+  }
+
+  private getWorkerForOrg(orgId: string, workerId: string): WorkerDefinition {
+    const worker = this.deps.workers.get(workerId);
+    if (!worker || worker.orgId !== orgId) {
+      throw new Error(`Worker not found: ${workerId}`);
+    }
+    return worker;
+  }
+
+  private assertExecutionContext(context: WorkerExecutionContext): void {
+    if (!context?.orgId?.trim() || !context?.subjectId?.trim()) {
+      throw new Error("Authenticated organization and subject are required");
+    }
   }
 
   private projectTools(allowedTools: readonly string[]): ToolRef[] {
@@ -217,4 +302,25 @@ export class InMemoryWorkerOrchestrator implements WorkerOrchestrator {
     }
     return allowedTools.map((name) => ({ name }));
   }
+}
+
+function sessionKey(orgId: string, workerId: string): string {
+  return JSON.stringify([orgId, workerId]);
+}
+
+function workerPolicyFingerprint(worker: WorkerDefinition): string {
+  return JSON.stringify({
+    runtimePreference: worker.runtimePreference,
+    allowedCapabilities: worker.allowedCapabilities,
+    allowedTools: worker.allowedTools,
+    memoryScope: worker.memoryScope,
+    approvalPolicy: worker.approvalPolicy
+  });
+}
+
+function cloneSession(session: RuntimeSession): RuntimeSession {
+  return {
+    ...session,
+    metadata: session.metadata ? { ...session.metadata } : undefined
+  };
 }

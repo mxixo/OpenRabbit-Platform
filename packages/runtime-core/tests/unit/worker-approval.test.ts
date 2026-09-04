@@ -49,10 +49,12 @@ function buildHarness() {
   };
 }
 
+const executionContext = { orgId: "org-approval-1", subjectId: "user-approval-1" };
+
 describe("worker approval enforcement", () => {
   it("allows read-only analysis without human approval", async () => {
     const harness = buildHarness();
-    const result = await harness.orchestrator.runTask({
+    const result = await harness.orchestrator.runTask(executionContext, {
       workerId: "worker-approval-1",
       taskId: "read-1",
       taskType: "commercial_investment_workflow",
@@ -66,7 +68,7 @@ describe("worker approval enforcement", () => {
 
   it("blocks consequential write tasks before runtime execution when approval is absent", async () => {
     const harness = buildHarness();
-    const result = await harness.orchestrator.runTask({
+    const result = await harness.orchestrator.runTask(executionContext, {
       workerId: "worker-approval-1",
       taskId: "write-1",
       taskType: "crm.create_contact",
@@ -81,7 +83,7 @@ describe("worker approval enforcement", () => {
 
   it("executes approved write tasks and forwards approval audit metadata", async () => {
     const harness = buildHarness();
-    const result = await harness.orchestrator.runTask({
+    const result = await harness.orchestrator.runTask(executionContext, {
       workerId: "worker-approval-1",
       taskId: "write-2",
       taskType: "crm.create_contact",

@@ -3,7 +3,6 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..', '..');
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const requiredPaths = [
   'README.md',
   'docs/QUICKSTART.md',
@@ -44,8 +43,25 @@ if (fs.existsSync(desktopPackagePath)) {
   }
 }
 
-const test = spawnSync(npmCommand, ['run', 'desktop:test'], { cwd: root, stdio: 'inherit', env: process.env, shell: false });
-check(!test.error && test.status === 0, 'Desktop shell smoke test passed', 'Desktop shell smoke test failed');
+const desktopSmokeTests = [
+  path.join(root, 'tests', 'desktop-shell.test.js'),
+  path.join(root, 'tests', 'ai-managed-interface.test.js')
+];
+let desktopSmokePassed = true;
+for (const testFile of desktopSmokeTests) {
+  const test = spawnSync(process.execPath, [testFile], {
+    cwd: root,
+    stdio: 'inherit',
+    env: process.env,
+    shell: false
+  });
+  if (test.error) console.error(test.error);
+  if (test.error || test.status !== 0) {
+    desktopSmokePassed = false;
+    break;
+  }
+}
+check(desktopSmokePassed, 'Desktop shell smoke test passed', 'Desktop shell smoke test failed');
 
 if (failed) {
   console.error('\nOpenRabbit shareability verification failed. See the checks above.');

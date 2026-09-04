@@ -1,4 +1,18 @@
-import { MemoryQuery, MemoryRecord, ServiceReliabilitySnapshot } from "@openrabbit/runtime-core";
+import {
+  MemoryQuery,
+  MemoryRecord,
+  MemoryRecordAddress,
+  ServiceReliabilitySnapshot
+} from "@openrabbit/runtime-core";
+
+export interface MemoryAccessContext {
+  orgId: string;
+  subjectId: string;
+  namespace: string;
+}
+
+export type MemoryQueryInput = Omit<MemoryQuery, "orgId" | "namespace">;
+export type MemoryRecordInputAddress = Omit<MemoryRecordAddress, "orgId" | "namespace">;
 
 export interface ServiceDescriptor {
   serviceName: "memory";
@@ -14,7 +28,6 @@ export interface ServiceHealth {
 
 export interface MemoryWriteInput {
   id: string;
-  namespace: string;
   sessionId?: string;
   content: string;
   reasoningHistory?: ReasoningHistoryEntry[];
@@ -52,7 +65,6 @@ export interface MemoryDeleteResult {
 }
 
 export interface MemoryConsolidationRequest {
-  namespace: string;
   sessionId?: string;
   minAccessCount?: number;
   maxPromotions?: number;
@@ -65,9 +77,9 @@ export interface MemoryConsolidationResult {
 export interface MemoryRepository {
   initialize(): Promise<void>;
   put(record: Omit<MemoryRecord, "createdAt" | "updatedAt">): Promise<MemoryRecord>;
-  get(id: string): Promise<MemoryRecord | undefined>;
+  get(address: MemoryRecordAddress): Promise<MemoryRecord | undefined>;
   search(query: MemoryQuery): Promise<MemoryRecord[]>;
-  delete(id: string): Promise<boolean>;
+  delete(address: MemoryRecordAddress): Promise<boolean>;
 }
 
 export interface MemoryPersistenceAdapter {
@@ -89,9 +101,18 @@ export interface MemoryService {
   getDescriptor(): ServiceDescriptor;
   getHealth(): ServiceHealth;
   getReliabilitySnapshot(): ServiceReliabilitySnapshot;
-  putMemory(input: MemoryWriteInput): Promise<MemoryWriteResult>;
-  getMemory(id: string): Promise<MemoryRecord | undefined>;
-  searchMemory(query: MemoryQuery): Promise<MemoryRecord[]>;
-  deleteMemory(id: string): Promise<MemoryDeleteResult>;
-  consolidateMemory(request: MemoryConsolidationRequest): Promise<MemoryConsolidationResult>;
+  putMemory(context: MemoryAccessContext, input: MemoryWriteInput): Promise<MemoryWriteResult>;
+  getMemory(
+    context: MemoryAccessContext,
+    address: MemoryRecordInputAddress
+  ): Promise<MemoryRecord | undefined>;
+  searchMemory(context: MemoryAccessContext, query: MemoryQueryInput): Promise<MemoryRecord[]>;
+  deleteMemory(
+    context: MemoryAccessContext,
+    address: MemoryRecordInputAddress
+  ): Promise<MemoryDeleteResult>;
+  consolidateMemory(
+    context: MemoryAccessContext,
+    request: MemoryConsolidationRequest
+  ): Promise<MemoryConsolidationResult>;
 }

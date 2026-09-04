@@ -79,6 +79,12 @@ Keeping optional integrations non-required lets the pack install and run with pr
 4. Score the opportunity.
 5. Generate an investment summary, structured report, and investor outreach draft.
 
+## Runtime-neutral capability inventory
+
+`manifest.json` records the broader validated OpenClaw real-estate workflow suite, including CRM, prospecting, nurture, showings, offers, e-sign, social publishing, compliance, and transaction close. It describes the business tools and workflows OpenRabbit intends to expose without making OpenClaw, Codex, or any single model provider the owner of that logic.
+
+MLS and Rentcast remain connector concerns under `integrations/`; the capability contract stays provider-neutral.
+
 ## Pack relationship
 
 `packs/real-estate` composes this capability with Acquisitions Analyst and Research Analyst worker presets. New real-estate workflows should be added here rather than under product-edge skill directories.

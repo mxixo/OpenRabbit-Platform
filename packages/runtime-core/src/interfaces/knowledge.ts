@@ -16,6 +16,7 @@ export interface KnowledgeQualityMetadata {
 }
 export interface KnowledgeRecord {
   id: string;
+  orgId: string;
   namespace: string;
   sourceId?: string;
   content: string;
@@ -29,6 +30,7 @@ export interface KnowledgeRecord {
 
 export interface KnowledgeEntity {
   id: string;
+  orgId: string;
   namespace: string;
   type: string;
   name: string;
@@ -39,6 +41,7 @@ export interface KnowledgeEntity {
 
 export interface KnowledgeRelationship {
   id: string;
+  orgId: string;
   namespace: string;
   fromEntityId: string;
   toEntityId: string;
@@ -50,6 +53,7 @@ export interface KnowledgeRelationship {
 }
 
 export interface KnowledgeQuery {
+  orgId: string;
   namespace: string;
   text?: string;
   embedding?: number[];
@@ -57,6 +61,18 @@ export interface KnowledgeQuery {
   minConfidenceScore?: number;
   minScore?: number;
   topK?: number;
+}
+
+export interface KnowledgeRecordAddress {
+  orgId: string;
+  namespace: string;
+  id: string;
+}
+
+export interface KnowledgeEntityAddress {
+  orgId: string;
+  namespace: string;
+  entityId: string;
 }
 
 export interface KnowledgeSearchResult {
@@ -67,15 +83,12 @@ export interface KnowledgeSearchResult {
 
 export interface KnowledgeStore {
   putRecord(record: Omit<KnowledgeRecord, "createdAt" | "updatedAt">): KnowledgeRecord;
-  getRecord(id: string): KnowledgeRecord | undefined;
+  getRecord(address: KnowledgeRecordAddress): KnowledgeRecord | undefined;
   search(query: KnowledgeQuery): KnowledgeSearchResult[];
-  deleteRecord(id: string): boolean;
+  deleteRecord(address: KnowledgeRecordAddress): boolean;
   upsertEntity(entity: Omit<KnowledgeEntity, "createdAt" | "updatedAt">): KnowledgeEntity;
   upsertRelationship(
     relationship: Omit<KnowledgeRelationship, "createdAt" | "updatedAt">
   ): KnowledgeRelationship;
-  listRelationships(
-    namespace: string,
-    entityId: string
-  ): KnowledgeRelationship[];
+  listRelationships(address: KnowledgeEntityAddress): KnowledgeRelationship[];
 }

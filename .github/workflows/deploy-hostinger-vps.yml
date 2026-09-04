@@ -78,13 +78,13 @@ jobs:
         run: |
           for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
             body="$(curl --fail --silent --show-error --max-time 10 "$OPENRABBIT_GATEWAY_URL/health" || true)"
-            if echo "$body" | grep -q '"version":6'; then
+            if echo "$body" | grep -q '"version":7'; then
               echo "$body"
-              echo "OpenRabbit live gateway v6 is healthy and publicly reachable."
+              echo "OpenRabbit live gateway v7 is healthy and publicly reachable."
               exit 0
             fi
-            echo "Gateway v6 not ready yet (attempt $attempt/12)."
+            echo "Gateway v7 not ready yet (attempt $attempt/12)."
             sleep 10
           done
-          echo "OpenRabbit gateway v6 health check failed."
+          echo "OpenRabbit gateway v7 health check failed."
           exit 1

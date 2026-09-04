@@ -43,11 +43,14 @@ export class InMemoryWorkerRegistry implements WorkerRegistry {
 
   update(
     workerId: string,
-    patch: Partial<Omit<WorkerDefinition, "id">>
+    patch: Partial<Omit<WorkerDefinition, "id" | "orgId">>
   ): WorkerDefinition {
     const current = this.workers.get(workerId);
     if (!current) {
       throw new Error(`Worker not found: ${workerId}`);
+    }
+    if ("orgId" in patch) {
+      throw new Error(`Worker ${workerId} orgId cannot be changed`);
     }
     const next: WorkerDefinition = {
       ...current,

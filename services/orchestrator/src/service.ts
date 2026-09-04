@@ -6,6 +6,7 @@ import {
   StructuredLogger
 } from "@openrabbit/runtime-core";
 import type {
+  WorkerExecutionContext,
   WorkerOrchestrator,
   WorkerTaskRequest,
   WorkerTaskResult
@@ -57,6 +58,7 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
   const processedTaskIds = new Set<string>();
   const workerTaskResults = new Map<string, WorkerTaskResult>();
   let registeredWorkerOrchestrator: WorkerOrchestrator | undefined;
+  let registeredWorkerContext: WorkerExecutionContext | undefined;
   let registeredMcpServer:
     | { handleRequest(request: McpRequestInput): Promise<McpRequestOutput> }
     | undefined;
@@ -132,8 +134,18 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
       operationsSucceeded += 1;
       return { accepted: true };
     },
-    registerWorkerOrchestrator(orchestrator: WorkerOrchestrator): void {
+    registerWorkerOrchestrator(
+      orchestrator: WorkerOrchestrator,
+      context: WorkerExecutionContext
+    ): void {
+      if (!context?.orgId?.trim() || !context?.subjectId?.trim()) {
+        throw new Error("authenticated worker execution context is required");
+      }
       registeredWorkerOrchestrator = orchestrator;
+      registeredWorkerContext = {
+        orgId: context.orgId,
+        subjectId: context.subjectId
+      };
     },
     async runWorkerTask(input: WorkerTaskRequest): Promise<WorkerTaskResult> {
       if (!started) {
@@ -155,14 +167,18 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
         );
       }
 
-      const taskKey = `${input.workerId}:${input.taskId}`;
+      const taskKey = JSON.stringify([
+        registeredWorkerContext?.orgId ?? "unbound",
+        input.workerId,
+        input.taskId
+      ]);
       const cached = workerTaskResults.get(taskKey);
       if (cached) {
         operationsSucceeded += 1;
         return cached;
       }
 
-      if (!registeredWorkerOrchestrator) {
+      if (!registeredWorkerOrchestrator || !registeredWorkerContext) {
         operationsFailed += 1;
         lastErrorCode = "WORKER_ORCHESTRATOR_NOT_REGISTERED";
         return failedWorkerTask(
@@ -179,7 +195,10 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
       });
 
       try {
-        const result = await registeredWorkerOrchestrator.runTask(input);
+        const result = await registeredWorkerOrchestrator.runTask(
+          registeredWorkerContext,
+          input
+        );
         // Completed/cancelled tasks are terminal and safe to cache. Blocked tasks
         // must remain resumable after an approval decision.
         if (["completed", "cancelled"].includes(result.status)) {

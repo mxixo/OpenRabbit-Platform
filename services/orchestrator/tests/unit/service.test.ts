@@ -80,7 +80,10 @@ describe("orchestrator service infrastructure", () => {
   it("routes worker tasks through runtime-core WorkerOrchestrator", async () => {
     const service = createOrchestratorService();
     const workerRuntime = buildWorkerOrchestrator();
-    service.registerWorkerOrchestrator(workerRuntime.orchestrator);
+    service.registerWorkerOrchestrator(workerRuntime.orchestrator, {
+      orgId: "org-1",
+      subjectId: "test-user-1"
+    });
     await service.start();
 
     const request = {

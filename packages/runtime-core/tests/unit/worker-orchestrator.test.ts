@@ -5,6 +5,8 @@ import { InMemoryWorkerRegistry } from "../../src/core/in-memory-worker-registry
 import { MockRuntimeProvider } from "../../src/mocks/mock-runtime-provider.js";
 import type { WorkerDefinition } from "../../src/interfaces/worker.js";
 
+const executionContext = { orgId: "org-1", subjectId: "user-1" };
+
 function buildWorker(overrides: Partial<WorkerDefinition> = {}): WorkerDefinition {
   return {
     id: "worker-1",
@@ -45,7 +47,7 @@ describe("InMemoryWorkerOrchestrator", () => {
         }))
     });
 
-    const result = await orchestrator.runTask({
+    const result = await orchestrator.runTask(executionContext, {
       workerId: "worker-1",
       taskId: "task-1",
       taskType: "research.summary",
@@ -73,7 +75,7 @@ describe("InMemoryWorkerOrchestrator", () => {
     runtimes.register(new MockRuntimeProvider({ id: "mock-runtime" }));
 
     const orchestrator = new InMemoryWorkerOrchestrator({ workers, runtimes });
-    const result = await orchestrator.runTask({
+    const result = await orchestrator.runTask(executionContext, {
       workerId: "worker-1",
       taskId: "task-2",
       taskType: "ping",
@@ -92,7 +94,7 @@ describe("InMemoryWorkerOrchestrator", () => {
     runtimes.register(new MockRuntimeProvider({ id: "mock-runtime" }));
     const orchestrator = new InMemoryWorkerOrchestrator({ workers, runtimes });
 
-    const missing = await orchestrator.runTask({
+    const missing = await orchestrator.runTask(executionContext, {
       workerId: "nope",
       taskId: "t1",
       taskType: "x",
@@ -101,7 +103,7 @@ describe("InMemoryWorkerOrchestrator", () => {
     expect(missing.status).toBe("rejected");
     expect(missing.error?.code).toBe("worker_not_found");
 
-    const inactive = await orchestrator.runTask({
+    const inactive = await orchestrator.runTask(executionContext, {
       workerId: "worker-inactive",
       taskId: "t2",
       taskType: "x",
@@ -129,7 +131,7 @@ describe("InMemoryWorkerOrchestrator", () => {
       ]
     });
 
-    const result = await orchestrator.runTask({
+    const result = await orchestrator.runTask(executionContext, {
       workerId: "worker-1",
       taskId: "task-3",
       taskType: "note",
@@ -149,11 +151,167 @@ describe("InMemoryWorkerOrchestrator", () => {
     runtimes.register(runtime);
 
     const orchestrator = new InMemoryWorkerOrchestrator({ workers, runtimes });
-    const session = await orchestrator.ensureSession("worker-1");
+    const session = await orchestrator.ensureSession(executionContext, "worker-1");
     expect(session.status).toBe("ready");
 
-    await orchestrator.stopSession("worker-1");
+    await orchestrator.stopSession(executionContext, "worker-1");
     const stopped = await runtime.getSession(session.sessionId);
     expect(stopped?.status).toBe("stopped");
+  });
+
+  it("rejects cross-tenant task, session, and stop access", async () => {
+    const workers = new InMemoryWorkerRegistry();
+    workers.register(buildWorker());
+    const runtimes = new InMemoryRuntimeProviderRegistry();
+    const runtime = new MockRuntimeProvider({ id: "mock-runtime" });
+    runtimes.register(runtime);
+    const orchestrator = new InMemoryWorkerOrchestrator({ workers, runtimes });
+    const otherTenant = { orgId: "org-2", subjectId: "user-2" };
+
+    const task = await orchestrator.runTask(otherTenant, {
+      workerId: "worker-1",
+      taskId: "cross-tenant",
+      taskType: "research.summary",
+      input: {}
+    });
+
+    expect(task.status).toBe("rejected");
+    expect(task.error?.code).toBe("worker_not_found");
+    await expect(orchestrator.ensureSession(otherTenant, "worker-1")).rejects.toThrow(
+      "Worker not found"
+    );
+    await expect(orchestrator.stopSession(otherTenant, "worker-1")).rejects.toThrow(
+      "Worker not found"
+    );
+    expect(await runtime.getSession("cross-tenant")).toBeUndefined();
+  });
+
+  it("recreates a session when projected authority changes", async () => {
+    const workers = new InMemoryWorkerRegistry();
+    workers.register(buildWorker({ runtimePreference: ["mock-runtime"] }));
+    const runtimes = new InMemoryRuntimeProviderRegistry();
+    const runtime = new MockRuntimeProvider({ id: "mock-runtime" });
+    runtimes.register(runtime);
+    const orchestrator = new InMemoryWorkerOrchestrator({ workers, runtimes });
+
+    const initial = await orchestrator.ensureSession(executionContext, "worker-1");
+    expect((await runtime.listProjectedTools(initial.sessionId)).map((tool) => tool.name)).toEqual([
+      "web.search",
+      "notes.write"
+    ]);
+
+    workers.update("worker-1", { allowedTools: ["web.search"] });
+    const refreshed = await orchestrator.ensureSession(executionContext, "worker-1");
+
+    expect((await runtime.listProjectedTools(refreshed.sessionId)).map((tool) => tool.name)).toEqual([
+      "web.search"
+    ]);
+  });
+
+  it("rejects a runtime session with mismatched tenant binding", async () => {
+    const workers = new InMemoryWorkerRegistry();
+    workers.register(buildWorker({ runtimePreference: ["bad-runtime"] }));
+    const runtimes = new InMemoryRuntimeProviderRegistry();
+    const runtime = new MockRuntimeProvider({ id: "bad-runtime" });
+    const originalStartSession = runtime.startSession.bind(runtime);
+    runtime.startSession = async (input) => ({
+      ...(await originalStartSession(input)),
+      orgId: "org-2"
+    });
+    runtimes.register(runtime);
+    const orchestrator = new InMemoryWorkerOrchestrator({ workers, runtimes });
+
+    await expect(orchestrator.ensureSession(executionContext, "worker-1")).rejects.toThrow(
+      "outside the authorized worker boundary"
+    );
+  });
+
+  it("does not expose mutable cached session identity to callers", async () => {
+    const workers = new InMemoryWorkerRegistry();
+    workers.register(buildWorker({ runtimePreference: ["mock-runtime"] }));
+    workers.register(
+      buildWorker({ id: "worker-2", orgId: "org-2", runtimePreference: ["mock-runtime"] })
+    );
+    const runtimes = new InMemoryRuntimeProviderRegistry();
+    const runtime = new MockRuntimeProvider({ id: "mock-runtime" });
+    runtimes.register(runtime);
+    const orchestrator = new InMemoryWorkerOrchestrator({ workers, runtimes });
+
+    const first = await orchestrator.ensureSession(executionContext, "worker-1");
+    const second = await orchestrator.ensureSession(
+      { orgId: "org-2", subjectId: "user-2" },
+      "worker-2"
+    );
+    first.sessionId = second.sessionId;
+
+    const result = await orchestrator.runTask(executionContext, {
+      workerId: "worker-1",
+      taskId: "cache-poison-attempt",
+      taskType: "research.summary",
+      input: {}
+    });
+
+    expect(result.status).toBe("completed");
+    expect(result.output).toMatchObject({ workerId: "worker-1" });
+    expect(result.sessionId).not.toBe(second.sessionId);
+  });
+
+  it("does not create a session for an invalid explicit session id", async () => {
+    const workers = new InMemoryWorkerRegistry();
+    workers.register(buildWorker({ runtimePreference: ["mock-runtime"] }));
+    const runtimes = new InMemoryRuntimeProviderRegistry();
+    const runtime = new MockRuntimeProvider({ id: "mock-runtime" });
+    let starts = 0;
+    const originalStartSession = runtime.startSession.bind(runtime);
+    runtime.startSession = async (input) => {
+      starts += 1;
+      return originalStartSession(input);
+    };
+    runtimes.register(runtime);
+    const orchestrator = new InMemoryWorkerOrchestrator({ workers, runtimes });
+
+    const result = await orchestrator.runTask(executionContext, {
+      workerId: "worker-1",
+      taskId: "invalid-explicit-session",
+      taskType: "research.summary",
+      input: {},
+      sessionId: "not-a-real-session"
+    });
+
+    expect(result.status).toBe("rejected");
+    expect(result.error?.code).toBe("session_not_found");
+    expect(starts).toBe(0);
+  });
+
+  it("does not cache authority revoked during session creation", async () => {
+    const workers = new InMemoryWorkerRegistry();
+    workers.register(buildWorker({ runtimePreference: ["mock-runtime"] }));
+    const runtimes = new InMemoryRuntimeProviderRegistry();
+    const runtime = new MockRuntimeProvider({ id: "mock-runtime" });
+    const originalStartSession = runtime.startSession.bind(runtime);
+    let releaseStart: (() => void) | undefined;
+    let starts = 0;
+    runtime.startSession = async (input) => {
+      starts += 1;
+      if (starts === 1) {
+        await new Promise<void>((resolve) => {
+          releaseStart = resolve;
+        });
+      }
+      return originalStartSession(input);
+    };
+    runtimes.register(runtime);
+    const orchestrator = new InMemoryWorkerOrchestrator({ workers, runtimes });
+
+    const pending = orchestrator.ensureSession(executionContext, "worker-1");
+    await Promise.resolve();
+    workers.update("worker-1", { allowedTools: ["web.search"] });
+    releaseStart?.();
+    const session = await pending;
+
+    expect(starts).toBe(2);
+    expect((await runtime.listProjectedTools(session.sessionId)).map((tool) => tool.name)).toEqual([
+      "web.search"
+    ]);
   });
 });

@@ -64,6 +64,16 @@ describe("InMemoryWorkerRegistry", () => {
     const registry = new InMemoryWorkerRegistry();
     expect(() => registry.update("missing", { status: "active" })).toThrow("Worker not found");
   });
+
+  it("does not allow a registered worker to move between organizations", () => {
+    const registry = new InMemoryWorkerRegistry();
+    registry.register(baseWorker);
+
+    expect(() =>
+      registry.update("worker-ea-1", { orgId: "org-2" } as never)
+    ).toThrow("orgId cannot be changed");
+    expect(registry.get("worker-ea-1")?.orgId).toBe("org-1");
+  });
 });
 
 describe("materializeWorkerPreset", () => {

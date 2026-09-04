@@ -147,7 +147,10 @@ export async function bootstrapRealEstateOrg(
   });
 
   const service = createOrchestratorService();
-  service.registerWorkerOrchestrator(workerOrchestrator);
+  service.registerWorkerOrchestrator(workerOrchestrator, {
+    orgId,
+    subjectId: "openrabbit-real-estate-bootstrap"
+  });
   await service.start();
 
   return {

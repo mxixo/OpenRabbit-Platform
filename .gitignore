@@ -12,6 +12,20 @@ runtime/tmp/
 
 # Local environment files
 .env
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local deployment exports and production snapshots
+.artifacts/
+artifacts/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.db
+*.db-shm
+*.db-wal
 
 # macOS metadata
 .DS_Store

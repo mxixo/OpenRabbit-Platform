@@ -1,4 +1,15 @@
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+
+const root = path.resolve(__dirname, '..');
+const deployWorkflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'deploy-hostinger-vps.yml'), 'utf8');
+const productionCompose = fs.readFileSync(path.join(root, 'deploy', 'vps', 'docker-compose.yml'), 'utf8');
+
+assert.match(deployWorkflow, /'"version":7'/, 'deployment health check must match gateway contract v7');
+for (const scope of ['crm.objects.contacts.write', 'crm.objects.companies.write', 'crm.objects.deals.write']) {
+  assert.match(productionCompose, new RegExp(scope.replaceAll('.', '\\.')), `${scope} must be requested in production`);
+}
 
 process.env.OPENRABBIT_TOKEN_ENCRYPTION_KEY = process.env.OPENRABBIT_TOKEN_ENCRYPTION_KEY || 'test-only-encryption-key';
 process.env.OPENRABBIT_GATEWAY_APP_TOKEN = 'test-service-token';
@@ -40,7 +51,7 @@ const base = require('../services/connection-gateway/server-v5');
     const health = await response.json();
     assert.strictEqual(health.ok, true);
     assert.strictEqual(health.service, 'openrabbit-connection-gateway');
-    assert.strictEqual(health.version, 6);
+    assert.strictEqual(health.version, 7);
     assert.strictEqual(health.configured.microsoft, false);
 
     const blocked = await fetch(`${root}/v1/live`);
@@ -51,7 +62,7 @@ const base = require('../services/connection-gateway/server-v5');
     assert.strictEqual(connections.status, 200);
     const connectionBody = await connections.json();
     const microsoft = connectionBody.connections.find(item => item.id === 'microsoft');
-    assert.ok(microsoft, 'Microsoft connection state must be merged into v6');
+    assert.ok(microsoft, 'Microsoft connection state must be merged into the current gateway');
     assert.strictEqual(microsoft.connected, false);
     assert.strictEqual(microsoft.planned, false);
 
@@ -60,7 +71,7 @@ const base = require('../services/connection-gateway/server-v5');
     const liveBody = await live.json();
     assert.ok(liveBody.generatedAt);
     assert.ok(liveBody.mail && liveBody.calendar && liveBody.crm && liveBody.social);
-    assert.ok(liveBody.microsoft, 'v6 live snapshot must include Microsoft state');
+    assert.ok(liveBody.microsoft, 'current live snapshot must include Microsoft state');
     assert.strictEqual(liveBody.microsoft.connected, false);
   } finally {
     await new Promise(resolve => server.close(resolve));

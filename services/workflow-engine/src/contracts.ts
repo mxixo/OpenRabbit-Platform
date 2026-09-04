@@ -26,6 +26,11 @@ export interface WorkflowExecutionContext {
   correlationId: string;
   initiatedBy: string;
   variables: Record<string, unknown>;
+  /**
+   * Optional per-step policy decisions. An explicit false blocks the step;
+   * omitted decisions preserve the seamless default execution profile.
+   */
+  policyDecisions?: Record<string, boolean>;
   approvals?: Record<string, boolean>;
 }
 

@@ -144,13 +144,16 @@ preset (pack) → materialize → register → active
 
 `WorkerOrchestrator` responsibilities:
 
-1. Resolve worker  
-2. Ensure active status  
-3. Enforce approval boundary for consequential tasks  
-4. Choose runtime via preference  
-5. Project tools/capabilities into session  
-6. `runTask` and normalize result  
-7. Stop session on demand  
+1. Accept trusted organization and subject context from authenticated platform ingress
+2. Resolve the worker inside that organization
+3. Ensure active status
+4. Enforce the configured approval boundary for consequential tasks
+5. Choose runtime via preference
+6. Project tools/capabilities into a tenant-bound session
+7. `runTask` and normalize result
+8. Stop only the tenant-bound session on demand
+
+Tenant authority is intentionally separate from task input and metadata. Product APIs must derive `WorkerExecutionContext` from authenticated ingress; they must never deserialize it from the task body.
 
 ---
 
@@ -190,7 +193,7 @@ Packs may introduce additional role strings; Core treats unknown roles as valid 
 |---|---|
 | Worker contracts + presets | Done |
 | In-memory registry + validation | Done |
-| WorkerOrchestrator + tests | Done |
+| Tenant-bound WorkerOrchestrator + isolation tests | Done |
 | Service wiring (`services/orchestrator`) | Done |
 | Real Estate bootstrap / worker execution loop | Done |
 | Initial Platform API worker/task routes | Done |

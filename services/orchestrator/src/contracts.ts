@@ -1,5 +1,6 @@
 import type {
   ServiceReliabilitySnapshot,
+  WorkerExecutionContext,
   WorkerOrchestrator,
   WorkerTaskRequest,
   WorkerTaskResult
@@ -52,7 +53,10 @@ export interface OrchestratorService {
   getHealth(): ServiceHealth;
   getReliabilitySnapshot(): ServiceReliabilitySnapshot;
   intakeTask(input: TaskIntakeRequest): Promise<TaskIntakeResult>;
-  registerWorkerOrchestrator(orchestrator: WorkerOrchestrator): void;
+  registerWorkerOrchestrator(
+    orchestrator: WorkerOrchestrator,
+    context: WorkerExecutionContext
+  ): void;
   runWorkerTask(input: WorkerTaskRequest): Promise<WorkerTaskResult>;
   registerMcpServer(server: {
     handleRequest(request: McpRequestInput): Promise<McpRequestOutput>;

@@ -28,7 +28,7 @@ run_pkg_checks() {
   local dir="$1"
   printf "\n==> Quality checks: %s\n" "${dir}"
   cd "${REPO_ROOT}/${dir}"
-  npm ci --silent
+  npm ci --silent --no-audit --no-fund
   ensure_required_script "lint"
   ensure_required_script "typecheck"
   npm run lint
