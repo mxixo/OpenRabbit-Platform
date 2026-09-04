@@ -3,7 +3,7 @@ const dotenv = require("dotenv");
 
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
-const { createOpenClawSkillRunner } = require(path.join(
+const { createSkillRunner } = require(path.join(
   __dirname,
   "..",
   "src",
@@ -25,8 +25,8 @@ function parseInput(raw) {
 
 async function run() {
   const payload = parseInput(process.argv[2]);
-  const runner = createOpenClawSkillRunner({
-    actor: "openclaw",
+  const runner = createSkillRunner({
+    actor: "platform",
     workflow: "commercial_investment_analysis",
   });
 

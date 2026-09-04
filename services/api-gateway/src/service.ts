@@ -10,10 +10,12 @@ import {
 import {
   ApiGatewayService,
   ApiRequestEnvelope,
+  ApiResponseData,
   ServiceDescriptor,
   ServiceHealth,
   ValidationResult
 } from "./contracts.js";
+import { PlatformApiBackend, routePlatformApi } from "./platform-api.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
@@ -40,11 +42,17 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
   let operationsSucceeded = 0;
   let operationsFailed = 0;
   let lastErrorCode: string | undefined;
+  let platformBackend: PlatformApiBackend | undefined;
 
   const descriptor: ServiceDescriptor = {
     serviceName: "api-gateway",
     version,
-    capabilities: ["health", "request-validation", "request-handling"]
+    capabilities: [
+      "health",
+      "request-validation",
+      "request-handling",
+      "platform-api-v1"
+    ]
   };
 
   return {
@@ -74,7 +82,10 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
         dependencies: [
           { name: "configuration-manager", status: "up" },
           { name: "event-bus", status: "up" },
-          { name: "permission-manager", status: "up" }
+          { name: "permission-manager", status: "up" },
+          ...(platformBackend
+            ? [{ name: "platform-backend", status: "up" as const }]
+            : [])
         ]
       };
     },
@@ -106,7 +117,10 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
         errors
       };
     },
-    async handleRequest(input: unknown): Promise<ServiceOperationResult<{ accepted: boolean }>> {
+    registerPlatformBackend(backend: PlatformApiBackend): void {
+      platformBackend = backend;
+    },
+    async handleRequest(input: unknown): Promise<ServiceOperationResult<ApiResponseData>> {
       if (!started) {
         operationsFailed += 1;
         lastErrorCode = "SERVICE_NOT_STARTED";
@@ -164,6 +178,67 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
         payload: { requestId: request.requestId, path: request.path },
         timestamp: new Date().toISOString()
       });
+
+      if (request.path.startsWith("/v1/")) {
+        if (!platformBackend) {
+          operationsFailed += 1;
+          lastErrorCode = "PLATFORM_BACKEND_NOT_REGISTERED";
+          return {
+            ok: false,
+            error: {
+              code: "PLATFORM_BACKEND_NOT_REGISTERED",
+              message: "platform API backend is not registered",
+              retryable: true
+            }
+          };
+        }
+
+        try {
+          const routed = await routePlatformApi(request, platformBackend);
+          if (!routed.matched) {
+            operationsFailed += 1;
+            lastErrorCode = "ROUTE_NOT_FOUND";
+            return {
+              ok: false,
+              error: {
+                code: "ROUTE_NOT_FOUND",
+                message: `No platform API route for ${request.method.toUpperCase()} ${request.path}`,
+                retryable: false
+              }
+            };
+          }
+          if (routed.error) {
+            operationsFailed += 1;
+            lastErrorCode = routed.error.code;
+            return {
+              ok: false,
+              data: { status: routed.status },
+              error: {
+                code: routed.error.code,
+                message: routed.error.message,
+                retryable: false
+              }
+            };
+          }
+          operationsSucceeded += 1;
+          return {
+            ok: true,
+            data: { status: routed.status, result: routed.data }
+          };
+        } catch (error) {
+          operationsFailed += 1;
+          lastErrorCode = "PLATFORM_BACKEND_ERROR";
+          return {
+            ok: false,
+            error: {
+              code: "PLATFORM_BACKEND_ERROR",
+              message: error instanceof Error ? error.message : "platform backend failed",
+              retryable: true
+            }
+          };
+        }
+      }
+
       operationsSucceeded += 1;
       return {
         ok: true,

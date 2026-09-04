@@ -1,0 +1,89 @@
+name: OpenRabbit tester feedback
+description: Report a fresh-clone, desktop launch, installer, or local testing problem.
+title: "[Tester] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing OpenRabbit. Please include enough detail for us to reproduce the problem on a clean machine. Never paste API keys, OAuth tokens, passwords, or other secrets here.
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: "Example: macOS 15.6 or Windows 11 24H2"
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      description: Run `node --version`.
+      placeholder: "v20.x.x or newer"
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: OpenRabbit commit
+      description: Run `git rev-parse --short HEAD` from the repository.
+      placeholder: "Example: 12a1ef3"
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where did the problem happen?
+      options:
+        - Clone
+        - npm run bootstrap:local
+        - npm run verify:shareable
+        - npm run desktop:start
+        - npm run desktop:dist
+        - npm test
+        - Optional live integration
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Paste the relevant error output. Remove any secrets first.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. git clone ...
+        2. npm run bootstrap:local
+        3. ...
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed API keys, tokens, passwords, and other secrets from this report.
+          required: true

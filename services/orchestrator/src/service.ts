@@ -5,6 +5,12 @@ import {
   ServiceReliabilitySnapshot,
   StructuredLogger
 } from "@openrabbit/runtime-core";
+import type {
+  WorkerExecutionContext,
+  WorkerOrchestrator,
+  WorkerTaskRequest,
+  WorkerTaskResult
+} from "@openrabbit/runtime-core";
 import {
   McpRequestInput,
   McpRequestOutput,
@@ -14,6 +20,25 @@ import {
   TaskIntakeRequest,
   TaskIntakeResult
 } from "./contracts.js";
+
+function failedWorkerTask(
+  input: Partial<WorkerTaskRequest>,
+  code: string,
+  message: string,
+  retryable = false
+): WorkerTaskResult {
+  return {
+    workerId: input.workerId ?? "unknown-worker",
+    taskId: input.taskId ?? "unknown-task",
+    status: "failed",
+    error: {
+      code,
+      message,
+      retryable
+    },
+    completedAt: new Date().toISOString()
+  };
+}
 
 export function createOrchestratorService(version = "0.1.0"): OrchestratorService {
   const config = new InMemoryConfigurationManager({
@@ -31,6 +56,9 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
   let operationsFailed = 0;
   let lastErrorCode: string | undefined;
   const processedTaskIds = new Set<string>();
+  const workerTaskResults = new Map<string, WorkerTaskResult>();
+  let registeredWorkerOrchestrator: WorkerOrchestrator | undefined;
+  let registeredWorkerContext: WorkerExecutionContext | undefined;
   let registeredMcpServer:
     | { handleRequest(request: McpRequestInput): Promise<McpRequestOutput> }
     | undefined;
@@ -38,7 +66,13 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
   const descriptor: ServiceDescriptor = {
     serviceName: "orchestrator",
     version,
-    capabilities: ["task-intake", "event-emission", "mcp-routing", "idempotency"]
+    capabilities: [
+      "task-intake",
+      "worker-task-routing",
+      "event-emission",
+      "mcp-routing",
+      "idempotency"
+    ]
   };
 
   return {
@@ -62,7 +96,10 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
         timestamp: new Date().toISOString(),
         dependencies: [
           { name: "configuration-manager", status: "up" },
-          { name: "event-bus", status: "up" }
+          { name: "event-bus", status: "up" },
+          ...(registeredWorkerOrchestrator
+            ? [{ name: "worker-orchestrator", status: "up" as const }]
+            : [])
         ]
       };
     },
@@ -96,6 +133,100 @@ export function createOrchestratorService(version = "0.1.0"): OrchestratorServic
       processedTaskIds.add(input.taskId);
       operationsSucceeded += 1;
       return { accepted: true };
+    },
+    registerWorkerOrchestrator(
+      orchestrator: WorkerOrchestrator,
+      context: WorkerExecutionContext
+    ): void {
+      if (!context?.orgId?.trim() || !context?.subjectId?.trim()) {
+        throw new Error("authenticated worker execution context is required");
+      }
+      registeredWorkerOrchestrator = orchestrator;
+      registeredWorkerContext = {
+        orgId: context.orgId,
+        subjectId: context.subjectId
+      };
+    },
+    async runWorkerTask(input: WorkerTaskRequest): Promise<WorkerTaskResult> {
+      if (!started) {
+        operationsFailed += 1;
+        lastErrorCode = "SERVICE_NOT_STARTED";
+        return failedWorkerTask(
+          input,
+          "SERVICE_NOT_STARTED",
+          "orchestrator service not started"
+        );
+      }
+      if (!input.workerId || !input.taskId || !input.taskType) {
+        operationsFailed += 1;
+        lastErrorCode = "INVALID_WORKER_TASK_REQUEST";
+        return failedWorkerTask(
+          input,
+          "INVALID_WORKER_TASK_REQUEST",
+          "workerId, taskId, and taskType are required"
+        );
+      }
+
+      const taskKey = JSON.stringify([
+        registeredWorkerContext?.orgId ?? "unbound",
+        input.workerId,
+        input.taskId
+      ]);
+      const cached = workerTaskResults.get(taskKey);
+      if (cached) {
+        operationsSucceeded += 1;
+        return cached;
+      }
+
+      if (!registeredWorkerOrchestrator || !registeredWorkerContext) {
+        operationsFailed += 1;
+        lastErrorCode = "WORKER_ORCHESTRATOR_NOT_REGISTERED";
+        return failedWorkerTask(
+          input,
+          "WORKER_ORCHESTRATOR_NOT_REGISTERED",
+          "no WorkerOrchestrator registered"
+        );
+      }
+
+      await eventBus.publish({
+        type: "orchestrator.worker.task.dispatch",
+        payload: input,
+        timestamp: new Date().toISOString()
+      });
+
+      try {
+        const result = await registeredWorkerOrchestrator.runTask(
+          registeredWorkerContext,
+          input
+        );
+        // Completed/cancelled tasks are terminal and safe to cache. Blocked tasks
+        // must remain resumable after an approval decision.
+        if (["completed", "cancelled"].includes(result.status)) {
+          workerTaskResults.set(taskKey, result);
+          operationsSucceeded += 1;
+        } else if (result.status === "blocked") {
+          operationsSucceeded += 1;
+        } else {
+          operationsFailed += 1;
+          lastErrorCode = result.error?.code ?? "WORKER_TASK_FAILED";
+        }
+
+        await eventBus.publish({
+          type: "orchestrator.worker.task.result",
+          payload: result,
+          timestamp: new Date().toISOString()
+        });
+        return result;
+      } catch (error) {
+        operationsFailed += 1;
+        lastErrorCode = "WORKER_ORCHESTRATOR_ERROR";
+        return failedWorkerTask(
+          input,
+          "WORKER_ORCHESTRATOR_ERROR",
+          error instanceof Error ? error.message : "worker orchestrator failed",
+          true
+        );
+      }
     },
     registerMcpServer(server: {
       handleRequest(request: McpRequestInput): Promise<McpRequestOutput>;

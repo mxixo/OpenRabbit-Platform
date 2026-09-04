@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openrabbit.dev/schemas/capability-registry.schema.json",
+  "title": "OpenRabbit Capability Registry",
+  "type": "object",
+  "required": ["registry_version", "capabilities", "providers"],
+  "properties": {
+    "registry_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability" }
+    },
+    "providers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/provider" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "executionPolicy": {
+      "type": "string",
+      "enum": ["read_only", "draft_only", "approval_required", "policy_autonomous"]
+    },
+    "riskLevel": {
+      "type": "string",
+      "enum": ["read", "write_internal", "write_external", "sensitive_write"]
+    },
+    "providerState": {
+      "type": "string",
+      "enum": ["available", "degraded", "disabled", "incompatible", "retired"]
+    },
+    "capability": {
+      "type": "object",
+      "required": [
+        "capability_id",
+        "contract_version",
+        "risk_level",
+        "default_execution_policy",
+        "providers",
+        "supports_dry_run",
+        "supports_idempotency",
+        "emits_telemetry"
+      ],
+      "properties": {
+        "capability_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*(\\.[a-z][a-z0-9_-]*)+$"
+        },
+        "contract_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "risk_level": { "$ref": "#/$defs/riskLevel" },
+        "default_execution_policy": { "$ref": "#/$defs/executionPolicy" },
+        "input_schema": { "type": "string" },
+        "output_schema": { "type": "string" },
+        "providers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "supports_dry_run": { "type": "boolean" },
+        "supports_idempotency": { "type": "boolean" },
+        "emits_telemetry": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "provider": {
+      "type": "object",
+      "required": [
+        "provider_id",
+        "adapter_version",
+        "capabilities",
+        "credential_scope",
+        "state",
+        "priority"
+      ],
+      "properties": {
+        "provider_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]*$"
+        },
+        "adapter_version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "credential_scope": {
+          "type": "string",
+          "enum": ["tenant", "actor", "platform"]
+        },
+        "state": { "$ref": "#/$defs/providerState" },
+        "healthcheck": { "type": "boolean", "default": false },
+        "priority": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

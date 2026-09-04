@@ -3,6 +3,7 @@ import {
   ServiceOperationResult,
   ServiceReliabilitySnapshot
 } from "@openrabbit/runtime-core";
+import type { PlatformApiBackend } from "./platform-api.js";
 
 export interface ServiceDescriptor {
   serviceName: "api-gateway";
@@ -26,6 +27,12 @@ export interface ValidationResult {
   errors: string[];
 }
 
+export interface ApiResponseData {
+  accepted?: boolean;
+  status?: number;
+  result?: unknown;
+}
+
 export interface ApiGatewayService {
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -34,5 +41,6 @@ export interface ApiGatewayService {
   getHealth(): ServiceHealth;
   getReliabilitySnapshot(): ServiceReliabilitySnapshot;
   validateRequest(input: unknown): ValidationResult;
-  handleRequest(input: unknown): Promise<ServiceOperationResult<{ accepted: boolean }>>;
+  registerPlatformBackend(backend: PlatformApiBackend): void;
+  handleRequest(input: unknown): Promise<ServiceOperationResult<ApiResponseData>>;
 }

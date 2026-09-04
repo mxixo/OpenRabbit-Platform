@@ -29,7 +29,7 @@ export type BuiltinWorkerRole =
 export interface ApprovalPolicyRef {
   /** Policy id understood by the platform policy service. */
   policyId: string;
-  /** When true, tasks may require human approval before side effects. */
+  /** When true, write/side-effect tasks require human approval. */
   requiresApproval?: boolean;
   /** Optional max auto-retries before escalation. */
   maxAutoRetries?: number;
@@ -85,11 +85,24 @@ export interface WorkerRegistry {
   unregister(workerId: string): void;
 }
 
+export type WorkerTaskActionKind = "read" | "write";
+
+export interface WorkerTaskApproval {
+  granted: boolean;
+  approvalId?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+}
+
 export interface WorkerTaskRequest {
   workerId: string;
   taskId: string;
   taskType: string;
   input: unknown;
+  /** Read is the default. Write denotes a consequential/side-effecting action. */
+  actionKind?: WorkerTaskActionKind;
+  /** Human approval context for write tasks when policy requires it. */
+  approval?: WorkerTaskApproval;
   /** Optional explicit session reuse. */
   sessionId?: string;
   timeoutMs?: number;
@@ -151,7 +164,7 @@ export interface WorkerOrchestrator {
   ensureSession(context: WorkerExecutionContext, workerId: string): Promise<RuntimeSession>;
 
   /**
-   * Run a task for a worker: resolve worker → pick runtime → project tools → runTask.
+   * Run a task for a worker: resolve worker → enforce approval when needed → pick runtime → project tools → runTask.
    */
   runTask(
     context: WorkerExecutionContext,

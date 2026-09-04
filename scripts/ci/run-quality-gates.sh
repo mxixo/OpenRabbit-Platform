@@ -3,8 +3,8 @@ set -euo pipefail
 ACTIVE_TS_PACKAGES=(
   "packages/runtime-core"
   "mcp/contracts"
-  "mcp/servers"
   "mcp/adapters"
+  "mcp/servers"
   "services/orchestrator"
   "services/workflow-engine"
   "services/api-gateway"
@@ -37,6 +37,10 @@ run_pkg_checks() {
 }
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+printf "\n==> Root compatibility tests\n"
+cd "${REPO_ROOT}"
+npm test
 
 for package_dir in "${ACTIVE_TS_PACKAGES[@]}"; do
   run_pkg_checks "${package_dir}"

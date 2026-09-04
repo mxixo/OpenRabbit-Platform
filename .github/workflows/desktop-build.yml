@@ -1,0 +1,85 @@
+name: Build OpenRabbit Desktop
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'clients/desktop-shell/**'
+      - 'clients/real-estate-workspace/**'
+      - '.github/workflows/desktop-build.yml'
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            command: dist:mac
+            artifact: macOS
+            artifact_paths: |
+              clients/desktop-shell/dist/*.dmg
+              clients/desktop-shell/dist/*.dmg.blockmap
+            release_assets: clients/desktop-shell/dist/*.dmg clients/desktop-shell/dist/*.dmg.blockmap
+          - os: windows-latest
+            command: dist:win
+            artifact: Windows
+            artifact_paths: |
+              clients/desktop-shell/dist/*.exe
+              clients/desktop-shell/dist/*.exe.blockmap
+            release_assets: clients/desktop-shell/dist/*.exe clients/desktop-shell/dist/*.exe.blockmap
+          - os: ubuntu-latest
+            command: dist:linux
+            artifact: Linux
+            artifact_paths: clients/desktop-shell/dist/*.AppImage
+            release_assets: clients/desktop-shell/dist/*.AppImage
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: clients/desktop-shell
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Write public OpenRabbit runtime configuration
+        shell: bash
+        env:
+          CONFIGURED_GATEWAY_URL: ${{ vars.OPENRABBIT_CONNECTION_GATEWAY_URL }}
+          DEFAULT_GATEWAY_URL: https://openrabbit.93-188-163-198.sslip.io
+          SUPABASE_URL: https://djplmhglilcwqfotnjew.supabase.co
+          SUPABASE_PUBLISHABLE_KEY: sb_publishable_ZdtVEN0fzdTEQyfQRLfhDA_zjKarn2n
+        run: node -e "const fs=require('fs');const connectionGatewayUrl=process.env.CONFIGURED_GATEWAY_URL||process.env.DEFAULT_GATEWAY_URL||'';fs.writeFileSync('runtime-config.json',JSON.stringify({connectionGatewayUrl,supabaseUrl:process.env.SUPABASE_URL||'',supabasePublishableKey:process.env.SUPABASE_PUBLISHABLE_KEY||''},null,2)+'\\n')"
+
+      - name: Install desktop build dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build installer
+        run: npm run ${{ matrix.command }}
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenRabbit-${{ matrix.artifact }}
+          path: ${{ matrix.artifact_paths }}
+          if-no-files-found: error
+
+      - name: Attach installer to published GitHub release
+        if: github.event_name == 'release'
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh release upload "${{ github.event.release.tag_name }}" ${{ matrix.release_assets }} --clobber

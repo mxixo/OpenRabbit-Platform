@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenRabbit Sign In</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--bg:#080a14;--panel:#11162a;--line:#303955;--text:#f8f7ff;--muted:#a9b1c5;--purple:#7c3aed;--purple2:#a855f7;--red:#fb7185;--green:#34d399}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 20% 0,#2c1c57 0,transparent 35%),linear-gradient(180deg,#070914,#0b0d18);color:var(--text)}.wrap{width:min(960px,92vw);display:grid;grid-template-columns:1.05fr .95fr;border:1px solid var(--line);border-radius:24px;overflow:hidden;background:rgba(13,18,32,.96);box-shadow:0 40px 90px rgba(0,0,0,.35)}.brand{padding:54px;background:linear-gradient(155deg,rgba(72,38,135,.72),rgba(17,22,42,.88));display:flex;flex-direction:column;justify-content:space-between;min-height:610px}.logo{display:flex;align-items:center;gap:13px}.rabbit{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(145deg,#6d28d9,#a855f7);font-size:29px}.logo b{font-size:22px}.brand h1{font-size:44px;line-height:1.05;margin:30px 0 15px}.brand p{color:#d5d0e4;line-height:1.6;max-width:420px}.points{display:grid;gap:13px;color:#d9dbea;font-size:14px}.form{padding:54px;display:flex;flex-direction:column;justify-content:center}.form h2{font-size:28px;margin:0 0 7px}.sub{color:var(--muted);font-size:14px;margin-bottom:28px}.field{display:grid;gap:7px;margin-bottom:16px}.field label{font-size:12px;font-weight:800;color:#c9cfe0}.field input{width:100%;padding:13px 14px;background:#090e1b;border:1px solid #3a4563;border-radius:10px;color:white;outline:none}.field input:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(124,58,237,.15)}.btn{width:100%;border:1px solid #7c4ec6;background:linear-gradient(135deg,#4b2387,#7c3aed);color:white;padding:13px;border-radius:10px;font-weight:900;cursor:pointer;margin-top:6px}.btn.secondary{margin-top:10px;background:#131a2b;border-color:#394664}.btn:disabled{opacity:.55;cursor:not-allowed}.msg{min-height:38px;margin-top:16px;font-size:12px;line-height:1.45;color:#cdd3e2}.msg.error{color:#ffb5c1}.msg.ok{color:#8ef0cf}.fine{margin-top:18px;color:#7f899f;font-size:10px;line-height:1.5;text-align:center}@media(max-width:760px){.wrap{grid-template-columns:1fr}.brand{min-height:auto;padding:30px}.brand h1{font-size:32px}.points{display:none}.form{padding:30px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<section class="brand">
+  <div class="logo"><div class="rabbit">🐇</div><div><b>OpenRabbit</b><div style="color:#b8b5ca;font-size:12px">Your AI operating environment</div></div></div>
+  <div><h1>Your work, finally in one place.</h1><p>Sign in once, then connect the email, calendar, CRM and tools you already use. OpenRabbit handles the technical setup behind the scenes.</p></div>
+  <div class="points"><div>✓ Connect accounts with their normal sign-in screens</div><div>✓ Nothing shows as connected until it is verified</div><div>✓ You stay in control of approvals and permissions</div></div>
+</section>
+<section class="form">
+  <h2>Welcome to OpenRabbit</h2>
+  <div class="sub">Sign in to your workspace or create your account.</div>
+  <form id="accountForm">
+    <div class="field"><label for="email">EMAIL</label><input id="email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+    <div class="field"><label for="password">PASSWORD</label><input id="password" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters"></div>
+    <button class="btn" id="signInBtn" type="submit">Sign in</button>
+    <button class="btn secondary" id="signUpBtn" type="button">Create account</button>
+  </form>
+  <div class="msg" id="message"></div>
+  <div class="fine">OpenRabbit never asks you to copy API keys or developer tokens. Connected services use their normal authorization screens.</div>
+</section>
+</main>
+<script>
+(function(){
+  const api=window.openRabbitDesktop;
+  const form=document.getElementById('accountForm');
+  const email=document.getElementById('email');
+  const password=document.getElementById('password');
+  const signInBtn=document.getElementById('signInBtn');
+  const signUpBtn=document.getElementById('signUpBtn');
+  const message=document.getElementById('message');
+  function setMessage(text,type=''){message.textContent=text||'';message.className=`msg ${type}`.trim()}
+  function busy(on){signInBtn.disabled=on;signUpBtn.disabled=on}
+  function values(){return {email:email.value.trim(),password:password.value}}
+  function valid(){const v=values();if(!v.email||!v.email.includes('@')){setMessage('Enter a valid email address.','error');return false}if(v.password.length<8){setMessage('Use a password with at least 8 characters.','error');return false}return true}
+  async function checkExisting(){try{const s=await api?.getAccountStatus?.();if(s?.signedIn)await api.openDashboard()}catch(e){setMessage(e.message||String(e),'error')}}
+  form.addEventListener('submit',async e=>{e.preventDefault();if(!valid())return;busy(true);setMessage('Signing you in…');try{const v=values();const result=await api.signIn(v.email,v.password);if(result?.signedIn)setMessage('Signed in. Opening your workspace…','ok')}catch(e){setMessage(e.message||'Sign-in did not work. Check your email and password and try again.','error')}finally{busy(false)}});
+  signUpBtn.addEventListener('click',async()=>{if(!valid())return;busy(true);setMessage('Creating your OpenRabbit account…');try{const v=values();const result=await api.signUp(v.email,v.password);if(result?.signedIn){setMessage('Account created. Opening your workspace…','ok');await api.openDashboard()}else if(result?.needsConfirmation){setMessage('Check your email to finish creating your account. Then come back and sign in.','ok')}else setMessage('Account created. You can sign in now.','ok')}catch(e){setMessage(e.message||'OpenRabbit could not create the account.','error')}finally{busy(false)}});
+  checkExisting();
+})();
+</script>
+</body>
+</html>

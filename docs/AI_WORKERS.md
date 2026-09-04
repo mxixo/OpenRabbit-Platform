@@ -94,7 +94,33 @@ Workers must not read memory outside their scope and org. Cross-scope access req
 
 ---
 
-## 6. Goals, metrics, and reporting
+## 6. Human approval semantics
+
+`WorkerTaskRequest.actionKind` makes the side-effect boundary explicit:
+
+- `read` (default): analysis/research/compute-only task; may execute without approval.
+- `write`: consequential or side-effecting task; if the worker policy has `requiresApproval: true`, the orchestrator blocks execution unless `approval.granted === true`.
+
+Blocked write tasks return `status: "blocked"` with `error.code: "approval_required"` **before a RuntimeProvider is invoked**.
+
+The platform backend converts a blocked write task into an `ApprovalRequest` with `pending` status. A client can list pending approvals, approve one, or deny one:
+
+- approval → request becomes `approved` and the original task is re-submitted with approval audit context;
+- denial → request becomes `denied` and the task becomes `cancelled` with `approval_denied`.
+
+Approved write tasks may carry:
+
+- `approvalId`
+- `approvedBy`
+- `approvedAt`
+
+The orchestrator forwards these fields into runtime task metadata for downstream audit/event persistence. The current approval store is in-memory; durable database persistence remains a production follow-up.
+
+This means an Acquisitions Analyst can freely underwrite a deal, while actions such as sending outreach, writing CRM records, publishing content, or executing another side effect can be approval-gated.
+
+---
+
+## 7. Goals, metrics, and reporting
 
 Workers should eventually track:
 
@@ -107,7 +133,7 @@ MVP path: task results + events. CEO dashboard APIs aggregate later (`docs/ROADM
 
 ---
 
-## 7. Lifecycle
+## 8. Lifecycle
 
 ```text
 preset (pack) → materialize → register → active
@@ -121,16 +147,17 @@ preset (pack) → materialize → register → active
 1. Accept trusted organization and subject context from authenticated platform ingress
 2. Resolve the worker inside that organization
 3. Ensure active status
-4. Choose runtime via preference
-5. Project tools/capabilities into a tenant-bound session
-6. `runTask` and normalize result
-7. Stop only the tenant-bound session on demand
+4. Enforce the configured approval boundary for consequential tasks
+5. Choose runtime via preference
+6. Project tools/capabilities into a tenant-bound session
+7. `runTask` and normalize result
+8. Stop only the tenant-bound session on demand
 
 Tenant authority is intentionally separate from task input and metadata. Product APIs must derive `WorkerExecutionContext` from authenticated ingress; they must never deserialize it from the task body.
 
 ---
 
-## 8. Delegation
+## 9. Delegation
 
 Near term:
 
@@ -143,7 +170,7 @@ Later:
 
 ---
 
-## 9. Builtin role keys
+## 10. Builtin role keys
 
 ```text
 executive_assistant
@@ -160,17 +187,21 @@ Packs may introduce additional role strings; Core treats unknown roles as valid 
 
 ---
 
-## 10. Implementation status
+## 11. Implementation status
 
 | Item | Status |
 |---|---|
 | Worker contracts + presets | Done |
 | In-memory registry + validation | Done |
 | Tenant-bound WorkerOrchestrator + isolation tests | Done |
-| Service wiring (`services/orchestrator`) | Pending |
+| Service wiring (`services/orchestrator`) | Done |
+| Real Estate bootstrap / worker execution loop | Done |
+| Initial Platform API worker/task routes | Done |
+| Read-vs-write approval enforcement | Done |
+| In-memory approval requests + approve/deny API | Done |
+| Durable approval persistence | Pending |
 | Durable worker store | Pending |
-| CEO-facing worker APIs | Pending |
-| Full approval enforcement hooks | Partial (policy metadata today) |
+| Broader CEO dashboard APIs | Pending |
 
 ---
 

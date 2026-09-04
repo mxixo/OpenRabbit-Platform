@@ -1,0 +1,322 @@
+import {
+  DefaultLivingAgendaNowPresenter,
+  InMemoryCalendarPlanStore,
+  generateLivingAgenda,
+  reconcileLivingAgenda,
+  resolveLivingAgendaNowState,
+  type AgendaChange,
+  type AgendaCandidate,
+  type CalendarPlanItem,
+  type CalendarPlanItemStatus,
+  type DailyPlan,
+  type GeneratedLivingAgenda,
+  type LivingAgendaNowPresentation,
+  type LivingAgendaSurface,
+  type PriorityScoreInput,
+  type ReconciledLivingAgenda,
+  type WorkerTaskActionKind,
+  type WorkerTaskResult
+} from "@openrabbit/runtime-core";
+import { RealEstatePlatformBackend } from "./real-estate-platform-backend.js";
+
+export interface PlanItemExecutionResult {
+  item: CalendarPlanItem;
+  taskResult: WorkerTaskResult;
+}
+
+export interface PlanningAgendaCandidateInput {
+  itemId: string;
+  estimatedMinutes: number;
+  fixed?: boolean;
+  priorityFactors?: PriorityScoreInput;
+}
+
+export interface GeneratedAgendaResult {
+  agenda: GeneratedLivingAgenda;
+  now: LivingAgendaNowPresentation;
+}
+
+export interface ReconciledAgendaResult {
+  reconciliation: ReconciledLivingAgenda;
+  now: LivingAgendaNowPresentation;
+}
+
+function executionNote(result: WorkerTaskResult): string {
+  if (result.status === "completed") {
+    return `OpenRabbit task ${result.taskId} completed.`;
+  }
+  if (result.status === "blocked" && result.error?.code === "approval_required") {
+    const approvalId = (result.output as { approvalId?: string } | undefined)?.approvalId;
+    return approvalId
+      ? `OpenRabbit task ${result.taskId} is blocked pending human approval (${approvalId}).`
+      : `OpenRabbit task ${result.taskId} is blocked pending human approval.`;
+  }
+  if (result.status === "cancelled") {
+    return `OpenRabbit task ${result.taskId} was cancelled${result.error?.message ? `: ${result.error.message}` : "."}`;
+  }
+  return `OpenRabbit task ${result.taskId} failed${result.error?.message ? `: ${result.error.message}` : "."}`;
+}
+
+function appendNote(existing: string | undefined, next: string): string {
+  return existing?.trim() ? `${existing.trim()}\n${next}` : next;
+}
+
+function planStatusForResult(result: WorkerTaskResult): CalendarPlanItemStatus {
+  return result.status === "completed" ? "completed" : "blocked";
+}
+
+export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend {
+  private readonly planning = new InMemoryCalendarPlanStore();
+  private planItemSequence = 0;
+  private executionSequence = 0;
+  private readonly nowPresenter = new DefaultLivingAgendaNowPresenter();
+
+  async getDailyPlan(orgId: string, date: string): Promise<DailyPlan | undefined> {
+    return this.planning.getDailyPlan(orgId, date);
+  }
+
+  async listPlanItems(orgId: string, date: string): Promise<CalendarPlanItem[]> {
+    return this.planning.listItems(orgId, { date });
+  }
+
+  async saveDailyPlan(input: {
+    orgId: string;
+    date: string;
+    timezone: string;
+    objective?: string;
+    itemIds: string[];
+    generatedBy?: string;
+  }): Promise<DailyPlan> {
+    return this.planning.saveDailyPlan({
+      id: `plan-${input.orgId}-${input.date}`,
+      ...input
+    });
+  }
+
+  async createPlanItem(input: {
+    orgId: string;
+    date: string;
+    title: string;
+    startAt?: string;
+    endAt?: string;
+    priority?: number;
+    workerId?: string;
+    taskId?: string;
+    notes?: string;
+    source?: CalendarPlanItem["source"];
+    metadata?: Record<string, unknown>;
+  }): Promise<CalendarPlanItem> {
+    this.planItemSequence += 1;
+    return this.planning.createItem({
+      id: `plan-item-${this.planItemSequence}`,
+      orgId: input.orgId,
+      date: input.date,
+      title: input.title,
+      startAt: input.startAt,
+      endAt: input.endAt,
+      status: "planned",
+      priority: input.priority,
+      workerId: input.workerId,
+      taskId: input.taskId,
+      notes: input.notes,
+      source: input.source,
+      metadata: input.metadata
+    });
+  }
+
+  async updatePlanItem(input: {
+    orgId: string;
+    itemId: string;
+    status?: CalendarPlanItemStatus;
+    notes?: string;
+    workerId?: string;
+    taskId?: string;
+  }): Promise<CalendarPlanItem> {
+    return this.planning.updateItem(input.orgId, input.itemId, {
+      status: input.status,
+      notes: input.notes,
+      workerId: input.workerId,
+      taskId: input.taskId
+    });
+  }
+
+  async generateLivingAgenda(input: {
+    orgId: string;
+    date: string;
+    availableMinutes: number;
+    candidates: PlanningAgendaCandidateInput[];
+    surface?: LivingAgendaSurface;
+  }): Promise<GeneratedAgendaResult> {
+    const agenda = generateLivingAgenda({
+      date: input.date,
+      availableMinutes: input.availableMinutes,
+      candidates: this.resolveAgendaCandidates(
+        input.orgId,
+        input.date,
+        input.candidates
+      )
+    });
+    return {
+      agenda,
+      now: this.presentNow(agenda, input.surface ?? "mobile_app")
+    };
+  }
+
+  async reconcileLivingAgenda(input: {
+    orgId: string;
+    date: string;
+    availableMinutes: number;
+    candidates: PlanningAgendaCandidateInput[];
+    changes: AgendaChange[];
+    surface?: LivingAgendaSurface;
+  }): Promise<ReconciledAgendaResult> {
+    const reconciliation = reconcileLivingAgenda({
+      date: input.date,
+      availableMinutes: input.availableMinutes,
+      candidates: this.resolveAgendaCandidates(
+        input.orgId,
+        input.date,
+        input.candidates
+      ),
+      changes: input.changes
+    });
+    return {
+      reconciliation,
+      now: this.presentNow(
+        reconciliation.agenda,
+        input.surface ?? "mobile_app"
+      )
+    };
+  }
+
+  async executePlanItem(input: {
+    orgId: string;
+    itemId: string;
+    taskType: string;
+    taskInput: unknown;
+    actionKind?: WorkerTaskActionKind;
+  }): Promise<PlanItemExecutionResult> {
+    const item = this.planning.getItem(input.orgId, input.itemId);
+    if (!item) {
+      throw new Error(`Calendar item not found: ${input.itemId}`);
+    }
+    if (!item.workerId?.trim()) {
+      throw new Error(`Calendar item ${input.itemId} has no assigned worker`);
+    }
+    if (!input.taskType?.trim()) {
+      throw new Error("taskType is required");
+    }
+    if (["completed", "skipped"].includes(item.status)) {
+      throw new Error(`Calendar item ${input.itemId} is already ${item.status}`);
+    }
+
+    this.executionSequence += 1;
+    const taskId = item.taskId?.trim() || `plan-task-${input.itemId}-${this.executionSequence}`;
+    this.planning.updateItem(input.orgId, input.itemId, {
+      status: "in_progress",
+      taskId,
+      metadata: {
+        ...(item.metadata ?? {}),
+        executionTaskType: input.taskType,
+        executionActionKind: input.actionKind ?? "read"
+      }
+    });
+
+    const taskResult = await this.submitWorkerTask({
+      orgId: input.orgId,
+      workerId: item.workerId,
+      taskId,
+      taskType: input.taskType,
+      input: input.taskInput,
+      actionKind: input.actionKind
+    });
+
+    const updated = this.applyTaskResultToPlanItem(input.orgId, item, taskResult, {
+      executionTaskType: input.taskType,
+      executionActionKind: input.actionKind ?? "read"
+    });
+
+    return { item: updated, taskResult };
+  }
+
+  async decideApproval(input: {
+    orgId: string;
+    approvalId: string;
+    decision: "approve" | "deny";
+    decidedBy: string;
+  }) {
+    const decision = await super.decideApproval(input);
+    if (decision.taskResult) {
+      const linkedItems = this.planning.listItems(input.orgId, {
+        taskId: decision.taskResult.taskId
+      });
+      for (const item of linkedItems) {
+        this.applyTaskResultToPlanItem(input.orgId, item, decision.taskResult, {
+          approvalDecision: input.decision,
+          approvalId: input.approvalId,
+          approvalDecidedBy: input.decidedBy
+        });
+      }
+    }
+    return decision;
+  }
+
+  private resolveAgendaCandidates(
+    orgId: string,
+    date: string,
+    inputs: PlanningAgendaCandidateInput[]
+  ): AgendaCandidate[] {
+    return inputs.map((input) => {
+      const item = this.planning.getItem(orgId, input.itemId);
+      if (!item || item.date !== date) {
+        throw new Error(
+          `Calendar item not found for organization and date: ${input.itemId}`
+        );
+      }
+      return {
+        item,
+        estimatedMinutes: input.estimatedMinutes,
+        fixed: input.fixed,
+        priorityFactors: input.priorityFactors
+      };
+    });
+  }
+
+  private presentNow(
+    agenda: GeneratedLivingAgenda,
+    surface: LivingAgendaSurface
+  ): LivingAgendaNowPresentation {
+    const state = resolveLivingAgendaNowState(
+      agenda.items.map((item) => ({
+        itemId: item.itemId,
+        title: item.title,
+        estimatedMinutes: item.estimatedMinutes,
+        priorityScore: item.priority.score,
+        availableNow: true,
+        reasons: item.priority.reasons
+      }))
+    );
+    return this.nowPresenter.present(state, surface);
+  }
+
+  private applyTaskResultToPlanItem(
+    orgId: string,
+    item: CalendarPlanItem,
+    result: WorkerTaskResult,
+    metadata: Record<string, unknown>
+  ): CalendarPlanItem {
+    const approvalId = (result.output as { approvalId?: string } | undefined)?.approvalId;
+    return this.planning.updateItem(orgId, item.id, {
+      status: planStatusForResult(result),
+      taskId: result.taskId,
+      notes: appendNote(item.notes, executionNote(result)),
+      metadata: {
+        ...(item.metadata ?? {}),
+        ...metadata,
+        executionStatus: result.status,
+        ...(result.error?.code ? { executionErrorCode: result.error.code } : {}),
+        ...(approvalId ? { approvalId } : {})
+      }
+    });
+  }
+}
