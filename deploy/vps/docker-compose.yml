@@ -1,9 +1,17 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   connection-gateway:
     build:
       context: ../..
       dockerfile: services/connection-gateway/Dockerfile
     restart: unless-stopped
+    init: true
+    logging: *default-logging
     environment:
       OPENRABBIT_CONNECTION_GATEWAY_HOST: 0.0.0.0
       OPENRABBIT_CONNECTION_GATEWAY_PORT: 8790
@@ -46,6 +54,8 @@ services:
   gateway-edge:
     image: caddy:2.9-alpine
     restart: unless-stopped
+    init: true
+    logging: *default-logging
     depends_on:
       connection-gateway:
         condition: service_healthy
@@ -59,6 +69,12 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - openrabbit_caddy_data:/data
       - openrabbit_caddy_config:/config
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   openrabbit_gateway_data:

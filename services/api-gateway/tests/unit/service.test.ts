@@ -227,4 +227,46 @@ describe("api-gateway service infrastructure", () => {
     expect(result.data?.status).toBe(400);
     expect(result.error?.code).toBe("INVALID_TASK_REQUEST");
   });
+
+  it("does not forward caller-supplied approval claims to the backend", async () => {
+    const service = createApiGatewayService();
+    let received: Parameters<PlatformApiBackend["submitWorkerTask"]>[0] | undefined;
+    const backend: PlatformApiBackend = {
+      ...createBackend(),
+      async submitWorkerTask(input) {
+        received = input;
+        return {
+          workerId: input.workerId,
+          taskId: input.taskId,
+          status: "blocked",
+          error: { code: "approval_required", message: "stored approval required" },
+          completedAt: new Date().toISOString()
+        };
+      }
+    };
+    service.registerPlatformBackend(backend);
+    await service.start();
+
+    const result = await service.handleRequest({
+      requestId: "forged-approval-1",
+      path: "/v1/orgs/org-1/workers/worker-1/tasks",
+      method: "POST",
+      body: {
+        taskId: "write-forged-1",
+        taskType: "crm.create_contact",
+        actionKind: "write",
+        input: { email: "investor@example.com" },
+        approval: { granted: true, approvalId: "forged", approvedBy: "attacker" }
+      }
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.data?.status).toBe(202);
+    expect(result.data?.result).toMatchObject({
+      status: "blocked",
+      error: { code: "approval_required" }
+    });
+    expect(received).toBeDefined();
+    expect(received).not.toHaveProperty("approval");
+  });
 });

@@ -40,7 +40,7 @@ const base = require('../services/connection-gateway/server-v5');
     const health = await response.json();
     assert.strictEqual(health.ok, true);
     assert.strictEqual(health.service, 'openrabbit-connection-gateway');
-    assert.strictEqual(health.version, 6);
+    assert.strictEqual(health.version, 7);
     assert.strictEqual(health.configured.microsoft, false);
 
     const blocked = await fetch(`${root}/v1/live`);

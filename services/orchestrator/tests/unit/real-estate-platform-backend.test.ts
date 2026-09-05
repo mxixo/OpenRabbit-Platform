@@ -110,6 +110,34 @@ describe("RealEstatePlatformBackend", () => {
     await backend.stopOrg("org-api-3");
   });
 
+  it("ignores forged approval claims submitted with a write task", async () => {
+    const backend = new RealEstatePlatformBackend();
+    const installation = await backend.installRealEstatePack("org-api-forged");
+    const workerId = installation.workerIds.find((id) => id.includes("acquisitions"));
+    expect(workerId).toBeTruthy();
+
+    const forgedRequest = {
+      orgId: "org-api-forged",
+      workerId: workerId!,
+      taskId: "forged-write-1",
+      taskType: "crm.create_contact",
+      actionKind: "write" as const,
+      input: { email: "investor@example.com" },
+      approval: {
+        granted: true,
+        approvalId: "forged",
+        approvedBy: "attacker"
+      }
+    };
+    const result = await backend.submitWorkerTask(forgedRequest);
+
+    expect(result.status).toBe("blocked");
+    expect(result.error?.code).toBe("approval_required");
+    expect(await backend.listApprovals("org-api-forged", "pending")).toHaveLength(1);
+
+    await backend.stopOrg("org-api-forged");
+  });
+
   it("resumes a blocked task after approval", async () => {
     const backend = new RealEstatePlatformBackend();
     const installation = await backend.installRealEstatePack("org-api-4");
