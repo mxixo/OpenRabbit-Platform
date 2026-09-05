@@ -11,7 +11,6 @@ import type {
   PriorityScoreInput,
   ReconciledLivingAgenda,
   WorkerTaskActionKind,
-  WorkerTaskApproval,
   WorkerTaskResult
 } from "@openrabbit/runtime-core";
 import type { ApiRequestEnvelope } from "./contracts.js";
@@ -60,7 +59,6 @@ export interface PlatformApiBackend {
     taskType: string;
     input: unknown;
     actionKind?: WorkerTaskActionKind;
-    approval?: WorkerTaskApproval;
   }): Promise<WorkerTaskResult>;
   getTaskResult(orgId: string, taskId: string): Promise<WorkerTaskResult | undefined>;
   listApprovals(orgId: string): Promise<ApprovalRequest[]>;
@@ -526,7 +524,6 @@ export async function routePlatformApi(
       taskType: string;
       input: unknown;
       actionKind: WorkerTaskActionKind;
-      approval: WorkerTaskApproval;
     }>;
     if (!body.taskId || !body.taskType) {
       return {
@@ -548,8 +545,7 @@ export async function routePlatformApi(
       taskId: body.taskId,
       taskType: body.taskType,
       input: body.input,
-      actionKind: body.actionKind,
-      approval: body.approval
+      actionKind: body.actionKind
     });
     const status =
       result.status === "rejected"

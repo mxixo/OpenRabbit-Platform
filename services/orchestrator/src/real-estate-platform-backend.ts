@@ -6,7 +6,6 @@ import {
   type AuditRecord,
   type AuditRecordKind,
   type WorkerTaskActionKind,
-  type WorkerTaskApproval,
   type WorkerTaskResult
 } from "@openrabbit/runtime-core";
 import { bootstrapRealEstateOrg, RealEstateBootstrap } from "./bootstrap-real-estate.js";
@@ -33,7 +32,6 @@ export interface RealEstatePlatformBackendContract {
     taskType: string;
     input: unknown;
     actionKind?: WorkerTaskActionKind;
-    approval?: WorkerTaskApproval;
   }): Promise<WorkerTaskResult>;
   getTaskResult(orgId: string, taskId: string): Promise<WorkerTaskResult | undefined>;
   listApprovals(orgId: string, status?: ApprovalRequestStatus): Promise<ApprovalRequest[]>;
@@ -106,7 +104,6 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
     taskType: string;
     input: unknown;
     actionKind?: WorkerTaskActionKind;
-    approval?: WorkerTaskApproval;
   }): Promise<WorkerTaskResult> {
     this.recordAudit(input.orgId, "task_requested", {
       workerId: input.workerId,
@@ -136,8 +133,7 @@ export class RealEstatePlatformBackend implements RealEstatePlatformBackendContr
       taskId: input.taskId,
       taskType: input.taskType,
       input: input.input,
-      actionKind: input.actionKind,
-      approval: input.approval
+      actionKind: input.actionKind
     });
 
     let finalResult = result;

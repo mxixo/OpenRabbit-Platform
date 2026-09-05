@@ -26,7 +26,7 @@ const proactiveSource = fs.readFileSync(path.join(workspaceDir, 'proactive-brief
 const actionCenterSource = fs.readFileSync(path.join(workspaceDir, 'action-center.js'), 'utf8');
 
 assert.strictEqual(desktopPackage.main, 'main-v2.js');
-assert.strictEqual(desktopPackage.version, '0.1.6');
+assert.strictEqual(desktopPackage.version, '0.2.1');
 for (const script of ['dist:mac', 'dist:win', 'dist:linux']) assert.ok(desktopPackage.scripts[script], `${script} packaging script is required`);
 for (const file of ['main-v2.js','main.js','preload.js','gateway-client.js','auth-client.js','action-queue.js','runtime-config.json']) {
   assert.ok(fs.existsSync(path.join(desktopDir, file)), `${file} must exist`);
