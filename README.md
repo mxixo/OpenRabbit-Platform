@@ -83,6 +83,7 @@ Canonical docs:
 - [`docs/RUNTIMES.md`](docs/RUNTIMES.md)
 - [`docs/AI_WORKERS.md`](docs/AI_WORKERS.md)
 - [`docs/INDUSTRY_PACKS.md`](docs/INDUSTRY_PACKS.md)
+- [`docs/ADAPTIVE-ONBOARDING-TRUST.md`](docs/ADAPTIVE-ONBOARDING-TRUST.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 AI tools (Warp, OpenClaw, Antigravity, ChatGPT, etc.) must read these before proposing architectural changes.
