@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="130" y1="80" x2="900" y2="940" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C95CFF"/>
+      <stop offset="0.48" stop-color="#8A35D1"/>
+      <stop offset="1" stop-color="#3D155B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(350 260) rotate(52) scale(650)">
+      <stop stop-color="#FFFFFF" stop-opacity=".3"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="28" stdDeviation="30" flood-color="#1B0828" flood-opacity=".48"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <rect x="24" y="24" width="976" height="976" rx="205" fill="none" stroke="#FFFFFF" stroke-opacity=".18" stroke-width="12"/>
+  <circle cx="512" cy="486" r="345" fill="url(#glow)"/>
+  <g fill="#FFFFFF" filter="url(#shadow)" transform="translate(180 122) scale(10.4)">
+    <path d="M22.5 6c-2.2-.4-4.6 1-5.4 3.6-1.6 5.2.2 12.4 3.2 18.2.4-4.8 1.4-9.6 2.2-21.8z"/>
+    <path d="M22.5 6c1.1 5.8 1.8 11.2 2 16.4 2.4-5.2 2.8-11.4 1.2-14.8C24.8 5.8 23.4 5.4 22.5 6z"/>
+    <path d="M41.5 6c2.2-.4 4.6 1 5.4 3.6 1.6 5.2-.2 12.4-3.2 18.2-.4-4.8-1.4-9.6-2.2-21.8z"/>
+    <path d="M41.5 6c-1.1 5.8-1.8 11.2-2 16.4-2.4-5.2-2.8-11.4-1.2-14.8C39.2 5.8 40.6 5.4 41.5 6z"/>
+    <path d="M32 18.5c-9.2 0-16.5 6.9-16.5 15.6 0 4.6 2.2 8.7 5.7 11.5-.6 2.6-1 4.6-1 6.1 0 3.2 2.8 5.5 6.6 5.5h10.4c3.8 0 6.6-2.3 6.6-5.5 0-1.5-.4-3.5-1-6.1 3.5-2.8 5.7-6.9 5.7-11.5 0-8.7-7.3-15.6-16.5-15.6z"/>
+  </g>
+</svg>

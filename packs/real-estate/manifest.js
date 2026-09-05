@@ -41,6 +41,29 @@ const manifest = {
       },
       tags: ["pack:real-estate", "research"],
     },
+    {
+      id: "lead-to-deal-operations",
+      role: "operations_manager",
+      displayName: "Lead-to-Deal Operations Agent",
+      mission:
+        "Turn inbound real-estate opportunities into decision-ready work: validate intake data, identify missing facts, prioritize urgency, coordinate underwriting, recommend next actions, and prepare approval-gated follow-up without sending messages or changing systems of record autonomously.",
+      runtimePreference: ["openclaw", "mock-runtime"],
+      allowedCapabilities: ["real-estate"],
+      allowedTools: ["deal.underwrite"],
+      memoryScope: "team",
+      approvalPolicy: {
+        policyId: "real-estate-lead-to-deal-default",
+        requiresApproval: true,
+        maxAutoRetries: 1,
+      },
+      tags: ["pack:real-estate", "operations", "lead-intake", "zapier-ready"],
+      metadata: {
+        department: "deal-operations",
+        reportingTo: "human-ceo",
+        supportedTaskTypes: ["lead_to_deal_intake", "deal_underwriting"],
+        sideEffectPolicy: "draft-only-until-approved",
+      },
+    },
   ],
   workflowPresets: ["commercial-investment"],
   defaults: {

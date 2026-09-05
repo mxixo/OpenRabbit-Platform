@@ -77,11 +77,14 @@ Deliverables:
 
 **Goal:** Sellable RE operating environment for a narrow ICP (investor/operator CEO).
 
+**Product direction:** `docs/REAL_ESTATE_FIRST_PRODUCT.md` is the accepted customer-experience and sequencing guide. The signed-in command center must lead with approvals, what changed, what matters, completed work, recommendations, and what happens next.
+
 Deliverables:
 
 - Auth + multi-tenant org hardening  
 - CEO dashboard views (workers, approvals, deal pipeline metrics)  
 - CRM integration (HubSpot or equivalent) via IntegrationAdapter  
+- Replaceable webhook automation adapter (Zapier first) for inbound lead-to-deal intake, routed through the Lead-to-Deal Operations worker with approval-gated side effects
 - Property data integration (Rentcast/MLS as available)  
 - Billing-ready packaging of Real Estate Pack  
 - Audit log for worker actions and approvals  

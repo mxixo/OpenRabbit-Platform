@@ -133,6 +133,8 @@ OpenRabbit should prefer delegated authorization such as OAuth over collecting t
 
 Real estate is the proving ground because the work is high-context, repetitive, relationship-driven, and spread across many systems.
 
+OpenRabbit will deliberately remain real-estate-heavy until one complete lead-to-deal revenue loop is reliable in production. Broader industry support remains an architectural requirement, but it is not allowed to dilute the first commercial proof. See `docs/REAL_ESTATE_FIRST_PRODUCT.md`.
+
 For a real-estate user, adaptive onboarding can learn brokerage/company, region, business model, client types, lead sources, CRM, email/calendar, MLS/property systems, marketing channels, and desired outcomes. The Real Estate Industry Pack then constructs the relevant environment.
 
 Start with lead handling, deal analysis, follow-up, CRM coordination, calendar-driven work, transaction efficiency, marketing support, and reporting.
