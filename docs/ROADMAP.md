@@ -131,6 +131,7 @@ Deliverables:
 - Observability (logs/metrics/traces schema)  
 - Real deploy executors behind dry-run scripts  
 - Stronger policy enforcement automation in CI/release  
+- Health-aware runtime and integration recovery with bounded retries, audited fallback, deterministic connector startup, and resumable delegated authorization (see `docs/operations/RELIABILITY_PILOT_2026-09-05.md`)
 
 ---
 
