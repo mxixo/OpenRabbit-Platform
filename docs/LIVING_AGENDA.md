@@ -213,8 +213,34 @@ Calendar / CRM / Tasks / Email / Workers
 9. Reconciliation / automatic reprioritization engine.
 10. CEO attention queue and department rollups.
 11. Calendar ingestion and sync adapters.
-12. Durable persistence and event-driven scheduling.
+12. Durable persistence and event-driven scheduling. **JSON-file planning persistence implemented for local/small deployments; production database and event scheduling remain.**
 
 ## Product principle
 
 **The agenda is not a static promise about the day. It is OpenRabbit's current best operating plan based on goals, commitments, available resources, and what has actually happened.**
+
+
+## Durable local planning state
+
+`JsonFileCalendarPlanStore` provides a VPS-independent persistence adapter for
+local development and small single-process deployments. It preserves normalized
+plan items, execution status and notes, daily plans, source references, and
+metadata across process restarts.
+
+Writes use a temporary file followed by an atomic rename. Snapshot exports are
+versioned and can be imported into another installation, providing a portable
+backup and a migration path before a production database is introduced.
+
+Example composition:
+
+```ts
+const planningStore = new JsonFileCalendarPlanStore({
+  filePath: ".openrabbit-data/living-agenda.json"
+});
+const backend = new PlanningRealEstatePlatformBackend(planningStore);
+```
+
+Local state under `.openrabbit-data/` is intentionally excluded from Git. The
+adapter targets a single running process. Multi-process production deployments
+will require a transactional database adapter behind the same
+`CalendarPlanStore` interface.

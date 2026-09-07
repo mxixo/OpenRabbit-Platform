@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   DefaultLivingAgendaNowPresenter,
   InMemoryCalendarPlanStore,
@@ -8,6 +9,7 @@ import {
   type AgendaCandidate,
   type CalendarPlanItem,
   type CalendarPlanItemStatus,
+  type CalendarPlanStore,
   type DailyPlan,
   type GeneratedLivingAgenda,
   type LivingAgendaNowPresentation,
@@ -66,10 +68,14 @@ function planStatusForResult(result: WorkerTaskResult): CalendarPlanItemStatus {
 }
 
 export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend {
-  private readonly planning = new InMemoryCalendarPlanStore();
-  private planItemSequence = 0;
-  private executionSequence = 0;
+  private readonly planning: CalendarPlanStore;
+   private executionSequence = 0;
   private readonly nowPresenter = new DefaultLivingAgendaNowPresenter();
+
+  constructor(planning: CalendarPlanStore = new InMemoryCalendarPlanStore()) {
+    super();
+    this.planning = planning;
+  }
 
   async getDailyPlan(orgId: string, date: string): Promise<DailyPlan | undefined> {
     return this.planning.getDailyPlan(orgId, date);
@@ -106,9 +112,8 @@ export class PlanningRealEstatePlatformBackend extends RealEstatePlatformBackend
     source?: CalendarPlanItem["source"];
     metadata?: Record<string, unknown>;
   }): Promise<CalendarPlanItem> {
-    this.planItemSequence += 1;
     return this.planning.createItem({
-      id: `plan-item-${this.planItemSequence}`,
+      id: `plan-item-${randomUUID()}`,
       orgId: input.orgId,
       date: input.date,
       title: input.title,
