@@ -1,0 +1,2 @@
+import {describe,expect,it} from "vitest"; import {explainProvenance,type ActionReceipt} from "../src/receipts.js";
+describe("action receipts",()=>{it("explains provenance",()=>{const r:ActionReceipt={receiptId:"r1",correlationId:"c1",organizationId:"o1",userId:"u1",capability:"email",operation:"summarize",policyClass:"GREEN",policyReason:"Routine",requestedAt:new Date().toISOString(),status:"verified",provenance:[{sourceType:"connector",sourceId:"message-123",provider:"gmail",connectionId:"g1"}]};expect(explainProvenance(r)).toEqual(["connector:message-123 via gmail"])})});
