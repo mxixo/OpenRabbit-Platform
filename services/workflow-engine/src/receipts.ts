@@ -1,0 +1,4 @@
+import type { PolicyClass } from "./policy.js";
+export interface ProvenanceRef { sourceType:"connector"|"file"|"memory"|"user-input"|"derived"; sourceId:string; provider?:string; connectionId?:string; observedAt?:string; purpose?:string; }
+export interface ActionReceipt { receiptId:string; correlationId:string; organizationId:string; userId:string; capability:string; operation:string; connectionId?:string; resource?:string; modelProvider?:string; modelId?:string; runtime?:string; policyClass:PolicyClass; policyReason:string; requestedAt:string; executedAt?:string; completedAt?:string; status:"requested"|"approved"|"executed"|"verified"|"blocked"|"failed"; providerReceipt?:string; idempotencyKey?:string; provenance:ProvenanceRef[]; error?:string; }
+export function explainProvenance(receipt:ActionReceipt):string[]{ return receipt.provenance.map(p=>p.sourceType+":"+p.sourceId+(p.provider?" via "+p.provider:"")); }
