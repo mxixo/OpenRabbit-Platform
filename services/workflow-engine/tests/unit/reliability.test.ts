@@ -28,11 +28,16 @@ class ThrowingIdempotencyStore implements WorkflowIdempotencyStore {
     if (this.failurePhase === "claim") {
       throw new Error("store unavailable");
     }
-    return { state: "acquired" };
+    return { state: "acquired", claimToken: "throwing-store-claim" };
   }
 
-  async complete(scopeKey: string, result: WorkflowExecutionResult): Promise<void> {
+  async complete(
+    scopeKey: string,
+    claimToken: string,
+    result: WorkflowExecutionResult
+  ): Promise<void> {
     void scopeKey;
+    void claimToken;
     void result;
     if (this.failurePhase === "complete") {
       throw new Error("commit timeout");
