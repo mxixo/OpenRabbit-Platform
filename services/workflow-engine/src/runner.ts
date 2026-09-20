@@ -30,6 +30,10 @@ function createEvent(
   };
 }
 
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message.trim() ? error.message : fallback;
+}
+
 export class InMemoryWorkflowRunner implements WorkflowRunner {
   constructor(
     private readonly retryPolicy: WorkflowRetryPolicy = { maxAttempts: 3 },
@@ -70,7 +74,7 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
     try {
       idempotencyScope = workflowIdempotencyScopeKey(definition, context);
     } catch (error) {
-      const reason = error instanceof Error ? error.message : "invalid idempotency scope";
+      const reason = errorMessage(error, "invalid idempotency scope");
       events.push(createEvent("workflow.failed", definition.workflowId, { reason }));
       return {
         workflowId: definition.workflowId,
@@ -82,32 +86,52 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
     }
 
     if (idempotencyScope) {
-      const claim = this.idempotencyStore.claim(idempotencyScope);
-      if (claim.state === "completed") {
-        return {
-          ...claim.result,
-          events: [
-            ...claim.result.events,
-            createEvent("workflow.replayed", definition.workflowId, {
-              correlationId: context.correlationId,
+      try {
+        const claim = await this.idempotencyStore.claim(idempotencyScope);
+        if (claim.state === "completed") {
+          return {
+            ...claim.result,
+            events: [
+              ...claim.result.events,
+              createEvent("workflow.replayed", definition.workflowId, {
+                correlationId: context.correlationId,
+                tenantId: context.tenantId,
+                idempotencyKey: context.idempotencyKey
+              })
+            ]
+          };
+        }
+        if (claim.state === "in_progress") {
+          const reason = "duplicate idempotent workflow execution is already in progress";
+          events.push(
+            createEvent("workflow.step.blocked", definition.workflowId, {
+              reason,
               tenantId: context.tenantId,
               idempotencyKey: context.idempotencyKey
             })
-          ]
-        };
-      }
-      if (claim.state === "in_progress") {
-        const reason = "duplicate idempotent workflow execution is already in progress";
+          );
+          return {
+            workflowId: definition.workflowId,
+            status: "blocked",
+            completedSteps,
+            deadLetterReason: reason,
+            events
+          };
+        }
+      } catch (error) {
+        const detail = errorMessage(error, "idempotency storage unavailable");
+        const reason = `idempotency claim failed before side effects: ${detail}`;
         events.push(
-          createEvent("workflow.step.blocked", definition.workflowId, {
+          createEvent("workflow.failed", definition.workflowId, {
             reason,
             tenantId: context.tenantId,
-            idempotencyKey: context.idempotencyKey
+            idempotencyKey: context.idempotencyKey,
+            phase: "claim"
           })
         );
         return {
           workflowId: definition.workflowId,
-          status: "blocked",
+          status: "failed",
           completedSteps,
           deadLetterReason: reason,
           events
@@ -224,7 +248,29 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
       events
     };
     if (idempotencyScope) {
-      this.idempotencyStore.complete(idempotencyScope, completed);
+      try {
+        await this.idempotencyStore.complete(idempotencyScope, completed);
+      } catch (error) {
+        const detail = errorMessage(error, "idempotency completion persistence failed");
+        const reason =
+          `workflow side effects completed but idempotency completion could not be persisted; ` +
+          `provider reconciliation is required before retry: ${detail}`;
+        events.push(
+          createEvent("workflow.failed", definition.workflowId, {
+            reason,
+            tenantId: context.tenantId,
+            idempotencyKey: context.idempotencyKey,
+            phase: "complete"
+          })
+        );
+        return {
+          workflowId: definition.workflowId,
+          status: "failed",
+          completedSteps,
+          deadLetterReason: reason,
+          events
+        };
+      }
     }
     return completed;
   }
