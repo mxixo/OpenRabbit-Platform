@@ -28,7 +28,7 @@ function isErrno(error: unknown, code: string): boolean {
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
-    (error as NodeJS.ErrnoException).code === code
+    (error as { code?: string }).code === code
   );
 }
 
