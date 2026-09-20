@@ -16,12 +16,13 @@ export interface WorkflowIdempotencyStore {
    * Production implementations must make this a single compare-and-set style
    * operation in durable storage. A read followed by a separate write is not
    * sufficient because two workers could both pass the read before either
-   * records ownership.
+   * records ownership. The interface is asynchronous so a database/Redis-backed
+   * implementation can be substituted without changing runner semantics.
    */
-  claim(scopeKey: string): WorkflowIdempotencyClaim;
+  claim(scopeKey: string): Promise<WorkflowIdempotencyClaim>;
 
   /** Persist the terminal successful result for replay. */
-  complete(scopeKey: string, result: WorkflowExecutionResult): void;
+  complete(scopeKey: string, result: WorkflowExecutionResult): Promise<void>;
 }
 
 type InMemoryEntry =
@@ -35,10 +36,11 @@ function cloneResult(result: WorkflowExecutionResult): WorkflowExecutionResult {
 /**
  * Single-process reference store.
  *
- * `claim()` is synchronous, so JavaScript cannot interleave another claim in
- * the middle of its check-and-set operation. This closes the same-process
- * duplicate-write race while keeping the required atomic contract explicit for
- * a future database/Redis implementation.
+ * The map mutation performed by `claim()` is synchronous inside the async
+ * method, so JavaScript cannot interleave another claim in the middle of the
+ * check-and-set operation. This closes the same-process duplicate-write race
+ * while keeping the required atomic contract explicit for a future durable
+ * database/Redis implementation.
  *
  * An unsuccessful/blocked workflow intentionally leaves its claim in-progress.
  * Releasing it automatically could replay already-completed external side
@@ -48,7 +50,7 @@ function cloneResult(result: WorkflowExecutionResult): WorkflowExecutionResult {
 export class InMemoryWorkflowIdempotencyStore implements WorkflowIdempotencyStore {
   private readonly entries = new Map<string, InMemoryEntry>();
 
-  claim(scopeKey: string): WorkflowIdempotencyClaim {
+  async claim(scopeKey: string): Promise<WorkflowIdempotencyClaim> {
     const existing = this.entries.get(scopeKey);
     if (existing?.state === "completed") {
       return { state: "completed", result: cloneResult(existing.result) };
@@ -61,7 +63,7 @@ export class InMemoryWorkflowIdempotencyStore implements WorkflowIdempotencyStor
     return { state: "acquired" };
   }
 
-  complete(scopeKey: string, result: WorkflowExecutionResult): void {
+  async complete(scopeKey: string, result: WorkflowExecutionResult): Promise<void> {
     if (result.status !== "completed") {
       throw new Error("only completed workflow results may be stored for idempotent replay");
     }
