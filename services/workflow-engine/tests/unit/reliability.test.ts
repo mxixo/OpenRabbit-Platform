@@ -56,6 +56,91 @@ describe("tenant-scoped workflow idempotency", () => {
     expect(replay.events.at(-1)?.type).toBe("workflow.replayed");
   });
 
+  it("blocks a concurrent duplicate before its handler can execute", async () => {
+    const runner = new InMemoryWorkflowRunner();
+    let executions = 0;
+    let releaseFirst!: () => void;
+    const firstMayFinish = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let markStarted!: () => void;
+    const firstStarted = new Promise<void>((resolve) => {
+      markStarted = resolve;
+    });
+
+    const handlers = {
+      "write.run": async () => {
+        executions += 1;
+        markStarted();
+        await firstMayFinish;
+        return { ok: true };
+      }
+    };
+    const context = {
+      correlationId: "corr-concurrent-1",
+      initiatedBy: "tester",
+      variables: {},
+      tenantId: "tenant-a",
+      idempotencyKey: "concurrent-key"
+    };
+
+    const firstRun = runner.run(definition, context, handlers);
+    await firstStarted;
+
+    const duplicate = await runner.run(
+      definition,
+      { ...context, correlationId: "corr-concurrent-2" },
+      handlers
+    );
+
+    expect(duplicate.status).toBe("blocked");
+    expect(duplicate.deadLetterReason).toContain("already in progress");
+    expect(executions).toBe(1);
+
+    releaseFirst();
+    const completed = await firstRun;
+    expect(completed.status).toBe("completed");
+
+    const replay = await runner.run(
+      definition,
+      { ...context, correlationId: "corr-concurrent-3" },
+      handlers
+    );
+    expect(replay.status).toBe("completed");
+    expect(replay.events.at(-1)?.type).toBe("workflow.replayed");
+    expect(executions).toBe(1);
+  });
+
+  it("keeps an unsuccessful claimed execution fail-closed instead of risking duplicate side effects", async () => {
+    const runner = new InMemoryWorkflowRunner();
+    let executions = 0;
+    const context = {
+      correlationId: "corr-failure-1",
+      initiatedBy: "tester",
+      variables: {},
+      tenantId: "tenant-a",
+      idempotencyKey: "failed-key"
+    };
+    const handlers = {
+      "write.run": async () => {
+        executions += 1;
+        return { ok: false, error: "provider timeout", recoverable: false };
+      }
+    };
+
+    const first = await runner.run(definition, context, handlers);
+    const duplicate = await runner.run(
+      definition,
+      { ...context, correlationId: "corr-failure-2" },
+      handlers
+    );
+
+    expect(first.status).toBe("failed");
+    expect(duplicate.status).toBe("blocked");
+    expect(duplicate.deadLetterReason).toContain("already in progress");
+    expect(executions).toBe(1);
+  });
+
   it("never shares an idempotency result across tenants", async () => {
     const runner = new InMemoryWorkflowRunner();
     let executions = 0;
