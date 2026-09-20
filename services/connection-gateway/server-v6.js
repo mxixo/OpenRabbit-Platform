@@ -3,6 +3,7 @@ const http=require('http');
 const base=require('./server-v5');
 const ms=require('./microsoft-runtime');
 const actions=require('./action-runtime');
+const scopes=require('./google-scope-policy');
 
 const port=Number(process.env.OPENRABBIT_CONNECTION_GATEWAY_PORT||8790);
 const host=process.env.OPENRABBIT_CONNECTION_GATEWAY_HOST||'0.0.0.0';
@@ -15,8 +16,18 @@ async function callback(res,url){const record=ms.pop(url.searchParams.get('state
 function mergedProviders(){return base.providers.map(p=>p.id==='microsoft'?{...p,planned:false,configured:ms.configured()}:{...p,configured:p.id==='gmail'||p.id==='google-calendar'?Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID&&process.env.GOOGLE_OAUTH_CLIENT_SECRET):p.id==='hubspot'?Boolean(process.env.HUBSPOT_OAUTH_CLIENT_ID&&process.env.HUBSPOT_OAUTH_CLIENT_SECRET):p.id==='meta'?Boolean(process.env.META_APP_ID&&process.env.META_APP_SECRET):p.id==='linkedin'?Boolean(process.env.LINKEDIN_CLIENT_ID&&process.env.LINKEDIN_CLIENT_SECRET):p.id==='tiktok'?Boolean(process.env.TIKTOK_CLIENT_KEY&&process.env.TIKTOK_CLIENT_SECRET):p.id==='google-maps'?Boolean(process.env.GOOGLE_MAPS_BROWSER_KEY):false});}
 async function execute(req,res,url){
   const i=await identity(req,res);if(!i)return;const payload=await actions.jsonBody(req);const uid=i.userId;
-  if(url.pathname==='/v1/actions/send-email'){const token=await base.liveToken(uid,'gmail');if(!token?.access_token)return json(res,409,{error:'NOT_CONNECTED',message:'Connect Gmail before sending email.'});return json(res,200,await actions.sendGmail(token.access_token,payload));}
-  if(url.pathname==='/v1/actions/create-calendar-event'){const token=await base.liveToken(uid,'google-calendar');if(!token?.access_token)return json(res,409,{error:'NOT_CONNECTED',message:'Connect Google Calendar before creating events.'});return json(res,200,await actions.createGoogleEvent(token.access_token,payload));}
+  if(url.pathname==='/v1/actions/send-email'){
+    const token=await base.liveToken(uid,'gmail');
+    if(!token?.access_token)return json(res,409,{error:'NOT_CONNECTED',message:'Connect Gmail before sending email.'});
+    if(!scopes.canSendGmail(token))return json(res,409,{error:'ADDITIONAL_AUTHORIZATION_REQUIRED',provider:'gmail',requiredCapability:'mail.send',message:'Gmail is connected, but sending email requires additional authorization.'});
+    return json(res,200,await actions.sendGmail(token.access_token,payload));
+  }
+  if(url.pathname==='/v1/actions/create-calendar-event'){
+    const token=await base.liveToken(uid,'google-calendar');
+    if(!token?.access_token)return json(res,409,{error:'NOT_CONNECTED',message:'Connect Google Calendar before creating events.'});
+    if(!scopes.canCreateCalendarEvent(token))return json(res,409,{error:'ADDITIONAL_AUTHORIZATION_REQUIRED',provider:'google-calendar',requiredCapability:'calendar.write',message:'Google Calendar is connected for reading, but creating events requires additional authorization.'});
+    return json(res,200,await actions.createGoogleEvent(token.access_token,payload));
+  }
   if(url.pathname==='/v1/actions/update-crm'){const token=await base.liveToken(uid,'hubspot');if(!token?.access_token)return json(res,409,{error:'NOT_CONNECTED',message:'Connect HubSpot before updating CRM records.'});return json(res,200,await actions.updateHubSpot(token.access_token,payload));}
   return json(res,404,{error:'NOT_FOUND'});
 }
