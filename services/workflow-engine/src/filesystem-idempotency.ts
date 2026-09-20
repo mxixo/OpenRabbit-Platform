@@ -15,8 +15,9 @@ type CompletedRecord = {
 };
 
 type ScopeRecord = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   scopeKey: string;
+  claimToken: string;
 };
 
 function cloneResult(result: WorkflowExecutionResult): WorkflowExecutionResult {
@@ -37,9 +38,14 @@ function isErrno(error: unknown, code: string): boolean {
  *
  * The scope directory is created with an atomic `mkdir`. Across processes that
  * share the same persistent filesystem, only one claimant can create it; all
- * later claimants observe an in-progress or completed record. Completed results
- * are published with an atomic hard-link so an existing terminal result is never
- * overwritten by a second completion attempt.
+ * later claimants observe an in-progress or completed record. The winning claim
+ * receives an opaque token persisted in `scope.json`; only that token may publish
+ * the terminal result. This ownership fence is required before safe lease/reclaim
+ * semantics can be introduced because a stale worker must not be able to complete
+ * a scope after ownership has transferred.
+ *
+ * Completed results are published with an atomic hard-link so an existing
+ * terminal result is never overwritten by a second completion attempt.
  *
  * This closes the process-restart and same-host multi-process gaps of the
  * in-memory reference store. It intentionally does NOT implement automatic
@@ -47,6 +53,10 @@ function isErrno(error: unknown, code: string): boolean {
  * claim remains blocked until an explicit reconciliation mechanism is added.
  * That fail-closed behavior is safer than replaying a consequential external
  * write whose provider outcome is unknown.
+ *
+ * Schema-v1 scope records created before claim-token fencing are deliberately
+ * not accepted for completion after upgrade. They remain fail-closed and require
+ * manual/provider reconciliation rather than being granted synthetic ownership.
  *
  * Do not use this backend across hosts that do not share one filesystem, or on
  * filesystems whose atomic mkdir/link semantics are not guaranteed. A database
@@ -100,13 +110,14 @@ export class FilesystemWorkflowIdempotencyStore implements WorkflowIdempotencySt
 
     try {
       await mkdir(scopeDirectory);
-      const scopeRecord: ScopeRecord = { schemaVersion: 1, scopeKey };
+      const claimToken = randomUUID();
+      const scopeRecord: ScopeRecord = { schemaVersion: 2, scopeKey, claimToken };
       await writeFile(
         join(scopeDirectory, "scope.json"),
         JSON.stringify(scopeRecord),
         { encoding: "utf8", flag: "wx" }
       );
-      return { state: "acquired" };
+      return { state: "acquired", claimToken };
     } catch (error) {
       if (!isErrno(error, "EEXIST")) {
         throw error;
@@ -123,7 +134,14 @@ export class FilesystemWorkflowIdempotencyStore implements WorkflowIdempotencySt
     return { state: "in_progress" };
   }
 
-  async complete(scopeKey: string, result: WorkflowExecutionResult): Promise<void> {
+  async complete(
+    scopeKey: string,
+    claimToken: string,
+    result: WorkflowExecutionResult
+  ): Promise<void> {
+    if (!claimToken.trim()) {
+      throw new Error("claimToken cannot be blank");
+    }
     if (result.status !== "completed") {
       throw new Error("only completed workflow results may be stored for idempotent replay");
     }
@@ -139,8 +157,17 @@ export class FilesystemWorkflowIdempotencyStore implements WorkflowIdempotencySt
       }
       throw error;
     }
-    if (scopeRecord.schemaVersion !== 1 || scopeRecord.scopeKey !== scopeKey) {
-      throw new Error("idempotency scope record is invalid or belongs to another scope");
+    if (
+      scopeRecord.schemaVersion !== 2 ||
+      scopeRecord.scopeKey !== scopeKey ||
+      !scopeRecord.claimToken
+    ) {
+      throw new Error(
+        "idempotency scope record is invalid, legacy, or belongs to another scope"
+      );
+    }
+    if (scopeRecord.claimToken !== claimToken) {
+      throw new Error("idempotency claim token does not own this scope");
     }
 
     const completedPath = join(scopeDirectory, "completed.json");
