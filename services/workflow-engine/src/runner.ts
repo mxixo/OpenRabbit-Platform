@@ -13,6 +13,7 @@ import {
   WorkflowIdempotencyStore,
   workflowIdempotencyScopeKey
 } from "./reliability.js";
+import { WorkflowReconciliationStore } from "./reconciliation.js";
 import { validateWorkflowDefinition } from "./validator.js";
 
 function createEvent(
@@ -38,7 +39,8 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
   constructor(
     private readonly retryPolicy: WorkflowRetryPolicy = { maxAttempts: 3 },
     private readonly idempotencyStore: WorkflowIdempotencyStore =
-      new InMemoryWorkflowIdempotencyStore()
+      new InMemoryWorkflowIdempotencyStore(),
+    private readonly reconciliationStore?: WorkflowReconciliationStore
   ) {}
 
   async run(
@@ -264,12 +266,33 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
         const reason =
           `workflow side effects completed but idempotency completion could not be persisted; ` +
           `provider reconciliation is required before retry: ${detail}`;
+
+        let reconciliationRecorded = false;
+        let reconciliationError: string | undefined;
+        if (this.reconciliationStore) {
+          try {
+            await this.reconciliationStore.require(idempotencyScope, reason, [
+              `workflow:${definition.workflowId}`,
+              `correlation:${context.correlationId}`
+            ]);
+            reconciliationRecorded = true;
+          } catch (reconciliationFailure) {
+            reconciliationError = errorMessage(
+              reconciliationFailure,
+              "reconciliation persistence failed"
+            );
+          }
+        }
+
         events.push(
           createEvent("workflow.failed", definition.workflowId, {
             reason,
             tenantId: context.tenantId,
             idempotencyKey: context.idempotencyKey,
-            phase: "complete"
+            phase: "complete",
+            reconciliationRequired: true,
+            reconciliationRecorded,
+            reconciliationError
           })
         );
         return {
