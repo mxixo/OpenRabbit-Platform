@@ -19,6 +19,21 @@ export type WorkflowReconciliationRecord = {
   resolutionNote?: string;
 };
 
+export interface WorkflowReconciliationStore {
+  get(scopeKey: string): Promise<WorkflowReconciliationRecord | undefined>;
+  require(
+    scopeKey: string,
+    reason: string,
+    evidenceRefs?: string[]
+  ): Promise<WorkflowReconciliationRecord>;
+  resolve(
+    scopeKey: string,
+    outcome: ReconciliationOutcome,
+    resolutionNote: string,
+    evidenceRefs?: string[]
+  ): Promise<WorkflowReconciliationRecord>;
+}
+
 function validateText(value: string, field: string): string {
   const normalized = value.trim();
   if (!normalized) throw new Error(`${field} cannot be blank`);
@@ -50,7 +65,7 @@ function clone(record: WorkflowReconciliationRecord): WorkflowReconciliationReco
  * evidence, and only then classified as confirmed success/failure or safe to
  * retry. The registry stores metadata references only; never provider secrets.
  */
-export class FilesystemWorkflowReconciliationStore {
+export class FilesystemWorkflowReconciliationStore implements WorkflowReconciliationStore {
   constructor(private readonly rootDirectory: string) {
     if (!rootDirectory.trim()) throw new Error("rootDirectory cannot be blank");
   }
