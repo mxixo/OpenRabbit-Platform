@@ -27,10 +27,13 @@ export interface WorkflowExecutionContext {
   initiatedBy: string;
   variables: Record<string, unknown>;
   approvals?: Record<string, boolean>;
+  tenantId?: string;
+  idempotencyKey?: string;
 }
 
 export type WorkflowEventType =
   | "workflow.started"
+  | "workflow.replayed"
   | "workflow.step.started"
   | "workflow.step.completed"
   | "workflow.step.blocked"
