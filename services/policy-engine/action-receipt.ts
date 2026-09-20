@@ -27,6 +27,7 @@ export interface ActionReceipt {
   capability: string;
   operation: string;
   connectionId?: string;
+  externalSideEffect: boolean;
   modelProvider?: string;
   modelVersion?: string;
   runtime?: string;
