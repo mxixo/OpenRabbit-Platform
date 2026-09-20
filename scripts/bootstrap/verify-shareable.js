@@ -3,7 +3,6 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..', '..');
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const requiredPaths = [
   'README.md',
   'docs/QUICKSTART.md',
@@ -44,8 +43,26 @@ if (fs.existsSync(desktopPackagePath)) {
   }
 }
 
-const test = spawnSync(npmCommand, ['run', 'desktop:test'], { cwd: root, stdio: 'inherit', env: process.env, shell: false });
-check(!test.error && test.status === 0, 'Desktop shell smoke test passed', 'Desktop shell smoke test failed');
+// Invoke the same Node test files as the root `desktop:test` script directly.
+// Spawning `npm.cmd` from Node with shell:false is not portable across current
+// Windows GitHub-hosted runners and can fail before npm launches, producing a
+// false shareability failure even when both desktop smoke tests are healthy.
+for (const relative of ['tests/desktop-shell.test.js', 'tests/ai-managed-interface.test.js']) {
+  const test = spawnSync(process.execPath, [path.join(root, relative)], {
+    cwd: root,
+    stdio: 'inherit',
+    env: process.env,
+    shell: false
+  });
+  if (test.error) {
+    console.error(`Desktop smoke process error (${relative}): ${test.error.message}`);
+  }
+  check(
+    !test.error && test.status === 0,
+    `${relative} passed`,
+    `${relative} failed`
+  );
+}
 
 if (failed) {
   console.error('\nOpenRabbit shareability verification failed. See the checks above.');
