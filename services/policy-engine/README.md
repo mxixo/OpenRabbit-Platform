@@ -22,3 +22,19 @@ The worker/agent must not be able to modify the policy engine, credential broker
 - **BLOCK** — scope, target, tenant, secret, audit, or other hard-boundary violation. Confirmation cannot override a BLOCK decision.
 
 `tests/policy-engine.test.js` regression-tests target mismatch, missing/untrusted verification, ambiguity, cross-tenant access, audit bypass, permission expansion, autonomy profiles, and safe read-only/internal operations.
+
+## Observability contract
+
+Every action receipt records whether the requested operation can create an external side effect. `metrics.js` summarizes the receipt stream into control-plane service levels and latency diagnostics.
+
+Production targets are deliberately coverage-based rather than prompt-count based:
+
+- **100% policy coverage** — every recorded action has a deterministic policy decision before execution.
+- **100% target-verification coverage for external effects** — every external side-effect proposal is checked against a trusted target verifier, including proposals correctly blocked because the target does not match.
+- **100% provider-verification coverage after an external execution attempt** — executed/failed external attempts must resolve to provider evidence or remain visibly unreconciled.
+
+The dashboard may also track GREEN/YELLOW/RED/BLOCK counts, block rate, confirmation rate, failure rate, target-match rate, and p50/p95 execution and verification latency. These are diagnostic metrics, not incentives to minimize blocks or confirmations. A rising block rate may indicate attacks, broken connectors, or policy drift and should be investigated rather than suppressed.
+
+`targetVerificationCoverage` measures whether the check happened; `targetMatchRate` measures whether the observed destination actually matched the intended destination. A correctly detected mismatch therefore preserves 100% verification coverage while lowering the match rate.
+
+`tests/policy-observability.test.js` verifies complete coverage, missing policy/target evidence, provider reconciliation gaps, blocked-target semantics, internal non-side-effecting work, and invalid latency timestamps.
