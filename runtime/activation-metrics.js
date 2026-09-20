@@ -41,6 +41,14 @@ function assertVerifiedOutcomeEvidence(evidence) {
   }
 }
 
+function connectedClaimIsUnsupported(claimedState, authoritativeState) {
+  if (claimedState === "verified") return authoritativeState !== "verified";
+  if (claimedState === "connected") {
+    return authoritativeState !== "connected" && authoritativeState !== "verified";
+  }
+  return false;
+}
+
 class ActivationTracker {
   constructor({ tenantId, userId, sessionId, startedAt = new Date() }) {
     this.tenantId = requiredString(tenantId, "tenantId");
@@ -108,9 +116,7 @@ class ActivationTracker {
       throw new Error(`claimedState must be one of: ${CONNECTION_STATES.join(", ")}`);
     }
     const authoritativeState = deriveConnectionState({ backendEvidence });
-    const incorrectConnectedClaim =
-      (claimedState === "connected" || claimedState === "verified") &&
-      claimedState !== authoritativeState;
+    const incorrectConnectedClaim = connectedClaimIsUnsupported(claimedState, authoritativeState);
     const base = this._base(occurredAt);
     return this._append(
       buildTrustEvent("connection_state_changed", {
