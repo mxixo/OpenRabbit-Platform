@@ -1,5 +1,24 @@
 import type { PolicyDecision } from "./policy";
 
+export interface TargetIdentity {
+  orgId?: string;
+  connectionId?: string;
+  accountId?: string;
+  resourceId?: string;
+  domain?: string;
+  environment?: string;
+}
+
+export interface TargetVerification {
+  verifier: "connector-gateway" | "browser-guard" | "broker-adapter" | "platform-runtime";
+  expected: TargetIdentity;
+  observed: TargetIdentity;
+  requiredDimensions: string[];
+  ambiguous?: boolean;
+  valid: boolean;
+  reason: string;
+}
+
 export interface ActionReceipt {
   receiptId: string;
   orgId: string;
@@ -12,6 +31,7 @@ export interface ActionReceipt {
   modelVersion?: string;
   runtime?: string;
   policy: PolicyDecision;
+  targetVerification?: TargetVerification;
   provenance: Array<{ sourceType:string; sourceId:string; permission:string }>;
   requestedAt: string;
   executedAt?: string;
