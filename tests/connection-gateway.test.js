@@ -18,6 +18,7 @@ process.env.MICROSOFT_CLIENT_SECRET = '';
 
 const { server } = require('../services/connection-gateway/server-v6');
 const base = require('../services/connection-gateway/server-v5');
+const scopePolicy = require('../services/connection-gateway/google-scope-policy');
 
 (async () => {
   for (const id of ['gmail','google-calendar','hubspot','meta','linkedin','tiktok','microsoft','google-maps']) {
@@ -27,6 +28,14 @@ const base = require('../services/connection-gateway/server-v5');
   assert.strictEqual(state.find(item => item.id === 'gmail').connected, false);
   assert.strictEqual(state.find(item => item.id === 'google-calendar').connected, false);
   assert.strictEqual(state.find(item => item.id === 'hubspot').connected, false);
+
+  assert.strictEqual(scopePolicy.canReadGmail({ scope: scopePolicy.GMAIL_READONLY }), true);
+  assert.strictEqual(scopePolicy.canSendGmail({ scope: scopePolicy.GMAIL_READONLY }), false);
+  assert.strictEqual(scopePolicy.canSendGmail({ scope: scopePolicy.GMAIL_SEND }), true);
+  assert.strictEqual(scopePolicy.canReadCalendar({ scope: scopePolicy.CALENDAR_EVENTS_READONLY }), true);
+  assert.strictEqual(scopePolicy.canCreateCalendarEvent({ scope: scopePolicy.CALENDAR_EVENTS_READONLY }), false);
+  assert.strictEqual(scopePolicy.canCreateCalendarEvent({ scope: scopePolicy.CALENDAR_EVENTS }), true);
+  assert.strictEqual(scopePolicy.canSendGmail({ access_token: 'token-with-unknown-scope' }), false, 'missing scope evidence must fail closed');
 
   await new Promise((resolve, reject) => {
     server.listen(0, '127.0.0.1', resolve);
@@ -62,6 +71,35 @@ const base = require('../services/connection-gateway/server-v5');
     assert.ok(liveBody.mail && liveBody.calendar && liveBody.crm && liveBody.social);
     assert.ok(liveBody.microsoft, 'v6 live snapshot must include Microsoft state');
     assert.strictEqual(liveBody.microsoft.connected, false);
+
+    const originalLiveToken = base.liveToken;
+    try {
+      base.liveToken = async (_uid, provider) => provider === 'gmail'
+        ? { access_token: 'read-only-gmail', scope: scopePolicy.GMAIL_READONLY }
+        : { access_token: 'read-only-calendar', scope: scopePolicy.CALENDAR_EVENTS_READONLY };
+
+      const readOnlyGmailSend = await fetch(`${root}/v1/actions/send-email`, {
+        method: 'POST',
+        headers: { ...serviceHeaders, 'content-type': 'application/json' },
+        body: JSON.stringify({ to: 'nobody@example.com', subject: 'scope test', body: 'scope test' }),
+      });
+      assert.strictEqual(readOnlyGmailSend.status, 409);
+      const gmailDenied = await readOnlyGmailSend.json();
+      assert.strictEqual(gmailDenied.error, 'ADDITIONAL_AUTHORIZATION_REQUIRED');
+      assert.strictEqual(gmailDenied.requiredCapability, 'mail.send');
+
+      const readOnlyCalendarCreate = await fetch(`${root}/v1/actions/create-calendar-event`, {
+        method: 'POST',
+        headers: { ...serviceHeaders, 'content-type': 'application/json' },
+        body: JSON.stringify({ summary: 'scope test' }),
+      });
+      assert.strictEqual(readOnlyCalendarCreate.status, 409);
+      const calendarDenied = await readOnlyCalendarCreate.json();
+      assert.strictEqual(calendarDenied.error, 'ADDITIONAL_AUTHORIZATION_REQUIRED');
+      assert.strictEqual(calendarDenied.requiredCapability, 'calendar.write');
+    } finally {
+      base.liveToken = originalLiveToken;
+    }
   } finally {
     await new Promise(resolve => server.close(resolve));
   }
