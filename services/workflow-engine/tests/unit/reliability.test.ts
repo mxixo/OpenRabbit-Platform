@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { WorkflowDefinition } from "../../src/contracts.js";
+import { WorkflowDefinition, WorkflowExecutionResult } from "../../src/contracts.js";
+import {
+  WorkflowIdempotencyClaim,
+  WorkflowIdempotencyStore
+} from "../../src/reliability.js";
 import { InMemoryWorkflowRunner } from "../../src/runner.js";
 
 const definition: WorkflowDefinition = {
@@ -15,6 +19,23 @@ const definition: WorkflowDefinition = {
     }
   ]
 };
+
+class ThrowingIdempotencyStore implements WorkflowIdempotencyStore {
+  constructor(private readonly failurePhase: "claim" | "complete") {}
+
+  async claim(_scopeKey: string): Promise<WorkflowIdempotencyClaim> {
+    if (this.failurePhase === "claim") {
+      throw new Error("store unavailable");
+    }
+    return { state: "acquired" };
+  }
+
+  async complete(_scopeKey: string, _result: WorkflowExecutionResult): Promise<void> {
+    if (this.failurePhase === "complete") {
+      throw new Error("commit timeout");
+    }
+  }
+}
 
 describe("tenant-scoped workflow idempotency", () => {
   it("replays a completed result without re-running side effects", async () => {
@@ -139,6 +160,71 @@ describe("tenant-scoped workflow idempotency", () => {
     expect(duplicate.status).toBe("blocked");
     expect(duplicate.deadLetterReason).toContain("already in progress");
     expect(executions).toBe(1);
+  });
+
+  it("fails closed before any side effect when idempotency claim storage is unavailable", async () => {
+    const runner = new InMemoryWorkflowRunner(
+      { maxAttempts: 3 },
+      new ThrowingIdempotencyStore("claim")
+    );
+    let executions = 0;
+
+    const result = await runner.run(
+      definition,
+      {
+        correlationId: "corr-storage-claim",
+        initiatedBy: "tester",
+        variables: {},
+        tenantId: "tenant-a",
+        idempotencyKey: "storage-key"
+      },
+      {
+        "write.run": async () => {
+          executions += 1;
+          return { ok: true };
+        }
+      }
+    );
+
+    expect(result.status).toBe("failed");
+    expect(result.deadLetterReason).toContain("claim failed before side effects");
+    expect(result.deadLetterReason).toContain("store unavailable");
+    expect(executions).toBe(0);
+    expect(result.events.at(-1)?.type).toBe("workflow.failed");
+    expect(result.events.at(-1)?.details?.phase).toBe("claim");
+  });
+
+  it("marks the outcome uncertain when completion persistence fails after side effects", async () => {
+    const runner = new InMemoryWorkflowRunner(
+      { maxAttempts: 3 },
+      new ThrowingIdempotencyStore("complete")
+    );
+    let executions = 0;
+
+    const result = await runner.run(
+      definition,
+      {
+        correlationId: "corr-storage-complete",
+        initiatedBy: "tester",
+        variables: {},
+        tenantId: "tenant-a",
+        idempotencyKey: "storage-key"
+      },
+      {
+        "write.run": async () => {
+          executions += 1;
+          return { ok: true };
+        }
+      }
+    );
+
+    expect(executions).toBe(1);
+    expect(result.status).toBe("failed");
+    expect(result.completedSteps).toEqual(["write"]);
+    expect(result.deadLetterReason).toContain("provider reconciliation is required before retry");
+    expect(result.deadLetterReason).toContain("commit timeout");
+    expect(result.events.at(-1)?.type).toBe("workflow.failed");
+    expect(result.events.at(-1)?.details?.phase).toBe("complete");
   });
 
   it("never shares an idempotency result across tenants", async () => {
