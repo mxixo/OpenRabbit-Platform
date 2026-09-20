@@ -71,6 +71,7 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
     }
 
     let idempotencyScope: string | undefined;
+    let idempotencyClaimToken: string | undefined;
     try {
       idempotencyScope = workflowIdempotencyScopeKey(definition, context);
     } catch (error) {
@@ -118,6 +119,7 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
             events
           };
         }
+        idempotencyClaimToken = claim.claimToken;
       } catch (error) {
         const detail = errorMessage(error, "idempotency storage unavailable");
         const reason = `idempotency claim failed before side effects: ${detail}`;
@@ -249,7 +251,14 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
     };
     if (idempotencyScope) {
       try {
-        await this.idempotencyStore.complete(idempotencyScope, completed);
+        if (!idempotencyClaimToken) {
+          throw new Error("idempotency claim ownership token is missing");
+        }
+        await this.idempotencyStore.complete(
+          idempotencyScope,
+          idempotencyClaimToken,
+          completed
+        );
       } catch (error) {
         const detail = errorMessage(error, "idempotency completion persistence failed");
         const reason =
