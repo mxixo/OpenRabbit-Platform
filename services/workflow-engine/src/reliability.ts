@@ -9,19 +9,23 @@ export interface WorkflowIdempotencyStore {
   set(scopeKey: string, result: WorkflowExecutionResult): void;
 }
 
+function cloneResult(result: WorkflowExecutionResult): WorkflowExecutionResult {
+  return JSON.parse(JSON.stringify(result)) as WorkflowExecutionResult;
+}
+
 export class InMemoryWorkflowIdempotencyStore implements WorkflowIdempotencyStore {
   private readonly completed = new Map<string, WorkflowExecutionResult>();
 
   get(scopeKey: string): WorkflowExecutionResult | undefined {
     const result = this.completed.get(scopeKey);
-    return result ? structuredClone(result) : undefined;
+    return result ? cloneResult(result) : undefined;
   }
 
   set(scopeKey: string, result: WorkflowExecutionResult): void {
     if (result.status !== "completed") {
       throw new Error("only completed workflow results may be stored for idempotent replay");
     }
-    this.completed.set(scopeKey, structuredClone(result));
+    this.completed.set(scopeKey, cloneResult(result));
   }
 }
 
