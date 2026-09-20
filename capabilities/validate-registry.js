@@ -75,6 +75,12 @@ function validateRegistry(registry) {
       if (!capabilityIds.has(capabilityId)) {
         throw new Error(`${provider.provider_id} references unknown capability ${capabilityId}`);
       }
+      const capability = registry.capabilities.find((item) => item.capability_id === capabilityId);
+      if (!capability.providers.includes(provider.provider_id)) {
+        throw new Error(
+          `${capabilityId} and ${provider.provider_id} disagree about capability support`
+        );
+      }
     }
   }
 
