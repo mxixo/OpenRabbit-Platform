@@ -82,18 +82,35 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
     }
 
     if (idempotencyScope) {
-      const cached = this.idempotencyStore.get(idempotencyScope);
-      if (cached) {
+      const claim = this.idempotencyStore.claim(idempotencyScope);
+      if (claim.state === "completed") {
         return {
-          ...cached,
+          ...claim.result,
           events: [
-            ...cached.events,
+            ...claim.result.events,
             createEvent("workflow.replayed", definition.workflowId, {
               correlationId: context.correlationId,
               tenantId: context.tenantId,
               idempotencyKey: context.idempotencyKey
             })
           ]
+        };
+      }
+      if (claim.state === "in_progress") {
+        const reason = "duplicate idempotent workflow execution is already in progress";
+        events.push(
+          createEvent("workflow.step.blocked", definition.workflowId, {
+            reason,
+            tenantId: context.tenantId,
+            idempotencyKey: context.idempotencyKey
+          })
+        );
+        return {
+          workflowId: definition.workflowId,
+          status: "blocked",
+          completedSteps,
+          deadLetterReason: reason,
+          events
         };
       }
     }
@@ -207,7 +224,7 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
       events
     };
     if (idempotencyScope) {
-      this.idempotencyStore.set(idempotencyScope, completed);
+      this.idempotencyStore.complete(idempotencyScope, completed);
     }
     return completed;
   }
