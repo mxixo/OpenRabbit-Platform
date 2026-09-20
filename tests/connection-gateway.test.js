@@ -20,6 +20,10 @@ const { server } = require('../services/connection-gateway/server-v6');
 const base = require('../services/connection-gateway/server-v5');
 const scopePolicy = require('../services/connection-gateway/google-scope-policy');
 
+function oauthScopes(authorizationUrl) {
+  return new Set(new URL(authorizationUrl).searchParams.get('scope').split(/\s+/).filter(Boolean));
+}
+
 (async () => {
   for (const id of ['gmail','google-calendar','hubspot','meta','linkedin','tiktok','microsoft','google-maps']) {
     assert.ok(base.providers.some(provider => provider.id === id), `${id} provider must exist`);
@@ -36,6 +40,42 @@ const scopePolicy = require('../services/connection-gateway/google-scope-policy'
   assert.strictEqual(scopePolicy.canCreateCalendarEvent({ scope: scopePolicy.CALENDAR_EVENTS_READONLY }), false);
   assert.strictEqual(scopePolicy.canCreateCalendarEvent({ scope: scopePolicy.CALENDAR_EVENTS }), true);
   assert.strictEqual(scopePolicy.canSendGmail({ access_token: 'token-with-unknown-scope' }), false, 'missing scope evidence must fail closed');
+
+  // Initial Google consent is read-only. Write authority is requested only by an
+  // explicit incremental capability upgrade, never simply because a provider is Connected.
+  process.env.GOOGLE_OAUTH_CLIENT_ID = 'test-google-client';
+  process.env.GOOGLE_OAUTH_CLIENT_SECRET = 'test-google-secret';
+  try {
+    const gmailRead = new URL(base.googleStart('test-user', 'gmail'));
+    const gmailReadScopes = oauthScopes(gmailRead.toString());
+    assert.ok(gmailReadScopes.has(scopePolicy.GMAIL_READONLY));
+    assert.ok(!gmailReadScopes.has(scopePolicy.GMAIL_SEND));
+    assert.ok(!gmailReadScopes.has(scopePolicy.GMAIL_MODIFY));
+    assert.strictEqual(gmailRead.searchParams.get('include_granted_scopes'), 'true');
+
+    const gmailWrite = new URL(base.googleStart('test-user', 'gmail', 'mail.send'));
+    const gmailWriteScopes = oauthScopes(gmailWrite.toString());
+    assert.ok(gmailWriteScopes.has(scopePolicy.GMAIL_READONLY));
+    assert.ok(gmailWriteScopes.has(scopePolicy.GMAIL_SEND));
+    assert.ok(!gmailWriteScopes.has(scopePolicy.GMAIL_MODIFY));
+    assert.strictEqual(gmailWrite.searchParams.get('include_granted_scopes'), 'true');
+
+    const calendarRead = new URL(base.googleStart('test-user', 'calendar'));
+    const calendarReadScopes = oauthScopes(calendarRead.toString());
+    assert.ok(calendarReadScopes.has(scopePolicy.CALENDAR_EVENTS_READONLY));
+    assert.ok(!calendarReadScopes.has(scopePolicy.CALENDAR_EVENTS));
+
+    const calendarWrite = new URL(base.googleStart('test-user', 'calendar', 'calendar.write'));
+    const calendarWriteScopes = oauthScopes(calendarWrite.toString());
+    assert.ok(calendarWriteScopes.has(scopePolicy.CALENDAR_EVENTS_READONLY));
+    assert.ok(calendarWriteScopes.has(scopePolicy.CALENDAR_EVENTS));
+
+    assert.throws(() => base.googleStart('test-user', 'gmail', 'calendar.write'), /Unsupported Gmail authorization capability/);
+    assert.throws(() => base.googleStart('test-user', 'calendar', 'mail.send'), /Unsupported Google Calendar authorization capability/);
+  } finally {
+    process.env.GOOGLE_OAUTH_CLIENT_ID = '';
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET = '';
+  }
 
   await new Promise((resolve, reject) => {
     server.listen(0, '127.0.0.1', resolve);
