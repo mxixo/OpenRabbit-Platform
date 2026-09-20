@@ -21,6 +21,19 @@ async function makeStore(): Promise<{
   };
 }
 
+async function acquire(
+  store: FilesystemWorkflowIdempotencyStore,
+  scopeKey: string
+): Promise<string> {
+  const claim = await store.claim(scopeKey);
+  expect(claim.state).toBe("acquired");
+  if (claim.state !== "acquired") {
+    throw new Error("expected idempotency claim to be acquired");
+  }
+  expect(claim.claimToken).toBeTruthy();
+  return claim.claimToken;
+}
+
 function completedResult(): WorkflowExecutionResult {
   return {
     workflowId: "wf-durable",
@@ -49,7 +62,7 @@ describe("FilesystemWorkflowIdempotencyStore", () => {
     const { directory, store } = await makeStore();
     const scopeKey = '["tenant-a","wf-durable","1.0.0","request-1"]';
 
-    expect(await store.claim(scopeKey)).toEqual({ state: "acquired" });
+    await acquire(store, scopeKey);
 
     const afterRestart = new FilesystemWorkflowIdempotencyStore(directory);
     expect(await afterRestart.claim(scopeKey)).toEqual({ state: "in_progress" });
@@ -60,8 +73,8 @@ describe("FilesystemWorkflowIdempotencyStore", () => {
     const scopeKey = '["tenant-a","wf-durable","1.0.0","request-2"]';
     const result = completedResult();
 
-    expect(await store.claim(scopeKey)).toEqual({ state: "acquired" });
-    await store.complete(scopeKey, result);
+    const claimToken = await acquire(store, scopeKey);
+    await store.complete(scopeKey, claimToken, result);
 
     const afterRestart = new FilesystemWorkflowIdempotencyStore(directory);
     expect(await afterRestart.claim(scopeKey)).toEqual({
@@ -80,18 +93,20 @@ describe("FilesystemWorkflowIdempotencyStore", () => {
     const states = claims.map((claim) => claim.state).sort();
 
     expect(states).toEqual(["acquired", "in_progress"]);
+    const winner = claims.find((claim) => claim.state === "acquired");
+    expect(winner && "claimToken" in winner ? winner.claimToken : undefined).toBeTruthy();
   });
 
   it("never overwrites an already completed terminal result", async () => {
     const { store } = await makeStore();
     const scopeKey = '["tenant-a","wf-durable","1.0.0","request-4"]';
 
-    await store.claim(scopeKey);
-    await store.complete(scopeKey, completedResult());
+    const claimToken = await acquire(store, scopeKey);
+    await store.complete(scopeKey, claimToken, completedResult());
 
-    await expect(store.complete(scopeKey, completedResult())).rejects.toThrow(
-      "already completed"
-    );
+    await expect(
+      store.complete(scopeKey, claimToken, completedResult())
+    ).rejects.toThrow("already completed");
   });
 
   it("requires a durable claim before completion", async () => {
@@ -100,8 +115,22 @@ describe("FilesystemWorkflowIdempotencyStore", () => {
     await expect(
       store.complete(
         '["tenant-a","wf-durable","1.0.0","unclaimed"]',
+        "not-an-owner",
         completedResult()
       )
     ).rejects.toThrow("durably claimed");
+  });
+
+  it("rejects completion from a stale or foreign claim owner", async () => {
+    const { store } = await makeStore();
+    const scopeKey = '["tenant-a","wf-durable","1.0.0","request-fenced"]';
+
+    const claimToken = await acquire(store, scopeKey);
+    await expect(
+      store.complete(scopeKey, `${claimToken}-stale`, completedResult())
+    ).rejects.toThrow("does not own this scope");
+
+    await store.complete(scopeKey, claimToken, completedResult());
+    expect((await store.claim(scopeKey)).state).toBe("completed");
   });
 });
