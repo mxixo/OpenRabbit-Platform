@@ -8,6 +8,11 @@ import {
   WorkflowRunner
 } from "./contracts.js";
 import { evaluateGuardrails, isRetryAllowed } from "./guardrails.js";
+import {
+  InMemoryWorkflowIdempotencyStore,
+  WorkflowIdempotencyStore,
+  workflowIdempotencyScopeKey
+} from "./reliability.js";
 import { validateWorkflowDefinition } from "./validator.js";
 
 function createEvent(
@@ -26,7 +31,11 @@ function createEvent(
 }
 
 export class InMemoryWorkflowRunner implements WorkflowRunner {
-  constructor(private readonly retryPolicy: WorkflowRetryPolicy = { maxAttempts: 3 }) {}
+  constructor(
+    private readonly retryPolicy: WorkflowRetryPolicy = { maxAttempts: 3 },
+    private readonly idempotencyStore: WorkflowIdempotencyStore =
+      new InMemoryWorkflowIdempotencyStore()
+  ) {}
 
   async run(
     definition: WorkflowDefinition,
@@ -37,7 +46,8 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
     const completedSteps: string[] = [];
     const events: WorkflowExecutionEvent[] = [
       createEvent("workflow.started", definition.workflowId, {
-        correlationId: context.correlationId
+        correlationId: context.correlationId,
+        tenantId: context.tenantId
       })
     ];
 
@@ -54,6 +64,38 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
         deadLetterReason: validation.errors.join("; "),
         events
       };
+    }
+
+    let idempotencyScope: string | undefined;
+    try {
+      idempotencyScope = workflowIdempotencyScopeKey(definition, context);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "invalid idempotency scope";
+      events.push(createEvent("workflow.failed", definition.workflowId, { reason }));
+      return {
+        workflowId: definition.workflowId,
+        status: "failed",
+        completedSteps,
+        deadLetterReason: reason,
+        events
+      };
+    }
+
+    if (idempotencyScope) {
+      const cached = this.idempotencyStore.get(idempotencyScope);
+      if (cached) {
+        return {
+          ...cached,
+          events: [
+            ...cached.events,
+            createEvent("workflow.replayed", definition.workflowId, {
+              correlationId: context.correlationId,
+              tenantId: context.tenantId,
+              idempotencyKey: context.idempotencyKey
+            })
+          ]
+        };
+      }
     }
 
     for (const step of definition.steps) {
@@ -158,11 +200,15 @@ export class InMemoryWorkflowRunner implements WorkflowRunner {
     }
 
     events.push(createEvent("workflow.completed", definition.workflowId));
-    return {
+    const completed: WorkflowExecutionResult = {
       workflowId: definition.workflowId,
       status: "completed",
       completedSteps,
       events
     };
+    if (idempotencyScope) {
+      this.idempotencyStore.set(idempotencyScope, completed);
+    }
+    return completed;
   }
 }
