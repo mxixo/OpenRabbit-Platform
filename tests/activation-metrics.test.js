@@ -99,6 +99,22 @@ function testIncorrectConnectedClaimUsesAuthoritativeBackendEvidence() {
   assert.strictEqual(verified.connectionState, "verified");
   assert.strictEqual(verified.success, true);
   assert.strictEqual(verified.errorCode, undefined);
+
+  const connectedWithStrongerEvidence = activation.recordConnectionObservation({
+    claimedState: "connected",
+    backendEvidence: {
+      authorizedAt: "2026-09-20T16:00:05Z",
+      providerAccountId: "provider-account-1",
+      verifiedAt: "2026-09-20T16:00:15Z",
+      verificationId: "verify-connection-1",
+    },
+    providerId: "google",
+    capabilityId: "calendar",
+    occurredAt: "2026-09-20T16:00:25Z",
+  });
+  assert.strictEqual(connectedWithStrongerEvidence.connectionState, "verified");
+  assert.strictEqual(connectedWithStrongerEvidence.success, true);
+  assert.strictEqual(connectedWithStrongerEvidence.errorCode, undefined);
 }
 
 function testActivationSummaryMeasuresFirstMilestonesWithoutContent() {
