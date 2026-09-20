@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   WorkflowDefinition,
   WorkflowExecutionContext,
@@ -5,7 +7,7 @@ import {
 } from "./contracts.js";
 
 export type WorkflowIdempotencyClaim =
-  | { state: "acquired" }
+  | { state: "acquired"; claimToken: string }
   | { state: "in_progress" }
   | { state: "completed"; result: WorkflowExecutionResult };
 
@@ -16,17 +18,24 @@ export interface WorkflowIdempotencyStore {
    * Production implementations must make this a single compare-and-set style
    * operation in durable storage. A read followed by a separate write is not
    * sufficient because two workers could both pass the read before either
-   * records ownership. The interface is asynchronous so a database/Redis-backed
-   * implementation can be substituted without changing runner semantics.
+   * records ownership. Successful acquisition returns an opaque claim token.
+   * The same token must be supplied to `complete()` so a stale or foreign worker
+   * cannot publish a terminal result after ownership has moved during recovery.
+   * The interface is asynchronous so a database/Redis-backed implementation can
+   * be substituted without changing runner semantics.
    */
   claim(scopeKey: string): Promise<WorkflowIdempotencyClaim>;
 
-  /** Persist the terminal successful result for replay. */
-  complete(scopeKey: string, result: WorkflowExecutionResult): Promise<void>;
+  /** Persist the terminal successful result only for the current claim owner. */
+  complete(
+    scopeKey: string,
+    claimToken: string,
+    result: WorkflowExecutionResult
+  ): Promise<void>;
 }
 
 type InMemoryEntry =
-  | { state: "in_progress" }
+  | { state: "in_progress"; claimToken: string }
   | { state: "completed"; result: WorkflowExecutionResult };
 
 function cloneResult(result: WorkflowExecutionResult): WorkflowExecutionResult {
@@ -41,6 +50,11 @@ function cloneResult(result: WorkflowExecutionResult): WorkflowExecutionResult {
  * check-and-set operation. This closes the same-process duplicate-write race
  * while keeping the required atomic contract explicit for a future durable
  * database/Redis implementation.
+ *
+ * Each acquired claim receives an opaque ownership token. Completion requires
+ * that exact token. This is a prerequisite for safe lease/recovery semantics:
+ * when production storage eventually transfers an expired claim, a stale worker
+ * must not be able to finalize the recovered scope.
  *
  * An unsuccessful/blocked workflow intentionally leaves its claim in-progress.
  * Releasing it automatically could replay already-completed external side
@@ -59,11 +73,19 @@ export class InMemoryWorkflowIdempotencyStore implements WorkflowIdempotencyStor
       return { state: "in_progress" };
     }
 
-    this.entries.set(scopeKey, { state: "in_progress" });
-    return { state: "acquired" };
+    const claimToken = randomUUID();
+    this.entries.set(scopeKey, { state: "in_progress", claimToken });
+    return { state: "acquired", claimToken };
   }
 
-  async complete(scopeKey: string, result: WorkflowExecutionResult): Promise<void> {
+  async complete(
+    scopeKey: string,
+    claimToken: string,
+    result: WorkflowExecutionResult
+  ): Promise<void> {
+    if (!claimToken.trim()) {
+      throw new Error("claimToken cannot be blank");
+    }
     if (result.status !== "completed") {
       throw new Error("only completed workflow results may be stored for idempotent replay");
     }
@@ -74,6 +96,9 @@ export class InMemoryWorkflowIdempotencyStore implements WorkflowIdempotencyStor
     }
     if (existing.state === "completed") {
       throw new Error("idempotency scope is already completed");
+    }
+    if (existing.claimToken !== claimToken) {
+      throw new Error("idempotency claim token does not own this scope");
     }
 
     this.entries.set(scopeKey, { state: "completed", result: cloneResult(result) });
