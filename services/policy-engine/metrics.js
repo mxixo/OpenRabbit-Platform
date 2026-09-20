@@ -19,6 +19,14 @@ function durationMs(start, end) {
   return b - a;
 }
 
+function hasTargetVerification(receipt) {
+  return Boolean(
+    receipt &&
+      receipt.targetVerification &&
+      typeof receipt.targetVerification.valid === 'boolean'
+  );
+}
+
 function summarizePolicyReceipts(receipts) {
   if (!Array.isArray(receipts)) throw new TypeError('receipts must be an array');
 
@@ -28,7 +36,8 @@ function summarizePolicyReceipts(receipts) {
   let autoExecute = 0;
   let surfaced = 0;
   let externalSideEffects = 0;
-  let targetVerified = 0;
+  let targetVerificationPerformed = 0;
+  let targetMatches = 0;
   let providerExecutionAttempts = 0;
   let providerVerified = 0;
   let failed = 0;
@@ -51,9 +60,13 @@ function summarizePolicyReceipts(receipts) {
 
     if (receipt && receipt.externalSideEffect === true) {
       externalSideEffects += 1;
-      if (receipt.targetVerification && receipt.targetVerification.valid === true) {
-        targetVerified += 1;
+      if (hasTargetVerification(receipt)) {
+        targetVerificationPerformed += 1;
+        if (receipt.targetVerification.valid === true) targetMatches += 1;
       }
+
+      // A blocked/proposed action has not attempted a provider side effect yet.
+      // Executed, verified, or failed actions require reconciliation evidence.
       if (!['proposed', 'blocked'].includes(receipt.status)) {
         providerExecutionAttempts += 1;
         if (receipt.status === 'verified' && receipt.providerReceiptId) {
@@ -79,7 +92,8 @@ function summarizePolicyReceipts(receipts) {
     blockRate: ratio(riskCounts.BLOCK, total),
     failureRate: ratio(failed, total),
     externalSideEffectCount: externalSideEffects,
-    targetVerificationCoverage: ratio(targetVerified, externalSideEffects),
+    targetVerificationCoverage: ratio(targetVerificationPerformed, externalSideEffects),
+    targetMatchRate: ratio(targetMatches, externalSideEffects),
     providerExecutionAttemptCount: providerExecutionAttempts,
     providerVerificationCoverage: ratio(providerVerified, providerExecutionAttempts),
     executionLatencyMs: {
