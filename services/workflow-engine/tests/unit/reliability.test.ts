@@ -23,14 +23,17 @@ const definition: WorkflowDefinition = {
 class ThrowingIdempotencyStore implements WorkflowIdempotencyStore {
   constructor(private readonly failurePhase: "claim" | "complete") {}
 
-  async claim(_scopeKey: string): Promise<WorkflowIdempotencyClaim> {
+  async claim(scopeKey: string): Promise<WorkflowIdempotencyClaim> {
+    void scopeKey;
     if (this.failurePhase === "claim") {
       throw new Error("store unavailable");
     }
     return { state: "acquired" };
   }
 
-  async complete(_scopeKey: string, _result: WorkflowExecutionResult): Promise<void> {
+  async complete(scopeKey: string, result: WorkflowExecutionResult): Promise<void> {
+    void scopeKey;
+    void result;
     if (this.failurePhase === "complete") {
       throw new Error("commit timeout");
     }
