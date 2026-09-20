@@ -6,3 +6,4 @@ export * from "./policy.js";
 export * from "./receipts.js";
 export * from "./reliability.js";
 export * from "./filesystem-idempotency.js";
+export * from "./reconciliation.js";
