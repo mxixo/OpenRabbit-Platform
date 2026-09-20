@@ -5,3 +5,4 @@ export * from "./runner.js";
 export * from "./policy.js";
 export * from "./receipts.js";
 export * from "./reliability.js";
+export * from "./filesystem-idempotency.js";
