@@ -1,5 +1,5 @@
 {
-  "registry_version": "1.1.0",
+  "registry_version": "1.2.0",
   "capabilities": [
     {
       "capability_id": "work.deal_create",
@@ -59,7 +59,9 @@
       "providers": ["openrabbit_real_estate"],
       "supports_dry_run": true,
       "supports_idempotency": true,
-      "emits_telemetry": true
+      "emits_telemetry": true,
+      "requires_target_verification": true,
+      "verification_receipt_required": true
     },
     {
       "capability_id": "calendar.read",
@@ -79,7 +81,9 @@
       "providers": ["openrabbit_productivity"],
       "supports_dry_run": true,
       "supports_idempotency": true,
-      "emits_telemetry": true
+      "emits_telemetry": true,
+      "requires_target_verification": true,
+      "verification_receipt_required": true
     },
     {
       "capability_id": "calendar.event_update",
@@ -89,7 +93,9 @@
       "providers": ["openrabbit_productivity"],
       "supports_dry_run": true,
       "supports_idempotency": true,
-      "emits_telemetry": true
+      "emits_telemetry": true,
+      "requires_target_verification": true,
+      "verification_receipt_required": true
     },
     {
       "capability_id": "mail.search",
@@ -129,7 +135,9 @@
       "providers": ["openrabbit_productivity"],
       "supports_dry_run": true,
       "supports_idempotency": true,
-      "emits_telemetry": true
+      "emits_telemetry": true,
+      "requires_target_verification": true,
+      "verification_receipt_required": true
     }
   ],
   "providers": [
