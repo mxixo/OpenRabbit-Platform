@@ -64,7 +64,8 @@ function fakeResponse(status, body = {}) {
     assert.strictEqual(verified.connected, true);
     assert.strictEqual(verified.verified, true);
     assert.strictEqual(verified.verificationState, 'provider_confirmed');
-    assert.strictEqual(verified.capabilities.read, true);
+    assert.strictEqual(verified.capabilities.mailRead, true);
+    assert.strictEqual(verified.capabilities.mailSend, false);
 
     mode = 'rejected';
     const rejected = await base.verifyConnection(user, 'gmail');
