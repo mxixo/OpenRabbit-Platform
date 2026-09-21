@@ -41,10 +41,18 @@ const gateway = require('../services/connection-gateway/server-v5');
     global.fetch = originalFetch;
   }
 
-  const gatewaySource = fs.readFileSync(
-    path.join(__dirname, '..', 'services', 'connection-gateway', 'server-v5.js'),
-    'utf8',
+  const gatewayDir = path.join(__dirname, '..', 'services', 'connection-gateway');
+  const legacyGateway = path.join(gatewayDir, 'server.js');
+  assert.strictEqual(
+    fs.existsSync(legacyGateway),
+    false,
+    'obsolete gateway runtimes with implicit production account fallbacks must not remain executable',
   );
+
+  const gatewayRuntimeSources = fs.readdirSync(gatewayDir)
+    .filter(name => name.endsWith('.js'))
+    .map(name => fs.readFileSync(path.join(gatewayDir, name), 'utf8'))
+    .join('\n');
   const envExample = fs.readFileSync(path.join(__dirname, '..', '.env.example'), 'utf8');
   const productionCompose = fs.readFileSync(
     path.join(__dirname, '..', 'deploy', 'vps', 'docker-compose.yml'),
@@ -55,7 +63,11 @@ const gateway = require('../services/connection-gateway/server-v5');
     'utf8',
   );
 
-  assert.doesNotMatch(gatewaySource, /djplmhglilcwqfotnjew/, 'gateway source must not hardcode the candidate production project');
+  assert.doesNotMatch(
+    gatewayRuntimeSources,
+    /djplmhglilcwqfotnjew/,
+    'no executable gateway runtime may hardcode the candidate production project',
+  );
   assert.doesNotMatch(envExample, /djplmhglilcwqfotnjew/, 'fresh-clone env template must not hardcode the candidate production project');
   assert.match(envExample, /^SUPABASE_URL=\s*$/m, 'Supabase URL must require explicit environment configuration');
   assert.match(envExample, /^SUPABASE_PUBLISHABLE_KEY=\s*$/m, 'Supabase publishable key must require explicit environment configuration');
