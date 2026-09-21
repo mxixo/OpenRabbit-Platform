@@ -4,9 +4,11 @@ const crypto=require('crypto');
 const fs=require('fs');
 const path=require('path');
 
+const GMAIL_READONLY='https://www.googleapis.com/auth/gmail.readonly';
+const CALENDAR_EVENTS_READONLY='https://www.googleapis.com/auth/calendar.events.readonly';
 const DEFAULT_SCOPES=[
-  'https://www.googleapis.com/auth/gmail.readonly',
-  'https://www.googleapis.com/auth/calendar.events'
+  GMAIL_READONLY,
+  CALENDAR_EVENTS_READONLY
 ];
 
 function required(value,name){if(typeof value!=="string"||!value.trim())throw new Error(`${name} is required`);return value.trim();}
@@ -14,8 +16,10 @@ function base64url(buffer){return buffer.toString('base64').replace(/=/g,'').rep
 function randomState(){return base64url(crypto.randomBytes(24));}
 
 function buildGoogleAuthorizationUrl({clientId,redirectUri,scopes=DEFAULT_SCOPES,state=randomState(),prompt='consent'}={}){
+  const normalizedScopes=Array.from(new Set((Array.isArray(scopes)?scopes:[]).map(scope=>required(scope,'scope'))));
+  if(!normalizedScopes.length)throw new Error('at least one scope is required');
   const url=new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  url.search=new URLSearchParams({client_id:required(clientId,'clientId'),redirect_uri:required(redirectUri,'redirectUri'),response_type:'code',access_type:'offline',include_granted_scopes:'true',prompt,scope:scopes.join(' '),state}).toString();
+  url.search=new URLSearchParams({client_id:required(clientId,'clientId'),redirect_uri:required(redirectUri,'redirectUri'),response_type:'code',access_type:'offline',include_granted_scopes:'true',prompt,scope:normalizedScopes.join(' '),state}).toString();
   return {url:url.toString(),state};
 }
 
@@ -36,4 +40,4 @@ function saveRefreshTokenFile(filePath,refreshToken){
 
 function loadRefreshTokenFile(filePath){const resolved=path.resolve(filePath);const parsed=JSON.parse(fs.readFileSync(resolved,'utf8'));return required(parsed.refreshToken,'refreshToken');}
 
-module.exports={DEFAULT_SCOPES,buildGoogleAuthorizationUrl,exchangeGoogleAuthorizationCode,saveRefreshTokenFile,loadRefreshTokenFile};
+module.exports={GMAIL_READONLY,CALENDAR_EVENTS_READONLY,DEFAULT_SCOPES,buildGoogleAuthorizationUrl,exchangeGoogleAuthorizationCode,saveRefreshTokenFile,loadRefreshTokenFile};
