@@ -6,6 +6,7 @@ import {
   openGoogleAuthorizationPopup,
   verifyConnection,
 } from './connectionGateway';
+import './connections.css';
 
 const googleKinds={
   gmail:{kind:'gmail',writeCapability:'mail.send',writeLabel:'Authorize sending'},
