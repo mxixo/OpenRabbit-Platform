@@ -37,10 +37,32 @@ jobs:
           echo "site=$site" >> "$GITHUB_OUTPUT"
           echo "Using OpenRabbit gateway URL: $url"
 
+      - name: Require explicit production account boundary
+        shell: bash
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "SUPABASE_URL repository variable is required before production deployment."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "SUPABASE_PUBLISHABLE_KEY repository secret is required before production deployment."
+            exit 1
+          fi
+          case "$SUPABASE_URL" in
+            https://*.supabase.co) ;;
+            *) echo "SUPABASE_URL must be an explicit https://*.supabase.co project URL."; exit 1 ;;
+          esac
+          echo "Production account boundary is explicitly configured."
+
       - name: Validate production compose
         env:
           OPENRABBIT_GATEWAY_SITE: ${{ steps.gateway.outputs.site }}
           OPENRABBIT_CONNECTION_GATEWAY_PUBLIC_URL: ${{ steps.gateway.outputs.url }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: docker compose -f deploy/vps/docker-compose.yml config --quiet
 
       - name: Deploy to Hostinger VPS
@@ -56,6 +78,8 @@ jobs:
             OPENRABBIT_GATEWAY_APP_TOKEN=${{ secrets.OPENRABBIT_GATEWAY_APP_TOKEN }}
             OPENRABBIT_TOKEN_ENCRYPTION_KEY=${{ secrets.OPENRABBIT_TOKEN_ENCRYPTION_KEY }}
             OPENRABBIT_GATEWAY_CORS_ORIGIN=${{ vars.OPENRABBIT_GATEWAY_CORS_ORIGIN }}
+            SUPABASE_URL=${{ vars.SUPABASE_URL }}
+            SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
             GOOGLE_OAUTH_CLIENT_ID=${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
             GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
             HUBSPOT_OAUTH_CLIENT_ID=${{ secrets.HUBSPOT_OAUTH_CLIENT_ID }}
