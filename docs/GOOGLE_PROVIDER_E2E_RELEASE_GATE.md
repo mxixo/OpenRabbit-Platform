@@ -19,6 +19,18 @@ One clean hosted-account run must prove, in order:
 
 The validator is `integrations/google/provider-e2e-evidence.js` and the protocol identifier is `google_provider_e2e_v1`.
 
+## Machine release preflight
+
+A completed metadata-only evidence artifact must pass the repository command below before the Google connection lifecycle can be marked production-ready:
+
+```bash
+npm run preflight:google-provider-e2e -- /absolute/path/to/google-provider-e2e.json
+```
+
+The evidence path can instead be supplied through `GOOGLE_PROVIDER_E2E_EVIDENCE_PATH`. The command exits non-zero when the artifact is absent, unreadable, malformed, simulated, out of phase order, over-privileged at initial authorization, missing incremental write authority, missing a real governed provider success, missing real revocation/post-revoke denial, or missing reconnect recovery. On success it emits only a compact release result containing the protocol, run ID, canonical evidence SHA-256, and phase count; it does not emit tokens or customer content.
+
+This command is the machine boundary for this specific provider gate. A human note saying that the flow was tested is not a substitute for a passing artifact.
+
 ## Evidence hygiene
 
 The artifact is deliberately metadata-only. Do not store access/refresh tokens, authorization codes, client secrets, passwords, email/message bodies, or customer content. Use opaque proof IDs, an irreversible account-subject hash, timestamps, backend state, authoritative scope names, execution IDs, capability names, policy result, provider result, and revoke/recovery state.
