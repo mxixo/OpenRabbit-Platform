@@ -46,11 +46,26 @@ const gateway = require('../services/connection-gateway/server-v5');
     'utf8',
   );
   const envExample = fs.readFileSync(path.join(__dirname, '..', '.env.example'), 'utf8');
+  const productionCompose = fs.readFileSync(
+    path.join(__dirname, '..', 'deploy', 'vps', 'docker-compose.yml'),
+    'utf8',
+  );
+  const deployWorkflow = fs.readFileSync(
+    path.join(__dirname, '..', '.github', 'workflows', 'deploy-hostinger-vps.yml'),
+    'utf8',
+  );
 
   assert.doesNotMatch(gatewaySource, /djplmhglilcwqfotnjew/, 'gateway source must not hardcode the candidate production project');
   assert.doesNotMatch(envExample, /djplmhglilcwqfotnjew/, 'fresh-clone env template must not hardcode the candidate production project');
   assert.match(envExample, /^SUPABASE_URL=\s*$/m, 'Supabase URL must require explicit environment configuration');
   assert.match(envExample, /^SUPABASE_PUBLISHABLE_KEY=\s*$/m, 'Supabase publishable key must require explicit environment configuration');
+  assert.match(productionCompose, /^\s+SUPABASE_URL: \$\{SUPABASE_URL:-\}$/m, 'production compose must pass the explicit Supabase project URL');
+  assert.match(productionCompose, /^\s+SUPABASE_PUBLISHABLE_KEY: \$\{SUPABASE_PUBLISHABLE_KEY:-\}$/m, 'production compose must pass the explicit Supabase publishable key');
+  assert.match(deployWorkflow, /Require explicit production account boundary/, 'production deploy must gate on an explicit account boundary');
+  assert.match(deployWorkflow, /SUPABASE_URL=\$\{\{ vars\.SUPABASE_URL \}\}/, 'Hostinger deploy must receive the explicit Supabase URL');
+  assert.match(deployWorkflow, /SUPABASE_PUBLISHABLE_KEY=\$\{\{ secrets\.SUPABASE_PUBLISHABLE_KEY \}\}/, 'Hostinger deploy must receive the explicit Supabase publishable key');
+  assert.match(deployWorkflow, /grep -q '\"version\":7'/, 'production health verification must target the current gateway v7');
+  assert.doesNotMatch(deployWorkflow, /grep -q '\"version\":6'/, 'stale gateway v6 health checks must not block a healthy v7 deploy');
 
   console.log('supabase-account-boundary.test.js: OK');
 })().catch(error => {
