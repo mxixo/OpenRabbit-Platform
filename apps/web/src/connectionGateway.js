@@ -67,3 +67,15 @@ export async function openGoogleAuthorization(session,options){
   const authorizationUrl=await startGoogleAuthorization(session,options)
   window.location.assign(authorizationUrl)
 }
+
+export async function openGoogleAuthorizationPopup(session,options){
+  const authorizationUrl=await startGoogleAuthorization(session,options)
+  const popup=window.open(
+    authorizationUrl,
+    'openrabbit-google-oauth',
+    'popup=yes,width=620,height=780,resizable=yes,scrollbars=yes'
+  )
+  if(!popup)throw new Error('Your browser blocked the Google authorization window. Allow pop-ups for OpenRabbit and try again.')
+  try{popup.focus()}catch{}
+  return popup
+}
