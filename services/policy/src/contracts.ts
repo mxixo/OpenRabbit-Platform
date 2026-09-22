@@ -1,4 +1,6 @@
 import {
+  GuardianContext,
+  GuardianEvaluation,
   ServiceOperationResult,
   ServiceReliabilitySnapshot
 } from "@openrabbit/runtime-core";
@@ -35,4 +37,8 @@ export interface PolicyService {
   getReliabilitySnapshot(): ServiceReliabilitySnapshot;
   evaluate(input: PolicyCheckInput): PolicyCheckOutput;
   evaluateSafe(input: PolicyCheckInput): ServiceOperationResult<PolicyCheckOutput>;
+  evaluateGuardian(input: GuardianContext): GuardianEvaluation;
+  evaluateGuardianSafe(
+    input: GuardianContext
+  ): ServiceOperationResult<GuardianEvaluation>;
 }
