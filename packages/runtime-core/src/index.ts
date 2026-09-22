@@ -50,6 +50,7 @@ export * from "./core/in-memory-worker-orchestrator.js";
 export * from "./core/in-memory-approval-request-store.js";
 export * from "./core/in-memory-audit-store.js";
 export * from "./core/in-memory-action-receipt-store.js";
+export * from "./core/action-receipt-integrity.js";
 export * from "./core/fail-closed-guardian-policy.js";
 export * from "./core/in-memory-calendar-plan-store.js";
 export * from "./core/living-agenda-priority.js";
