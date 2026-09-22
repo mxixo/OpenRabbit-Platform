@@ -1,0 +1,119 @@
+[
+  {
+    "name": "coherent_ready_itinerary",
+    "trip_start": "2026-10-10T15:00:00Z",
+    "trip_end": "2026-10-12T21:00:00Z",
+    "current_cost_revision": true,
+    "material_unknown": false,
+    "blocks": [
+      {
+        "id": "b1",
+        "kind": "transport",
+        "start_local": "2026-10-10T15:00:00Z",
+        "end_local": "2026-10-10T16:00:00Z",
+        "location_ref": "airport",
+        "evidence_refs": ["ev-flight"],
+        "cost_component_refs": ["intercity_transport"],
+        "opening_status": "not_applicable",
+        "min_transfer_from_previous_minutes": 0
+      },
+      {
+        "id": "b2",
+        "kind": "activity",
+        "start_local": "2026-10-10T17:00:00Z",
+        "end_local": "2026-10-10T19:00:00Z",
+        "location_ref": "museum",
+        "evidence_refs": ["ev-museum"],
+        "cost_component_refs": ["included_itinerary_activities"],
+        "opening_status": "known_open",
+        "min_transfer_from_previous_minutes": 30
+      }
+    ],
+    "expected": {"readiness": "READY", "warnings": []}
+  },
+  {
+    "name": "overlap_blocks_itinerary",
+    "trip_start": "2026-10-10T15:00:00Z",
+    "trip_end": "2026-10-12T21:00:00Z",
+    "current_cost_revision": true,
+    "material_unknown": false,
+    "blocks": [
+      {
+        "id": "b1",
+        "kind": "activity",
+        "start_local": "2026-10-10T17:00:00Z",
+        "end_local": "2026-10-10T19:00:00Z",
+        "location_ref": "museum",
+        "evidence_refs": ["ev-1"],
+        "cost_component_refs": ["activities"],
+        "opening_status": "known_open",
+        "min_transfer_from_previous_minutes": 0
+      },
+      {
+        "id": "b2",
+        "kind": "meal",
+        "start_local": "2026-10-10T18:30:00Z",
+        "end_local": "2026-10-10T20:00:00Z",
+        "location_ref": "restaurant",
+        "evidence_refs": ["ev-2"],
+        "cost_component_refs": ["food_allowance"],
+        "opening_status": "known_open",
+        "min_transfer_from_previous_minutes": 15
+      }
+    ],
+    "expected": {"readiness": "BLOCKED", "reason_contains": "overlap"}
+  },
+  {
+    "name": "unknown_opening_hours_review",
+    "trip_start": "2026-10-10T15:00:00Z",
+    "trip_end": "2026-10-12T21:00:00Z",
+    "current_cost_revision": true,
+    "material_unknown": false,
+    "blocks": [
+      {
+        "id": "b1",
+        "kind": "activity",
+        "start_local": "2026-10-11T17:00:00Z",
+        "end_local": "2026-10-11T19:00:00Z",
+        "location_ref": "market",
+        "evidence_refs": ["ev-market"],
+        "cost_component_refs": ["included_itinerary_activities"],
+        "opening_status": "unknown",
+        "min_transfer_from_previous_minutes": 0
+      }
+    ],
+    "expected": {"readiness": "REVIEW", "reason_contains": "unknown_opening_hours"}
+  },
+  {
+    "name": "insufficient_transfer_time_blocked",
+    "trip_start": "2026-10-10T15:00:00Z",
+    "trip_end": "2026-10-12T21:00:00Z",
+    "current_cost_revision": true,
+    "material_unknown": false,
+    "blocks": [
+      {
+        "id": "b1",
+        "kind": "activity",
+        "start_local": "2026-10-11T16:00:00Z",
+        "end_local": "2026-10-11T17:00:00Z",
+        "location_ref": "site-a",
+        "evidence_refs": ["ev-a"],
+        "cost_component_refs": ["included_itinerary_activities"],
+        "opening_status": "known_open",
+        "min_transfer_from_previous_minutes": 0
+      },
+      {
+        "id": "b2",
+        "kind": "activity",
+        "start_local": "2026-10-11T17:20:00Z",
+        "end_local": "2026-10-11T18:30:00Z",
+        "location_ref": "site-b",
+        "evidence_refs": ["ev-b"],
+        "cost_component_refs": ["included_itinerary_activities"],
+        "opening_status": "known_open",
+        "min_transfer_from_previous_minutes": 45
+      }
+    ],
+    "expected": {"readiness": "BLOCKED", "reason_contains": "insufficient_transfer_time"}
+  }
+]
