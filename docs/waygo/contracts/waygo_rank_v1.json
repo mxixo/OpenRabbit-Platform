@@ -1,0 +1,107 @@
+{
+  "contract": "waygo_rank_v1",
+  "status": "pre_source_recovery_reference",
+  "positioning": "where_to_next",
+  "minimum_discovery_input": [
+    "origin",
+    "traveler_count",
+    "total_budget",
+    "budget_currency",
+    "available_time",
+    "date_or_flexibility_window"
+  ],
+  "total_trip_cost": {
+    "required_material_components": [
+      "intercity_transport",
+      "transfers",
+      "lodging_with_mandatory_fees",
+      "local_transport",
+      "included_itinerary_activities",
+      "food_allowance",
+      "known_entry_charges",
+      "contingency"
+    ],
+    "price_classes": [
+      "live_bookable",
+      "provider_fresh",
+      "cached",
+      "sourced_estimate",
+      "demo_estimate",
+      "unknown"
+    ],
+    "missing_material_cost_behavior": "unresolved_not_zero",
+    "mixed_evidence_behavior": "disclose_weakest_material_price_class"
+  },
+  "ranking": {
+    "hard_feasibility_before_scoring": true,
+    "weights": {
+      "affordability_headroom": 0.35,
+      "usable_time_efficiency": 0.2,
+      "experience_fit": 0.2,
+      "itinerary_coherence": 0.1,
+      "evidence_quality": 0.15
+    },
+    "score_component_range": [0, 100],
+    "uncertainty_penalty_points": [0, 25],
+    "score_formula": "weighted_component_score_minus_uncertainty_penalty",
+    "score_range": [0, 100]
+  },
+  "classification": {
+    "GO": {
+      "minimum_score": 70,
+      "requires_hard_feasible": true,
+      "requires_budget_compliance": true,
+      "requires_no_unresolved_material_cost": true,
+      "requires_display_claim_supported_by_evidence": true
+    },
+    "MAYBE": {
+      "minimum_score": 45,
+      "reasons": [
+        "score_45_to_69",
+        "material_uncertainty",
+        "estimate_heavy_evidence",
+        "freshness_or_provider_risk"
+      ]
+    },
+    "SKIP": {
+      "reasons": [
+        "hard_infeasible",
+        "score_below_45",
+        "hard_budget_violation"
+      ]
+    }
+  },
+  "provider_evidence": {
+    "required_fields": [
+      "provider",
+      "external_id",
+      "observed_at",
+      "travel_dates",
+      "currency",
+      "price_class",
+      "amount_or_range",
+      "freshness_or_expiry",
+      "deep_link_or_terms_when_permitted",
+      "provenance_pointer"
+    ],
+    "provider_failure_behavior": "degrade_evidence_never_invent_live_quote"
+  },
+  "itinerary": {
+    "generator_inputs": "normalized_candidates_plus_user_constraints",
+    "revision_behavior": "new_revision_preserves_previous_price_evidence",
+    "cannot_upgrade_estimate_to_quote": true,
+    "cannot_infer_booked_state": true
+  },
+  "execution_boundary": {
+    "v1": [
+      "discover",
+      "rank",
+      "plan",
+      "save",
+      "refresh_or_monitor",
+      "deep_link_where_permitted"
+    ],
+    "autonomous_purchase": false,
+    "deep_link_implies_booked": false
+  }
+}
