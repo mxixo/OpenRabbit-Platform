@@ -39,6 +39,23 @@ describe("FailClosedGuardianPolicy", () => {
     expect(result.reasons).toContain("provider_execution_not_authorized");
   });
 
+  it("blocks irreversible external writes when provider authorization is unknown", () => {
+    const policy = new FailClosedGuardianPolicy();
+    const result = policy.evaluate(
+      context({
+        risk: "low",
+        externalWrite: true,
+        providerAuthorized: undefined,
+        reversible: false
+      })
+    );
+
+    expect(result.decision).toBe("block_and_alert");
+    expect(result.reasons).toContain(
+      "provider_authorization_unknown_irreversible_write_blocked"
+    );
+  });
+
   it("requires fresh strong identity for high-risk actions", () => {
     const policy = new FailClosedGuardianPolicy();
     const result = policy.evaluate(context({ risk: "high", externalWrite: true }));
