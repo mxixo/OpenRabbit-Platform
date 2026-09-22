@@ -1,0 +1,47 @@
+[
+  {
+    "name": "complete trip remains within budget on upper bound",
+    "budget": {"amount": 1500, "currency": "USD"},
+    "components": {
+      "intercity_transport": {"status": "quoted", "price_class": "provider_fresh", "currency": "USD", "low": 400, "expected": 420, "high": 440},
+      "transfers": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 40, "expected": 50, "high": 60},
+      "lodging_with_mandatory_fees": {"status": "quoted", "price_class": "provider_fresh", "currency": "USD", "low": 360, "expected": 390, "high": 420},
+      "local_transport": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 60, "expected": 80, "high": 100},
+      "included_itinerary_activities": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 90, "expected": 110, "high": 130},
+      "food_allowance": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 120, "expected": 150, "high": 180},
+      "known_entry_charges": {"status": "not_applicable", "price_class": "sourced_estimate", "currency": "USD", "low": 0, "expected": 0, "high": 0},
+      "contingency": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 50, "expected": 70, "high": 70}
+    },
+    "expected": {"lower_bound": 1120, "expected_total": 1270, "upper_bound": 1400, "unresolved_material_cost": false, "budget_compliant": true, "budget_headroom": 100}
+  },
+  {
+    "name": "unknown material lodging cost cannot be treated as zero",
+    "budget": {"amount": 1200, "currency": "USD"},
+    "components": {
+      "intercity_transport": {"status": "quoted", "price_class": "provider_fresh", "currency": "USD", "low": 350, "expected": 350, "high": 350},
+      "transfers": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 30, "expected": 40, "high": 50},
+      "lodging_with_mandatory_fees": {"status": "unknown", "price_class": "unknown", "currency": "USD", "low": null, "expected": null, "high": null},
+      "local_transport": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 40, "expected": 60, "high": 80},
+      "included_itinerary_activities": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 60, "expected": 80, "high": 100},
+      "food_allowance": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 100, "expected": 130, "high": 160},
+      "known_entry_charges": {"status": "not_applicable", "price_class": "sourced_estimate", "currency": "USD", "low": 0, "expected": 0, "high": 0},
+      "contingency": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 50, "expected": 60, "high": 70}
+    },
+    "expected": {"lower_bound": 630, "expected_total": 720, "upper_bound": 810, "unresolved_material_cost": true, "budget_compliant": false, "budget_headroom": null}
+  },
+  {
+    "name": "complete trip over upper-bound budget is a hard budget violation",
+    "budget": {"amount": 1000, "currency": "USD"},
+    "components": {
+      "intercity_transport": {"status": "quoted", "price_class": "provider_fresh", "currency": "USD", "low": 400, "expected": 420, "high": 450},
+      "transfers": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 50, "expected": 60, "high": 70},
+      "lodging_with_mandatory_fees": {"status": "quoted", "price_class": "provider_fresh", "currency": "USD", "low": 320, "expected": 350, "high": 380},
+      "local_transport": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 50, "expected": 70, "high": 90},
+      "included_itinerary_activities": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 70, "expected": 90, "high": 110},
+      "food_allowance": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 100, "expected": 130, "high": 160},
+      "known_entry_charges": {"status": "not_applicable", "price_class": "sourced_estimate", "currency": "USD", "low": 0, "expected": 0, "high": 0},
+      "contingency": {"status": "estimated", "price_class": "sourced_estimate", "currency": "USD", "low": 40, "expected": 60, "high": 80}
+    },
+    "expected": {"lower_bound": 1030, "expected_total": 1180, "upper_bound": 1340, "unresolved_material_cost": false, "budget_compliant": false, "budget_headroom": -340}
+  }
+]
