@@ -64,7 +64,7 @@
       "uncertainty_penalty": 0
     },
     "expected": {
-      "score": 61,
+      "score": 63.75,
       "classification": "SKIP"
     }
   },
