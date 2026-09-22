@@ -43,7 +43,9 @@ function loadDraft(){
     const raw=window.localStorage.getItem(ADAPTIVE_ONBOARDING_DRAFT_KEY);
     return raw?restoreAdaptiveOnboardingDraft(raw):fallback;
   }catch{
-    try{window.localStorage.removeItem(ADAPTIVE_ONBOARDING_DRAFT_KEY)}catch{}
+    try{window.localStorage.removeItem(ADAPTIVE_ONBOARDING_DRAFT_KEY)}catch{
+      // Storage cleanup is best-effort; the neutral in-memory profile remains safe.
+    }
     return fallback;
   }
 }
@@ -72,7 +74,10 @@ export default function OnboardingPage(){
 
   const preview=useMemo(()=>{
     if(profile.currentStep!==ADAPTIVE_ONBOARDING_MAX_STEP)return null;
-    try{return recommendAdaptiveOnboardingPreview(profile)}catch{return null}
+    try{return recommendAdaptiveOnboardingPreview(profile)}catch{
+      // Invalid state fails closed to no preview rather than widening authority or provider access.
+      return null;
+    }
   },[profile]);
 
   function patch(values){setProfile(current=>({...current,...values}));}
@@ -96,7 +101,9 @@ export default function OnboardingPage(){
     const fresh=resetAdaptiveOnboardingProfile();
     setProfile(fresh);
     setToolText('');
-    try{window.localStorage.removeItem(ADAPTIVE_ONBOARDING_DRAFT_KEY)}catch{}
+    try{window.localStorage.removeItem(ADAPTIVE_ONBOARDING_DRAFT_KEY)}catch{
+      // UI reset still succeeds in memory if the browser denies storage access.
+    }
   }
 
   const step=profile.currentStep;
