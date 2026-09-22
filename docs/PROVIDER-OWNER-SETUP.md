@@ -2,6 +2,20 @@
 
 This checklist is for the OpenRabbit product owner. Customers must never see or enter any of these credentials.
 
+## Production account boundary first
+
+Do not configure a hosted provider release against an implicit or guessed account project. OpenRabbit production now fails closed until an explicit Supabase Auth/account/data boundary is designated and configured.
+
+Before live provider certification:
+
+- designate the production Supabase project intentionally;
+- configure its URL and publishable credential through the production environment only;
+- keep service-role/server secrets out of Git and browser code;
+- verify hosted sign-in and tenant/session isolation;
+- then run provider certification from a clean OpenRabbit account.
+
+WayGo is a separate product/backend and must not be reused as the OpenRabbit account boundary.
+
 ## Production gateway
 
 Current bootstrap gateway base URL:
@@ -28,7 +42,38 @@ Store in GitHub Actions secrets:
 - `GOOGLE_OAUTH_CLIENT_ID`
 - `GOOGLE_OAUTH_CLIENT_SECRET`
 
-OpenRabbit currently requests read-only Gmail and Calendar access. Public production use may require Google OAuth verification because these scopes access user data.
+### Progressive authorization contract
+
+Initial connection is deliberately read-only. The user should be able to connect and verify real data without granting write authority.
+
+Initial Google authorization requests:
+
+- Gmail read-only: `https://www.googleapis.com/auth/gmail.readonly`
+- Calendar event read-only: `https://www.googleapis.com/auth/calendar.events.readonly`
+
+Write authority is requested incrementally only when the user activates a governed write capability:
+
+- Gmail send: `https://www.googleapis.com/auth/gmail.send`
+- Calendar write: `https://www.googleapis.com/auth/calendar.events`
+
+The OAuth flow uses incremental authorization (`include_granted_scopes=true`). A Connected account is therefore not synonymous with write authority; the backend must verify the provider-reported scopes needed for each write.
+
+Public production use may require Google OAuth verification because these scopes access user data. Provider review must reflect the actual progressive scope set rather than describing the app as permanently read-only.
+
+### Required production certification
+
+Do not mark Google production-ready from mocked OAuth, local token presence, or a client-side Connected state. From one clean hosted account, capture the non-simulated `google_provider_e2e_v1` lifecycle:
+
+1. hosted OpenRabbit sign-in;
+2. backend-authoritative read-only Google connection;
+3. real provider read;
+4. explicit incremental Gmail/Calendar write authorization;
+5. governed provider write;
+6. provider-side revocation;
+7. verified post-revoke denial;
+8. read-only reconnect and successful provider read.
+
+Run the repository Google provider E2E preflight against the resulting metadata-only artifact. Retain the canonical certification hash, but never persist OAuth tokens, auth codes, client secrets, passwords, or customer message/calendar content in release evidence.
 
 ## Microsoft 365 — Outlook + Calendar
 
@@ -78,13 +123,13 @@ Current read scopes:
 
 ## Maps
 
-OpenRabbit now has a zero-configuration OpenStreetMap fallback with address/place search, so the customer map works without any customer key or account connection.
+OpenRabbit has a zero-configuration OpenStreetMap fallback with address/place search, so the customer map works without any customer key or account connection.
 
 Google Maps remains an optional enhanced provider. If enabled, store a restricted browser key in:
 
 - `GOOGLE_MAPS_BROWSER_KEY`
 
-Restrict the key to the Maps JavaScript API and approved OpenRabbit origins. Maps are always presented to users as a built-in platform capability rather than an account connection.
+Restrict the key to the Maps JavaScript API and approved OpenRabbit origins. Maps are presented to users as a built-in platform capability rather than an account connection.
 
 ## Meta — Instagram + Facebook
 
