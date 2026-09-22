@@ -58,6 +58,22 @@ export class FailClosedGuardianPolicy implements GuardianPolicy {
       };
     }
 
+    // Unknown provider authorization may only reach the reversible-only lane when
+    // reversibility has itself been affirmatively established. This prevents a
+    // low-risk label from becoming an accidental bypass for an irreversible side
+    // effect through a provider/path whose agent authorization is not known.
+    if (
+      context.externalWrite &&
+      context.providerAuthorized === undefined &&
+      context.reversible !== true
+    ) {
+      return {
+        decision: "block_and_alert",
+        reasons: ["provider_authorization_unknown_irreversible_write_blocked"],
+        missingCapabilities: []
+      };
+    }
+
     if (context.risk === "high" && !hasRecentStrongIdentity(context)) {
       return {
         decision: "require_reauthentication",
