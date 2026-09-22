@@ -36,6 +36,17 @@ run_pkg_checks() {
   npm run typecheck
 }
 
+run_web_checks() {
+  local dir="apps/web"
+  printf "\n==> Production web checks: %s\n" "${dir}"
+  cd "${REPO_ROOT}/${dir}"
+  npm ci --silent
+  ensure_required_script "lint"
+  ensure_required_script "build"
+  npm run lint
+  npm run build
+}
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 printf "\n==> Root compatibility tests\n"
@@ -45,6 +56,8 @@ npm test
 for package_dir in "${ACTIVE_TS_PACKAGES[@]}"; do
   run_pkg_checks "${package_dir}"
 done
+
+run_web_checks
 
 echo ""
 echo "All quality gates passed."
