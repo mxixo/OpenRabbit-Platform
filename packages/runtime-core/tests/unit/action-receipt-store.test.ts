@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryActionReceiptStore } from "../../src/core/in-memory-action-receipt-store.js";
+import type { ActionReceipt } from "../../src/interfaces/action-receipt.js";
 
-function receiptInput(id = "receipt-1", orgId = "org-1") {
+type ReceiptInput = Omit<ActionReceipt, "createdAt"> & { createdAt?: string };
+
+function receiptInput(id = "receipt-1", orgId = "org-1"): ReceiptInput {
   return {
     id,
     orgId,
@@ -9,28 +12,28 @@ function receiptInput(id = "receipt-1", orgId = "org-1") {
     userId: "user-1",
     taskId: "task-1",
     provenance: {
-      actorType: "worker" as const,
-      commandOrigin: "agent_delegation" as const,
+      actorType: "worker",
+      commandOrigin: "agent_delegation",
       workerId: "worker-1",
       delegationChain: ["user-1", "worker-1"]
     },
     policy: {
-      guardianDecision: "require_confirmation" as const,
+      guardianDecision: "require_confirmation",
       policyVersion: "guardian-v1",
-      risk: "moderate" as const,
+      risk: "moderate",
       requiredCapabilities: ["calendar.write"],
       approvalId: "approval-1"
     },
     provider: {
       provider: "google_calendar",
-      executionMode: "native_api" as const,
+      executionMode: "native_api",
       providerAuthorized: true,
       externalReceiptId: "google-event-1"
     },
     contextCategories: ["calendar"],
     externallyVisible: true,
     reversible: true,
-    effectStatus: "confirmed" as const,
+    effectStatus: "confirmed",
     metadata: { source: { channel: "app" } }
   };
 }
@@ -75,6 +78,7 @@ describe("InMemoryActionReceiptStore", () => {
     expect(() => store.append(duplicateCapability)).toThrow("must be unique");
 
     const noProviderProof = receiptInput("receipt-3");
+    if (!noProviderProof.provider) throw new Error("test fixture provider missing");
     noProviderProof.provider.externalReceiptId = undefined;
     expect(() => store.append(noProviderProof)).toThrow(
       "confirmed provider effects require provider requestId or externalReceiptId"
