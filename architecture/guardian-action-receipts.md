@@ -31,7 +31,7 @@ An Action Receipt is append-only evidence for a completed or attempted action. I
 
 `effectStatus=confirmed` for a provider-mediated action requires a provider request identifier or external receipt identifier. Provider success is not inferred from a model statement.
 
-The in-memory reference store returns defensive copies and rejects duplicate receipt IDs. Production durability, cryptographic tamper evidence, retention, redaction/export policy, cross-process ordering and disaster recovery remain separate release gates.
+The in-memory reference store returns defensive copies and rejects duplicate receipt IDs. Runtime-core now also exposes a deterministic SHA-256 sealing primitive that canonicalizes a receipt, can bind a receipt to the preceding receipt hash, and verifies that later mutation changes the seal. This is a tamper-evidence building block, **not** a durable ledger by itself. Production persistence must store seals outside worker authority and still provide durable ordering, retention, redaction/export policy, disaster recovery, and integrity verification after restore.
 
 ## Provider execution modes
 
@@ -46,6 +46,8 @@ Preferred execution selection remains:
 5. human delegation only when explicitly disclosed/authorized.
 
 The Guardian must not treat browser reachability as provider authorization.
+
+An external write with explicit provider denial is blocked. If provider authorization is unknown, the reversible-only lane is available **only when reversibility has been affirmatively established**. Unknown provider authorization plus an irreversible or unproven-reversible external write fails closed instead of relying on a low-risk label or user confirmation to make the path acceptable.
 
 ## Capability contract rule
 
@@ -65,10 +67,13 @@ Release tests should preserve these invariants:
 - cross-tenant receipt reads return no evidence;
 - callers cannot mutate stored receipt evidence through returned object references;
 - duplicate receipt identity is rejected;
+- receipt sealing is deterministic and detects mutation of policy/capability/provenance/effect evidence;
+- a chained receipt seal changes when the previous receipt identity/hash changes;
 - missing required capabilities block execution;
 - an explicitly unauthorized provider execution path blocks execution;
+- unknown provider authorization blocks an irreversible or unproven-reversible external write;
 - command-origin anomalies block execution even when capabilities are otherwise present;
 - high-risk actions require fresh strong identity and then explicit confirmation for externally visible/write effects;
 - unknown provider authorization cannot silently become unrestricted write permission.
 
-These runtime-core tests are necessary but not sufficient for production certification. Hosted tenant isolation, provider lifecycle, durable storage/recovery, incident response and adversarial end-to-end tests remain required by the production release ladder.
+These runtime-core tests are necessary but not sufficient for production certification. Hosted tenant isolation, provider lifecycle, durable receipt/seal storage, multi-host ordering, restore-time integrity checks, incident response and adversarial end-to-end tests remain required by the production release ladder.
