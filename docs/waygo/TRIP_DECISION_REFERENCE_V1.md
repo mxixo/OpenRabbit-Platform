@@ -6,7 +6,7 @@ Status: portable pre-source-recovery reference. This is intentionally stored in 
 
 WayGo starts from **“Where to next?”** Budget and available time are primary constraints; destination is optional. The system should discover feasible destinations/deals, model the complete trip cost, rank alternatives transparently, and generate a usable itinerary without turning estimates into bookable quotes.
 
-The machine-readable contract is `docs/waygo/contracts/waygo_rank_v1.json`. Executable acceptance vectors live beside it and are verified by `tests/waygo-ranking-contract.test.js`.
+The machine-readable ranking contract is `docs/waygo/contracts/waygo_rank_v1.json`. The total-trip-cost contract is `docs/waygo/contracts/waygo_total_trip_cost_v1.json`. Executable acceptance vectors live beside both contracts and are verified by `tests/waygo-ranking-contract.test.js` and `tests/waygo-total-trip-cost-contract.test.js`. The portable service/app target is `docs/waygo/APP_IMPLEMENTATION_SPEC_V1.md`.
 
 ## Deterministic ranking
 
@@ -44,7 +44,7 @@ Each component is scored 0–100. The result is clamped to 0–100. These are ve
 
 WayGo must not rank headline airfare as if it were trip cost. The reference contract keeps material components separate: intercity transport, transfers, lodging with mandatory fees, local transport, activities included in the proposed itinerary, food allowance, known entry charges, and a visible contingency.
 
-A missing material cost remains unresolved; it is never treated as zero. Mixed-evidence totals disclose the weakest material price class. This prevents incomplete candidates from appearing artificially cheap.
+Each resolved material component uses a low / expected / high amount envelope. A missing or unknown material cost remains unresolved; it is never treated as zero. For the V1 budget-compliance claim, **the upper-bound total must be at or below the user's unchanged budget and no material component may be unresolved**. Mixed-evidence totals disclose the weakest material price class. This prevents incomplete candidates from appearing artificially cheap or precise.
 
 ## Provider boundary
 
@@ -54,22 +54,24 @@ Provider failure or staleness downgrades evidence. It must not be converted into
 
 ## Itinerary boundary
 
-The itinerary generator receives normalized candidates/evidence plus user constraints. Regeneration creates a new revision and preserves historical evidence from prior revisions. The generator cannot upgrade an estimate to a quote or infer a booked state.
+The itinerary generator receives normalized candidates/evidence plus user constraints. Regeneration creates a new revision and preserves historical evidence from prior revisions. The generator cannot upgrade an estimate to a quote or infer a booked state. A material itinerary change must trigger a new total-trip-cost revision rather than silently retaining an obsolete cost envelope.
 
 V1 remains planning-first: discover, rank, plan, save, refresh/monitor, and deep-link where allowed. Autonomous purchase is not enabled, and a deep-link click is not proof of booking.
 
 ## Acceptance vectors now executable
 
-The committed test vectors establish several non-negotiable behaviors before front-end implementation resumes:
+The committed ranking and cost vectors establish several non-negotiable behaviors before front-end implementation resumes:
 
 1. a complete affordable candidate can become GO;
-2. missing material cost cannot be rewarded as cheap and downgrades to MAYBE;
+2. missing material cost cannot be rewarded as cheap and downgrades eligibility;
 3. a hard budget violation remains SKIP even if experience fit is high;
 4. estimate-heavy evidence cannot be labeled GO;
-5. a weak candidate below the scoring threshold is SKIP.
+5. a weak candidate below the scoring threshold is SKIP;
+6. an unknown material component is excluded from numeric summation but makes budget compliance false rather than masquerading as zero;
+7. a complete trip whose upper-bound cost exceeds budget fails the budget-compliance gate.
 
 These tests are portable and should move unchanged into the future dedicated WayGo repository before implementation diverges.
 
 ## Current implementation boundary
 
-The authoritative Hostinger source/export remains unrecovered in the non-interactive environment, so this change does **not** edit the live site, invent routes/screens, add itinerary tables, alter the verified Supabase schema, or claim any live provider integration. Source recovery remains the gate before production UI/schema implementation.
+The authoritative Hostinger source/export remains unrecovered in the non-interactive environment, so this change does **not** edit the live site, invent current routes/screens, add itinerary tables, alter the verified Supabase schema, or claim any live provider integration. Source recovery remains the gate before production UI/schema implementation.
