@@ -46,5 +46,13 @@ for package_dir in "${ACTIVE_TS_PACKAGES[@]}"; do
   run_pkg_checks "${package_dir}"
 done
 
+printf "\n==> Production web checks\n"
+cd "${REPO_ROOT}/apps/web"
+npm ci --silent
+ensure_required_script "lint"
+ensure_required_script "build"
+npm run lint
+npm run build
+
 echo ""
 echo "All quality gates passed."

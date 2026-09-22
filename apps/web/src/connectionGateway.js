@@ -76,6 +76,8 @@ export async function openGoogleAuthorizationPopup(session,options){
     'popup=yes,width=620,height=780,resizable=yes,scrollbars=yes'
   )
   if(!popup)throw new Error('Your browser blocked the Google authorization window. Allow pop-ups for OpenRabbit and try again.')
-  try{popup.focus()}catch{}
+  try{popup.focus()}catch{
+    // Popup focus is best-effort; the authorization window remains usable if focus is denied.
+  }
   return popup
 }
