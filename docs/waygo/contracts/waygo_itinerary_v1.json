@@ -1,0 +1,96 @@
+{
+  "contract": "waygo_itinerary_v1",
+  "status": "pre_source_recovery_reference",
+  "inputs": [
+    "normalized_constraints",
+    "selected_ranked_candidate",
+    "provider_evidence",
+    "total_trip_cost_revision",
+    "map_time_evidence"
+  ],
+  "required_itinerary_fields": [
+    "itinerary_revision_id",
+    "constraint_version",
+    "ranking_version",
+    "cost_revision_id",
+    "destination",
+    "trip_start",
+    "trip_end",
+    "timezone",
+    "days",
+    "warnings",
+    "booking_state"
+  ],
+  "booking_state": {
+    "allowed": ["not_booked", "partially_booked", "booked"],
+    "default": "not_booked",
+    "deep_link_never_changes_state": true,
+    "trusted_provider_or_user_evidence_required_for_booked": true
+  },
+  "block_rules": {
+    "required_fields": [
+      "id",
+      "kind",
+      "start_local",
+      "end_local",
+      "location_ref",
+      "evidence_refs",
+      "cost_component_refs"
+    ],
+    "kinds": ["transport", "activity", "meal", "lodging", "buffer", "free_time"],
+    "no_overlap": true,
+    "positive_duration": true,
+    "inside_trip_window": true,
+    "ordered_within_day": true
+  },
+  "feasibility": {
+    "hard_rules": [
+      "arrival_before_first_destination_block",
+      "departure_after_last_destination_block",
+      "no_block_overlap",
+      "minimum_transfer_time_satisfied",
+      "known_opening_hours_satisfied",
+      "hard_user_constraints_satisfied"
+    ],
+    "unknown_opening_hours_behavior": "warning_not_guaranteed",
+    "unknown_transfer_time_behavior": "material_warning_and_not_ready",
+    "provider_failure_behavior": "degrade_never_invent",
+    "timezone_required": true
+  },
+  "revision_rules": {
+    "material_sequence_change_requires_new_revision": true,
+    "material_cost_change_requires_new_cost_revision": true,
+    "previous_price_evidence_immutable": true,
+    "regeneration_preserves_source_refs": true
+  },
+  "readiness": {
+    "READY": {
+      "requires_hard_feasible": true,
+      "requires_no_material_unknown": true,
+      "requires_current_cost_revision": true
+    },
+    "REVIEW": {
+      "reasons": [
+        "unknown_opening_hours",
+        "stale_noncritical_evidence",
+        "optional_block_uncertainty"
+      ]
+    },
+    "BLOCKED": {
+      "reasons": [
+        "overlap",
+        "outside_trip_window",
+        "insufficient_transfer_time",
+        "known_closed",
+        "unknown_material_transfer_time",
+        "hard_constraint_violation"
+      ]
+    }
+  },
+  "execution_boundary": {
+    "planning_only": true,
+    "autonomous_purchase": false,
+    "invent_live_quote": false,
+    "infer_booking": false
+  }
+}
