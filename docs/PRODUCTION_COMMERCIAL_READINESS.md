@@ -24,7 +24,12 @@ Required:
 - simulated/demo data is visibly labeled and cannot be presented as provider-authoritative data;
 - failures remain truthful rather than being converted into synthetic success states.
 
-Current status: **eligible for continued internal alpha work**. This does not authorize production customer data or a paid public launch.
+Current implementation evidence:
+- the runtime now has a typed fail-closed Guardian policy contract and versioned Action Receipt/provenance contract, including capability, command-origin, provider-authorization and strong-identity checks for high-risk actions (PR #120);
+- the reference Action Receipt store is append-only, tenant-isolated in memory and defensively copied, with provider-confirmation evidence checks (PR #120);
+- the authenticated Connections surface reports provider-authoritative connection/verification/reconnect state rather than inferring authority from button clicks (PRs #114-115).
+
+Current status: **eligible for continued internal alpha work**. The Guardian/receipt work is a reference runtime control, not evidence of production durability. This status does not authorize production customer data or a paid public launch.
 
 ### Closed beta — blocked
 Purpose: a small invited group using real accounts and provider data with constrained support expectations.
@@ -34,6 +39,7 @@ Hard gates:
 - [ ] Production-like sign-in plus tenant/session isolation smoke test passes against that boundary.
 - [ ] At least one complete real provider lifecycle is certified from a clean hosted account; Google is the reference path — issue #86.
 - [ ] Provider-owner credentials, redirects, APIs and app-review requirements are completed for every provider advertised as available — issue #77.
+- [ ] Action receipts and reconciliation-required records are persisted in a durable production store with tenant isolation, restart/recovery evidence, immutable/append-only semantics, and a tested path for reconciling uncertain external effects; the current in-memory reference store is not sufficient.
 - [ ] Backup/restore, runtime restart, reconciliation and incident-response paths have evidence rather than only design intent.
 - [ ] Customer-facing capability claims are limited to provider paths that actually passed production certification.
 
@@ -49,13 +55,14 @@ Additional gates:
 - [ ] Support, escalation, incident ownership and customer-data deletion/export procedures are documented and tested.
 - [ ] Adaptive onboarding reaches a useful personalized preview without forcing private-provider connection, and simulated preview data remains unmistakable — issue #83.
 - [ ] Product telemetry can distinguish provider outage, auth/revocation, policy denial, user cancellation, reconciliation-required, and internal failure states.
+- [ ] Receipt/provenance UX can answer who/what initiated a consequential action, what policy/capability authorized it, which provider/account was targeted, and whether the external effect was confirmed, uncertain, failed, or reconciled without exposing secrets/customer content.
 
 ### General availability — blocked behind paid beta
 Purpose: broadly market OpenRabbit as a production service.
 
 Additional gates:
 - [ ] Restore and disaster-recovery drill passes from documented backups.
-- [ ] Security/adversarial suite covers cross-tenant access, prompt/tool authority escalation, replay/idempotency, account substitution, stale authorization, and secret exfiltration paths.
+- [ ] Security/adversarial suite covers cross-tenant access, prompt/tool authority escalation, replay/idempotency, account substitution, stale authorization, receipt/provenance tampering, and secret exfiltration paths.
 - [ ] Public status/incident path and measurable service objectives exist.
 - [ ] Provider revocation/reconnect behavior is periodically recertified, not assumed permanent after one successful test.
 - [ ] Commercial claims, screenshots and pricing pages describe only generally available capabilities and clearly distinguish beta/preview features.
@@ -70,6 +77,7 @@ Additional gates:
 - external target identity is bound to the intended tenant, connection, account, domain/resource, and operation rather than inferred from display names alone
 - policy/credential/egress enforcement lives outside the worker's mutable decision context and cannot be disabled by a worker request
 - policy engine cannot be bypassed by worker/runtime
+- action receipts are append-only, tenant-scoped and durable across runtime restarts before production customer actions are allowed
 - provenance answers are deterministic from receipts
 - revoke/reconnect/account-mismatch flows pass
 - backup/restore and runtime restart drills pass
@@ -80,6 +88,8 @@ Additional gates:
 
 WayGo is a separate product boundary. A healthy WayGo Supabase project is evidence about WayGo only; it must never be used as a substitute for OpenRabbit production Auth/account certification. Likewise, the WayGo front end should remain source-recovery blocked until the authoritative Hostinger baseline is recovered and imported into its own repository (issue #95).
 
+A portable source-independent `waygo_rank_v1` contract now exists with executable acceptance vectors for complete-trip-cost semantics, hard-budget veto, unresolved material costs, estimate-heavy downgrade, provider evidence normalization, deterministic GO/MAYBE/SKIP scoring and a planning-only/no-autonomous-purchase boundary (PR #121). This advances product logic but does **not** satisfy source recovery, itinerary persistence, live pricing, booking execution, or dedicated-repository gates.
+
 ## Release-decision rule
 
-A gate can move from blocked to passed only when its evidence is reproducible and points to the exact production boundary/provider/runtime being released. Unit tests, route availability, synthetic fixtures, or a healthy unrelated backend are supporting evidence, not substitutes for production certification.
+A gate can move from blocked to passed only when its evidence is reproducible and points to the exact production boundary/provider/runtime being released. Unit tests, route availability, synthetic fixtures, an in-memory reference store, or a healthy unrelated backend are supporting evidence, not substitutes for production certification.
