@@ -1,0 +1,117 @@
+[
+  {
+    "name": "complete affordable candidate can be GO",
+    "candidate": {
+      "hard_feasible": true,
+      "budget_compliant": true,
+      "unresolved_material_cost": false,
+      "display_claim_supported_by_evidence": true,
+      "estimate_heavy": false,
+      "material_uncertainty": false,
+      "scores": {
+        "affordability_headroom": 90,
+        "usable_time_efficiency": 80,
+        "experience_fit": 85,
+        "itinerary_coherence": 80,
+        "evidence_quality": 90
+      },
+      "uncertainty_penalty": 5
+    },
+    "expected": {
+      "score": 81,
+      "classification": "GO"
+    }
+  },
+  {
+    "name": "missing material cost cannot be rewarded as cheap",
+    "candidate": {
+      "hard_feasible": true,
+      "budget_compliant": true,
+      "unresolved_material_cost": true,
+      "display_claim_supported_by_evidence": false,
+      "estimate_heavy": false,
+      "material_uncertainty": true,
+      "scores": {
+        "affordability_headroom": 95,
+        "usable_time_efficiency": 85,
+        "experience_fit": 90,
+        "itinerary_coherence": 85,
+        "evidence_quality": 30
+      },
+      "uncertainty_penalty": 20
+    },
+    "expected": {
+      "score": 61.25,
+      "classification": "MAYBE"
+    }
+  },
+  {
+    "name": "hard budget violation is SKIP even with good experience fit",
+    "candidate": {
+      "hard_feasible": false,
+      "budget_compliant": false,
+      "unresolved_material_cost": false,
+      "display_claim_supported_by_evidence": true,
+      "estimate_heavy": false,
+      "material_uncertainty": false,
+      "scores": {
+        "affordability_headroom": 10,
+        "usable_time_efficiency": 90,
+        "experience_fit": 95,
+        "itinerary_coherence": 90,
+        "evidence_quality": 95
+      },
+      "uncertainty_penalty": 0
+    },
+    "expected": {
+      "score": 63.75,
+      "classification": "SKIP"
+    }
+  },
+  {
+    "name": "estimate-heavy evidence cannot be GO",
+    "candidate": {
+      "hard_feasible": true,
+      "budget_compliant": true,
+      "unresolved_material_cost": false,
+      "display_claim_supported_by_evidence": true,
+      "estimate_heavy": true,
+      "material_uncertainty": false,
+      "scores": {
+        "affordability_headroom": 85,
+        "usable_time_efficiency": 85,
+        "experience_fit": 90,
+        "itinerary_coherence": 85,
+        "evidence_quality": 65
+      },
+      "uncertainty_penalty": 5
+    },
+    "expected": {
+      "score": 78,
+      "classification": "MAYBE"
+    }
+  },
+  {
+    "name": "weak candidate below threshold is SKIP",
+    "candidate": {
+      "hard_feasible": true,
+      "budget_compliant": true,
+      "unresolved_material_cost": false,
+      "display_claim_supported_by_evidence": true,
+      "estimate_heavy": false,
+      "material_uncertainty": false,
+      "scores": {
+        "affordability_headroom": 40,
+        "usable_time_efficiency": 35,
+        "experience_fit": 45,
+        "itinerary_coherence": 40,
+        "evidence_quality": 45
+      },
+      "uncertainty_penalty": 5
+    },
+    "expected": {
+      "score": 35.75,
+      "classification": "SKIP"
+    }
+  }
+]
