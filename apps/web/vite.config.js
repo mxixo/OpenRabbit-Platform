@@ -6,7 +6,7 @@ export default defineConfig({
   plugins:[react()],
   resolve:{
     alias:{
-      '@openrabbit/runtime-core':fileURLToPath(new URL('../../packages/runtime-core/src/index.ts',import.meta.url)),
+      '@openrabbit/runtime-core/adaptive-onboarding':fileURLToPath(new URL('../../packages/runtime-core/src/core/adaptive-onboarding.ts',import.meta.url)),
     },
   },
 });
