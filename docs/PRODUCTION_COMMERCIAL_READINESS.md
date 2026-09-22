@@ -27,9 +27,11 @@ Required:
 Current implementation evidence:
 - the runtime now has a typed fail-closed Guardian policy contract and versioned Action Receipt/provenance contract, including capability, command-origin, provider-authorization and strong-identity checks for high-risk actions (PR #120);
 - the reference Action Receipt store is append-only, tenant-isolated in memory and defensively copied, with provider-confirmation evidence checks (PR #120);
+- connector operations now have a typed fail-closed capability contract outside the worker's mutable context, binding provider operation, risk, required capability, allowed execution mode, minimum context scope, credential mode, provider policy, account binding, idempotency and provider confirmation (PR #123);
+- adversarial connector regressions now cover context-scope expansion, account substitution, undeclared API-to-browser fallback, unknown provider authority and replay-prone writes; tool authority and personal-context authority remain separate permissions (PR #123);
 - the authenticated Connections surface reports provider-authoritative connection/verification/reconnect state rather than inferring authority from button clicks (PRs #114-115).
 
-Current status: **eligible for continued internal alpha work**. The Guardian/receipt work is a reference runtime control, not evidence of production durability. This status does not authorize production customer data or a paid public launch.
+Current status: **eligible for continued internal alpha work**. The Guardian/receipt/connector-contract work is a reference runtime control, not evidence of production durability or hosted enforcement. This status does not authorize production customer data or a paid public launch.
 
 ### Closed beta — blocked
 Purpose: a small invited group using real accounts and provider data with constrained support expectations.
@@ -40,6 +42,7 @@ Hard gates:
 - [ ] At least one complete real provider lifecycle is certified from a clean hosted account; Google is the reference path — issue #86.
 - [ ] Provider-owner credentials, redirects, APIs and app-review requirements are completed for every provider advertised as available — issue #77.
 - [ ] Action receipts and reconciliation-required records are persisted in a durable production store with tenant isolation, restart/recovery evidence, immutable/append-only semantics, and a tested path for reconciling uncertain external effects; the current in-memory reference store is not sufficient.
+- [ ] Production connector/credential paths demonstrably enforce the declared capability contract rather than only exposing a reference evaluator in runtime-core.
 - [ ] Backup/restore, runtime restart, reconciliation and incident-response paths have evidence rather than only design intent.
 - [ ] Customer-facing capability claims are limited to provider paths that actually passed production certification.
 
@@ -62,7 +65,7 @@ Purpose: broadly market OpenRabbit as a production service.
 
 Additional gates:
 - [ ] Restore and disaster-recovery drill passes from documented backups.
-- [ ] Security/adversarial suite covers cross-tenant access, prompt/tool authority escalation, replay/idempotency, account substitution, stale authorization, receipt/provenance tampering, and secret exfiltration paths.
+- [ ] Security/adversarial suite covers cross-tenant access, prompt/tool authority escalation, replay/idempotency, account substitution, stale authorization, receipt/provenance tampering, context-scope escalation and secret exfiltration paths.
 - [ ] Public status/incident path and measurable service objectives exist.
 - [ ] Provider revocation/reconnect behavior is periodically recertified, not assumed permanent after one successful test.
 - [ ] Commercial claims, screenshots and pricing pages describe only generally available capabilities and clearly distinguish beta/preview features.
@@ -75,6 +78,7 @@ Additional gates:
 - an uncertain provider outcome never becomes automatically retryable; it is persisted as reconciliation-required until provider/audit evidence resolves it
 - completion-persistence failure after external side effects produces a durable reconciliation record when a reconciliation store is configured
 - external target identity is bound to the intended tenant, connection, account, domain/resource, and operation rather than inferred from display names alone
+- connector execution mode and context scope cannot silently widen beyond the pre-execution capability contract
 - policy/credential/egress enforcement lives outside the worker's mutable decision context and cannot be disabled by a worker request
 - policy engine cannot be bypassed by worker/runtime
 - action receipts are append-only, tenant-scoped and durable across runtime restarts before production customer actions are allowed
@@ -88,7 +92,7 @@ Additional gates:
 
 WayGo is a separate product boundary. A healthy WayGo Supabase project is evidence about WayGo only; it must never be used as a substitute for OpenRabbit production Auth/account certification. Likewise, the WayGo front end should remain source-recovery blocked until the authoritative Hostinger baseline is recovered and imported into its own repository (issue #95).
 
-A portable source-independent `waygo_rank_v1` contract now exists with executable acceptance vectors for complete-trip-cost semantics, hard-budget veto, unresolved material costs, estimate-heavy downgrade, provider evidence normalization, deterministic GO/MAYBE/SKIP scoring and a planning-only/no-autonomous-purchase boundary (PR #121). This advances product logic but does **not** satisfy source recovery, itinerary persistence, live pricing, booking execution, or dedicated-repository gates.
+Portable source-independent contracts now cover `waygo_rank_v1`, conservative total-trip-cost semantics, normalized provider evidence, and `waygo_itinerary_v1` feasibility/revision behavior (PRs #121 and #124). Executable acceptance vectors enforce hard-budget veto, unresolved material costs, evidence downgrade, deterministic GO/MAYBE/SKIP ranking, itinerary overlap/transfer constraints, uncertain-opening-hours review states, no secret projection into provider evidence, and a planning-only/no-autonomous-purchase boundary. This advances product logic but does **not** satisfy source recovery, owner-scoped itinerary persistence, live provider pricing, provider commercial rights, booking execution, or dedicated-repository gates.
 
 ## Release-decision rule
 
