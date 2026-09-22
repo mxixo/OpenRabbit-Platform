@@ -6,7 +6,7 @@ import {
   resetAdaptiveOnboardingProfile,
   restoreAdaptiveOnboardingDraft,
   serializeAdaptiveOnboardingDraft,
-} from '@openrabbit/runtime-core';
+} from '@openrabbit/runtime-core/adaptive-onboarding';
 import './onboarding.css';
 
 const WORK_AREAS=[
