@@ -1,0 +1,69 @@
+{
+  "contract": "waygo_total_trip_cost_v1",
+  "status": "implementation_reference",
+  "purpose": "Normalize material trip costs before destination ranking or budget-compliance claims.",
+  "currency_rule": "all_components_must_match_budget_currency_or_be_converted_with_provenance",
+  "required_material_components": [
+    "intercity_transport",
+    "transfers",
+    "lodging_with_mandatory_fees",
+    "local_transport",
+    "included_itinerary_activities",
+    "food_allowance",
+    "known_entry_charges",
+    "contingency"
+  ],
+  "component_statuses": [
+    "quoted",
+    "estimated",
+    "unknown",
+    "not_applicable"
+  ],
+  "price_classes": [
+    "live_bookable",
+    "provider_fresh",
+    "cached",
+    "sourced_estimate",
+    "demo_estimate",
+    "unknown"
+  ],
+  "component_amount_shape": {
+    "fields": ["low", "expected", "high"],
+    "ordering": "0 <= low <= expected <= high",
+    "unknown_behavior": "amounts_must_be_null",
+    "not_applicable_behavior": "amounts_must_be_zero"
+  },
+  "totals": {
+    "lower_bound": "sum(component.low)",
+    "expected_total": "sum(component.expected)",
+    "upper_bound": "sum(component.high)",
+    "unresolved_material_cost": "true_when_any_required_material_component_is_missing_or_unknown",
+    "weakest_material_price_class": "lowest_evidence_quality_across_required_material_components"
+  },
+  "budget_compliance": {
+    "true_only_when": [
+      "unresolved_material_cost_is_false",
+      "upper_bound_lte_total_budget"
+    ],
+    "unknown_material_cost_behavior": "never_treat_as_zero",
+    "budget_headroom": "total_budget_minus_upper_bound",
+    "negative_headroom_behavior": "hard_budget_violation"
+  },
+  "claim_rules": {
+    "within_budget": "allowed_only_when_budget_compliant_true",
+    "from_price": "may_use_lower_bound_only_if_labeled_as_lower_bound_not_total_expected_cost",
+    "exact_total": "forbidden_when_any_material_component_is_estimated_or_unknown",
+    "live_price": "forbidden_unless_all_material_price_evidence_supporting_the_claim_is_live_or_provider_fresh",
+    "unknown_or_stale_provider_data": "degrade_claim_quality_never_invent_or_promote_to_live_quote"
+  },
+  "itinerary_binding": {
+    "itinerary_revision_must_reference_cost_revision": true,
+    "new_itinerary_revision_cannot_mutate_historical_price_evidence": true,
+    "material_itinerary_change_requires_cost_recalculation": true
+  },
+  "execution_boundary": {
+    "decision_support_only": true,
+    "autonomous_purchase": false,
+    "deep_link_implies_booked": false
+  }
+}
