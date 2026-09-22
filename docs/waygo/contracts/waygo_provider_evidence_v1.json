@@ -1,0 +1,56 @@
+{
+  "contract": "waygo_provider_evidence_v1",
+  "status": "pre_source_recovery_reference",
+  "purpose": "normalize provider data before ranking, cost modeling, or itinerary generation",
+  "required_fields": [
+    "provider",
+    "external_id",
+    "category",
+    "observed_at",
+    "applicable_start",
+    "applicable_end",
+    "price_class",
+    "freshness",
+    "provenance_pointer"
+  ],
+  "categories": [
+    "intercity_transport",
+    "lodging",
+    "activity",
+    "ground_transport",
+    "food_reference",
+    "entry_requirement",
+    "map_or_time"
+  ],
+  "price_classes": [
+    "live_bookable",
+    "provider_fresh",
+    "cached",
+    "sourced_estimate",
+    "demo_estimate",
+    "unknown",
+    "not_applicable"
+  ],
+  "amount_contract": {
+    "currency_required_when_priced": true,
+    "amount_or_range_required_when_priced": true,
+    "unknown_price_amount_must_be_null": true,
+    "zero_never_inferred_from_provider_failure": true
+  },
+  "freshness_contract": {
+    "observed_at_required": true,
+    "expiry_or_age_class_required": true,
+    "provider_failure_downgrades_evidence": true,
+    "provider_failure_never_becomes_live_quote": true
+  },
+  "provenance_contract": {
+    "raw_provider_object_not_passed_directly_to_ranking": true,
+    "secret_or_token_fields_forbidden": true,
+    "deep_link_optional_and_provider_terms_governed": true,
+    "booking_state_not_inferred_from_link_or_quote": true
+  },
+  "execution_boundary": {
+    "decision_support_only": true,
+    "autonomous_purchase": false
+  }
+}
