@@ -57,6 +57,7 @@ Additional gates:
 - [ ] Terms, Privacy, AI automation disclosures and vertical-specific claims have owner/counsel review.
 - [ ] Support, escalation, incident ownership and customer-data deletion/export procedures are documented and tested.
 - [ ] Adaptive onboarding reaches a useful personalized preview without forcing private-provider connection, and simulated preview data remains unmistakable — issue #83.
+- [ ] The production `/onboarding` flow passes the repeatable browser/assistive-technology release protocol in `docs/ONBOARDING-ACCESSIBILITY-CERTIFICATION.md`; required keyboard, reduced-motion, touch, VoiceOver/Safari and NVDA/Chrome rows may not be replaced by source review or a successful build — issue #83.
 - [ ] Product telemetry can distinguish provider outage, auth/revocation, policy denial, user cancellation, reconciliation-required, and internal failure states.
 - [ ] Receipt/provenance UX can answer who/what initiated a consequential action, what policy/capability authorized it, which provider/account was targeted, and whether the external effect was confirmed, uncertain, failed, or reconciled without exposing secrets/customer content.
 
