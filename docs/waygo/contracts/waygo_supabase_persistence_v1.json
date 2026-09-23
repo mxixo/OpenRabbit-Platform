@@ -1,0 +1,67 @@
+{
+  "contract": "waygo_supabase_persistence_v1",
+  "status": "verified_backend_reference",
+  "provider": "supabase",
+  "project_ref": "zwrsapkgdfsvvaoefhqf",
+  "tables": {
+    "waygo_favorites": {
+      "rls_required": true,
+      "owner_column": "user_id",
+      "owner_identity": "auth.uid()",
+      "allowed_authenticated_operations": ["SELECT", "INSERT", "DELETE"],
+      "forbidden_authenticated_operations": ["UPDATE"],
+      "required_fields_on_insert": ["user_id", "idea_key", "destination", "country"],
+      "generated_fields": ["id", "created_at"],
+      "constraints": {
+        "idea_key_length": [3, 201],
+        "destination_trimmed_length": [1, 120],
+        "country_trimmed_length": [1, 80],
+        "unique": ["user_id", "idea_key"],
+        "user_delete_behavior": "cascade"
+      },
+      "mutation_semantics": {
+        "save": "INSERT",
+        "unsave": "DELETE",
+        "edit": "unsupported_delete_then_reinsert_only_if_user_explicitly_changes_the_saved_identity"
+      }
+    },
+    "waygo_passport": {
+      "rls_required": true,
+      "owner_column": "user_id",
+      "owner_identity": "auth.uid()",
+      "allowed_authenticated_operations": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+      "required_fields_on_insert": ["user_id", "destination", "country", "status"],
+      "generated_fields": ["id", "created_at"],
+      "constraints": {
+        "destination_trimmed_length": [1, 120],
+        "country_trimmed_length": [1, 80],
+        "status_allowed": ["planned", "visited"],
+        "user_delete_behavior": "cascade"
+      },
+      "lifecycle": {
+        "planned": {
+          "visit_date": null,
+          "visited_confirmed": false
+        },
+        "visited": {
+          "visit_date_required": true,
+          "visit_date_not_future": true,
+          "visited_confirmed": true
+        }
+      }
+    }
+  },
+  "frontend_integration_rules": {
+    "authenticated_user_id_must_be_used_for_owner_column": true,
+    "never_accept_cross_user_owner_id_from_ui": true,
+    "favorites_update_must_not_be_assumed": true,
+    "passport_visited_state_requires_explicit_confirmation": true,
+    "passport_future_visit_cannot_be_marked_visited": true,
+    "provider_failure_behavior": "surface_unresolved_never_invent_success"
+  },
+  "recovery_boundary": {
+    "authoritative_frontend_source_still_required": true,
+    "contract_does_not_reconstruct_missing_ui": true,
+    "contract_does_not_authorize_schema_mutation": true
+  }
+}
