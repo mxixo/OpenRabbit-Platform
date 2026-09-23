@@ -50,8 +50,10 @@ printf "\n==> Production web checks\n"
 cd "${REPO_ROOT}/apps/web"
 npm ci --silent
 ensure_required_script "lint"
+ensure_required_script "test"
 ensure_required_script "build"
 npm run lint
+npm test
 npm run build
 
 echo ""
