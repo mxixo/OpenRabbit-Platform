@@ -56,6 +56,30 @@ assert.throws(
 
 assert.throws(
   () => validateProductionAccountBoundaryText(current.replace(
+    '  - action_receipt_migration_verified\n',
+    '',
+  )),
+  /production-use prerequisite list drifted/,
+);
+
+assert.throws(
+  () => validateProductionAccountBoundaryText(current.replace(
+    '  - action_receipt_chain_restore_verified\n',
+    '',
+  )),
+  /production-use prerequisite list drifted/,
+);
+
+assert.throws(
+  () => validateProductionAccountBoundaryText(current.replace(
+    '  - action_receipt_migration_verified\n  - action_receipt_chain_restore_verified',
+    '  - action_receipt_chain_restore_verified\n  - action_receipt_migration_verified',
+  )),
+  /production-use prerequisite list drifted/,
+);
+
+assert.throws(
+  () => validateProductionAccountBoundaryText(current.replace(
     'fail_closed_when_undesignated: true',
     'fail_closed_when_undesignated: false',
   )),
