@@ -1,3 +1,4 @@
+import { URL } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   resolveEnvironmentBlueprint,
@@ -73,7 +74,7 @@ function revisionRow(orgId = "org-a") {
 describe("Supabase Environment Blueprint backend", () => {
   it("reads only the latest org-scoped revision and verifies its hash chain record", async () => {
     let requestedUrl = "";
-    let requestedHeaders: HeadersInit | undefined;
+    let requestedHeaders: unknown;
     const backend = createSupabaseEnvironmentBackend({
       supabaseUrl: SUPABASE_URL,
       projectRef: PROJECT_REF,
@@ -82,7 +83,7 @@ describe("Supabase Environment Blueprint backend", () => {
       fetchImpl: async (input, init) => {
         requestedUrl = String(input);
         requestedHeaders = init?.headers;
-        return new Response(JSON.stringify([revisionRow()]), {
+        return new globalThis.Response(JSON.stringify([revisionRow()]), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         });
@@ -121,7 +122,10 @@ describe("Supabase Environment Blueprint backend", () => {
       serviceRoleKey: "server-secret",
       baseBackend: baseBackend(),
       fetchImpl: async () =>
-        new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }),
+        new globalThis.Response("[]", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
     });
 
     await expect(backend.getEnvironmentBlueprint?.("org-missing")).resolves.toBeUndefined();
@@ -134,7 +138,7 @@ describe("Supabase Environment Blueprint backend", () => {
       serviceRoleKey: "server-secret",
       baseBackend: baseBackend(),
       fetchImpl: async () =>
-        new Response(JSON.stringify([revisionRow("org-b")]), {
+        new globalThis.Response(JSON.stringify([revisionRow("org-b")]), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         }),
@@ -151,7 +155,7 @@ describe("Supabase Environment Blueprint backend", () => {
       serviceRoleKey: "server-secret",
       baseBackend: baseBackend(),
       fetchImpl: async () =>
-        new Response(JSON.stringify([tampered]), {
+        new globalThis.Response(JSON.stringify([tampered]), {
           status: 200,
           headers: { "Content-Type": "application/json" },
         }),
@@ -168,7 +172,7 @@ describe("Supabase Environment Blueprint backend", () => {
       serviceRoleKey: "server-secret",
       baseBackend: baseBackend(),
       fetchImpl: async () =>
-        new Response('{"message":"sensitive provider detail"}', {
+        new globalThis.Response('{"message":"sensitive provider detail"}', {
           status: 401,
           headers: { "Content-Type": "application/json" },
         }),
