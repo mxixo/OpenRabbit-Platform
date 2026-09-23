@@ -38,6 +38,7 @@ export * from "./interfaces/integration-adapter.js";
 export * from "./interfaces/industry-pack.js";
 export * from "./interfaces/adaptive-onboarding.js";
 export * from "./interfaces/environment-blueprint.js";
+export * from "./interfaces/environment-blueprint-revision.js";
 
 export * from "./core/in-memory-configuration-manager.js";
 export * from "./core/simple-di-container.js";
@@ -87,6 +88,7 @@ export * from "./core/in-memory-knowledge-store.js";
 export * from "./core/with-retry.js";
 export * from "./core/adaptive-onboarding.js";
 export * from "./core/environment-blueprint.js";
+export * from "./core/environment-blueprint-revision.js";
 
 export * from "./mocks/mock-model-provider.js";
 export * from "./mocks/mock-mcp-client.js";
