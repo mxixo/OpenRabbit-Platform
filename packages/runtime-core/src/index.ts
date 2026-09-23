@@ -55,6 +55,7 @@ export * from "./core/in-memory-action-receipt-store.js";
 export * from "./core/action-receipt-integrity.js";
 export * from "./core/fail-closed-guardian-policy.js";
 export * from "./core/connector-capability-policy.js";
+export * from "./core/production-project-boundary.js";
 export * from "./core/in-memory-calendar-plan-store.js";
 export * from "./core/living-agenda-priority.js";
 export * from "./core/living-agenda-generator.js";
