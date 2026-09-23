@@ -11,8 +11,15 @@ deployment:
       - ci_passed
       - quality_gates_passed
       - smoke_tests_passed
+      - production_account_boundary_designated
+      - production_boundary_provider_status_healthy
+      - environment_blueprint_migration_verified
+      - hosted_auth_tenant_isolation_verified
+      - provider_lifecycle_certified
+      - rollback_restore_drill_passed
       - rollback_plan_attached
       - release_owner_approval
+    fail_closed: true
     max_duration_minutes: 30
   canary:
     traffic_percent: 10
@@ -31,6 +38,8 @@ deployment:
       - service_health_green
       - workflow_execution_stable
       - model_gateway_error_budget_healthy
+      - environment_revision_chain_verified
+      - tenant_isolation_still_verified
   rollback:
     enabled: true
     trigger_thresholds:

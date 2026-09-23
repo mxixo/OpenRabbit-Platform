@@ -1,0 +1,23 @@
+protocol: openrabbit_production_account_boundary_v1
+status: undesignated
+product: OpenRabbit
+provider: supabase
+project_ref: null
+project_url: null
+designated_by: null
+designated_at: null
+separation_requirements:
+  dedicated_product_boundary: true
+  may_share_with_waygo: false
+required_before_status_designated:
+  - owner_designation_recorded
+  - provider_project_identity_verified
+  - provider_project_status_healthy
+  - auth_inventory_reviewed
+  - schema_inventory_reviewed
+required_before_production_use:
+  - environment_blueprint_migration_verified
+  - hosted_auth_tenant_isolation_verified
+  - provider_lifecycle_certified
+  - rollback_restore_drill_passed
+fail_closed_when_undesignated: true

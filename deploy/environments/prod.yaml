@@ -5,5 +5,11 @@ required_gates:
   - ci_passed
   - quality_gates_passed
   - smoke_tests_passed
+  - production_account_boundary_designated
+  - production_boundary_provider_status_healthy
+  - environment_blueprint_migration_verified
+  - hosted_auth_tenant_isolation_verified
+  - provider_lifecycle_certified
+  - rollback_restore_drill_passed
   - rollback_plan_attached
   - approval_recorded
