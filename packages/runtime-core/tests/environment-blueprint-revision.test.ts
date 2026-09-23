@@ -44,7 +44,7 @@ describe("Environment Blueprint revision integrity", () => {
     const record = sealEnvironmentBlueprintRevision(
       blueprint("rev-1", "2026-09-23T07:00:00Z"),
     );
-    const tampered = structuredClone(record);
+    const tampered = JSON.parse(JSON.stringify(record)) as typeof record;
     tampered.blueprint.revision = "rev-substituted";
 
     expect(verifyEnvironmentBlueprintRevision(tampered)).toBe(false);
