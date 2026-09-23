@@ -177,6 +177,9 @@ See Layer 5 and `IntegrationAdapter`:
 - Hostinger Horizons (or any generator) is a **frontend accelerator**, never platform core.
 - Frontends consume **versioned public Platform APIs** only.
 - No direct database access and no direct runtime SDK usage from apps.
+- Mobile is a command, notification, and approval surface—not a remote desktop or direct node console.
+- Trusted customer nodes are registered and governed by Core, then reached through runtime/node adapters with explicit capability policy and audit.
+- See `docs/MOBILE-NODE-ARCHITECTURE.md` for the validated reference prototype and target product lifecycle.
 
 ---
 
@@ -253,5 +256,6 @@ Details and sequencing: `docs/ROADMAP.md`.
 - `docs/RUNTIMES.md`
 - `docs/AI_WORKERS.md`
 - `docs/INDUSTRY_PACKS.md`
+- `docs/MOBILE-NODE-ARCHITECTURE.md`
 - `docs/ROADMAP.md`
 - `docs/architecture/*` — historical/phase engineering notes (yield to this file on conflicts)
