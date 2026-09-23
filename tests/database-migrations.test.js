@@ -10,6 +10,7 @@ const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith(".sql
 assert.deepStrictEqual(files, [
   "202608170001_real_estate_state.sql",
   "202608170002_execution_telemetry.sql",
+  "202609230001_environment_blueprint_revisions.sql",
 ]);
 
 for (const file of files) {
@@ -30,5 +31,17 @@ const telemetry = fs.readFileSync(path.join(migrationsDir, files[1]), "utf8");
 assert.ok(telemetry.includes("public.execution_telemetry"));
 assert.ok(telemetry.includes("primary key (tenant_id, execution_id, attempt)"));
 assert.ok(telemetry.includes("generated always as (model_usd + external_api_usd + compute_usd) stored"));
+
+const environmentRevisions = fs.readFileSync(path.join(migrationsDir, files[2]), "utf8");
+assert.ok(environmentRevisions.includes("public.environment_blueprint_revisions"));
+assert.ok(environmentRevisions.includes("environment_blueprint_revision_v1"));
+assert.ok(environmentRevisions.includes("private.enforce_environment_blueprint_revision_append"));
+assert.ok(environmentRevisions.includes("pg_advisory_xact_lock"));
+assert.ok(environmentRevisions.includes("previous_record_hash is distinct from latest.record_hash"));
+assert.ok(environmentRevisions.includes("environment blueprint revisions are append-only"));
+assert.ok(environmentRevisions.includes("before update or delete"));
+assert.ok(environmentRevisions.includes("before truncate"));
+assert.ok(environmentRevisions.includes("grant select, insert on public.environment_blueprint_revisions to service_role"));
+assert.ok(!/grant\s+(update|delete)/i.test(environmentRevisions));
 
 console.log("Database migration tests passed.");
