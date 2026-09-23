@@ -3,6 +3,22 @@ const capability = require("../capabilities/real-estate");
 const realEstatePack = require("../packs/real-estate");
 const legacySkill = require("../src/skills/commercial-investment-workflow.skill");
 
+function environmentBlueprint(overrides = {}) {
+  return {
+    protocol: "environment_blueprint_v1",
+    orgId: "org-phoenix",
+    revision: "rev-001",
+    generatedAt: "2026-09-23T05:00:00.000Z",
+    packs: [{ id: "pack.real-estate", version: "0.1.0", state: "enabled" }],
+    capabilities: [],
+    integrations: [],
+    workers: [],
+    workflows: [],
+    surfaces: [],
+    ...overrides,
+  };
+}
+
 async function runTests() {
   assert.strictEqual(capability.manifest.id, "real-estate");
   assert.strictEqual(capability.manifest.version, "0.1.0");
@@ -55,6 +71,58 @@ async function runTests() {
   assert.strictEqual(result.report.address, "100 Market St, Phoenix, AZ");
   assert.strictEqual(typeof result.investmentMetrics.capRate, "number");
   assert.strictEqual(typeof result.opportunityScore.score, "number");
+
+  let requestedUrl;
+  let requestedOptions;
+  const blueprint = environmentBlueprint();
+  const loaded = await realEstatePack.environment.loadRealEstateEnvironment({
+    baseUrl: "https://platform.openrabbit.example/",
+    orgId: "org-phoenix",
+    fetchImpl: async (url, options) => {
+      requestedUrl = url;
+      requestedOptions = options;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ data: { status: 200, result: blueprint } }),
+      };
+    },
+  });
+
+  assert.strictEqual(
+    requestedUrl,
+    "https://platform.openrabbit.example/v1/orgs/org-phoenix/environment"
+  );
+  assert.deepStrictEqual(requestedOptions, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+  assert.strictEqual(loaded, blueprint);
+
+  await assert.rejects(
+    () =>
+      realEstatePack.environment.loadRealEstateEnvironment({
+        baseUrl: "https://platform.openrabbit.example",
+        orgId: "org-phoenix",
+        fetchImpl: async () => ({
+          ok: true,
+          status: 200,
+          json: async () => environmentBlueprint({ orgId: "org-other" }),
+        }),
+      }),
+    /different organization/
+  );
+
+  assert.throws(
+    () =>
+      realEstatePack.environment.validateRealEstateEnvironment(
+        environmentBlueprint({
+          packs: [{ id: "pack.real-estate", version: "0.1.0", state: "disabled" }],
+        }),
+        "org-phoenix"
+      ),
+    /real estate pack is not enabled/
+  );
 
   console.log("Real Estate capability and pack tests passed.");
 }
