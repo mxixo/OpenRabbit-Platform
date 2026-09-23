@@ -1,0 +1,48 @@
+[
+  {
+    "name": "duplicate_query_is_deduped",
+    "requests": [
+      {"provider":"air-a","category":"intercity_transport","canonical_query":"PHX-LAX|2026-10-10|1|USD"},
+      {"provider":"air-a","category":"intercity_transport","canonical_query":"PHX-LAX|2026-10-10|1|USD"}
+    ],
+    "expected": {"provider_calls":1,"deduped_calls":1}
+  },
+  {
+    "name": "unknown_terms_block_provider_call",
+    "registry": {"provider":"lodging-a","allowed_categories":["lodging"],"terms_status":"unknown"},
+    "request": {"provider":"lodging-a","category":"lodging"},
+    "expected": {"call_provider":false,"outcome":"blocked"}
+  },
+  {
+    "name": "stale_cache_cannot_be_provider_fresh",
+    "cache": {"expired":true,"stored_price_class":"provider_fresh"},
+    "refresh": {"outcome":"unavailable"},
+    "expected": {"effective_price_class":"cached_or_estimate","may_claim_current_quote":false}
+  },
+  {
+    "name": "provider_failure_never_becomes_zero_cost",
+    "request": {"provider":"air-a","category":"intercity_transport"},
+    "provider_result": {"outcome":"unavailable","failure_class":"timeout"},
+    "expected": {"amount":null,"material_cost_state":"unresolved","classification_cannot_be_go_from_missing_cost":true}
+  },
+  {
+    "name": "category_fanout_is_bounded",
+    "requested_provider_count":7,
+    "category":"lodging",
+    "expected": {"max_provider_calls":4,"overflow_not_called":3}
+  },
+  {
+    "name": "unsupported_category_is_rejected",
+    "registry": {"provider":"maps-a","allowed_categories":["map_or_time"],"terms_status":"approved"},
+    "request": {"provider":"maps-a","category":"lodging"},
+    "expected": {"call_provider":false,"outcome":"blocked"}
+  },
+  {
+    "name": "conflicting_duplicate_evidence_is_preserved",
+    "evidence": [
+      {"provider":"hotel-a","category":"lodging","external_id":"H1","applicable_window":"2026-10-10/2026-10-12","amount":210},
+      {"provider":"hotel-a","category":"lodging","external_id":"H1","applicable_window":"2026-10-10/2026-10-12","amount":245}
+    ],
+    "expected": {"preserve_records":2,"mark_conflict":true,"ranking_uncertainty":true}
+  }
+]
