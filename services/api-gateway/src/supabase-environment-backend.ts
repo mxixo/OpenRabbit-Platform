@@ -6,7 +6,7 @@ import {
 import type { EnvironmentBlueprintApiBackend } from "./environment-api.js";
 import type { PlatformApiBackend } from "./platform-api.js";
 
-const PROJECT_REF_PATTERN = /^[a-z]{20}$/;
+const PROJECT_REF_PATTERN = /^[a-z0-9]{20}$/;
 
 export interface SupabaseEnvironmentBackendOptions {
   supabaseUrl: string;
@@ -35,7 +35,7 @@ function requireText(value: string, field: string): string {
 function normalizeProjectBoundary(supabaseUrl: string, projectRef: string): URL {
   const ref = requireText(projectRef, "projectRef").toLowerCase();
   if (!PROJECT_REF_PATTERN.test(ref)) {
-    throw new Error("projectRef must be a 20-character lowercase Supabase project ref");
+    throw new Error("projectRef must be a 20-character lowercase alphanumeric Supabase project ref");
   }
 
   let url: URL;
