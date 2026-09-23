@@ -59,6 +59,7 @@ export * from "./core/fail-closed-guardian-policy.js";
 export * from "./core/connector-capability-policy.js";
 export * from "./core/production-project-boundary.js";
 export * from "./core/in-memory-calendar-plan-store.js";
+export * from "./core/json-file-calendar-plan-store.js";
 export * from "./core/living-agenda-priority.js";
 export * from "./core/living-agenda-generator.js";
 export * from "./core/living-agenda-reconciler.js";
