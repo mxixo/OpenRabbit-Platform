@@ -1,0 +1,126 @@
+{
+  "contract": "waygo_provider_search_v1",
+  "status": "pre_source_recovery_reference",
+  "purpose": "bound provider discovery, preserve source truth, and prevent failed or stale provider data from becoming a fabricated deal",
+  "inputs": [
+    "normalized_constraints",
+    "candidate_scope",
+    "provider_capability_registry",
+    "request_clock"
+  ],
+  "provider_registry_required_fields": [
+    "provider",
+    "allowed_categories",
+    "auth_mode",
+    "terms_status",
+    "price_class_ceiling",
+    "freshness_policy",
+    "deep_link_policy",
+    "last_verified_at"
+  ],
+  "terms_status": [
+    "approved",
+    "restricted",
+    "unknown",
+    "blocked"
+  ],
+  "auth_modes": [
+    "none",
+    "api_key",
+    "oauth",
+    "partner_token",
+    "user_session"
+  ],
+  "search_budget": {
+    "max_provider_requests_per_category": 4,
+    "max_total_requests_per_discovery": 24,
+    "max_concurrent_requests": 6,
+    "max_retries_per_request": 1,
+    "retry_only_when_idempotent": true,
+    "deadline_required": true,
+    "provider_timeout_required": true
+  },
+  "request_rules": {
+    "provider_and_category_must_be_registered": true,
+    "terms_unknown_or_blocked_behavior": "do_not_call",
+    "restricted_behavior": "call_only_with_registry_documented_scope",
+    "requested_price_class_cannot_exceed_provider_ceiling": true,
+    "secret_fields_never_enter_ranker_or_itinerary": true,
+    "browser_or_scraping_fallback_not_inferred": true,
+    "provider_specific_attribution_and_deep_link_rules_preserved": true
+  },
+  "cache_rules": {
+    "cache_key_material": [
+      "provider",
+      "category",
+      "origin",
+      "destination_or_area",
+      "applicable_dates",
+      "traveler_count",
+      "currency",
+      "price_affecting_constraints"
+    ],
+    "provider_freshness_policy_required": true,
+    "expired_cache_may_support_history_or_estimate_only": true,
+    "expired_cache_never_becomes_live_or_provider_fresh": true,
+    "refresh_failure_does_not_extend_freshness": true
+  },
+  "deduplication": {
+    "request_dedup_key": "provider_plus_category_plus_canonical_query",
+    "evidence_dedup_key": "provider_plus_category_plus_external_id_plus_applicable_window",
+    "duplicate_request_behavior": "single_provider_call_shared_result",
+    "conflicting_duplicate_evidence_behavior": "preserve_both_and_mark_conflict"
+  },
+  "provider_failure": {
+    "isolated_by_provider_and_category": true,
+    "full_discovery_failure_only_when_required_evidence_unavailable": true,
+    "failed_request_amount": null,
+    "failed_request_never_means_zero_cost": true,
+    "failed_request_never_becomes_live_quote": true,
+    "failure_reason_preserved": true,
+    "retry_exhaustion_state": "unavailable"
+  },
+  "normalized_output": {
+    "only_waygo_provider_evidence_v1_may_enter_cost_or_ranking": true,
+    "outcome_states": [
+      "success",
+      "partial",
+      "unavailable",
+      "blocked"
+    ],
+    "partial_requires_missing_or_failed_categories": true,
+    "unresolved_material_cost_flows_to_total_trip_cost_as_unresolved": true,
+    "provider_conflict_flows_to_ranking_as_uncertainty": true
+  },
+  "observability": {
+    "per_request": [
+      "provider",
+      "category",
+      "started_at",
+      "finished_at",
+      "cache_status",
+      "attempt_count",
+      "outcome",
+      "freshness_class",
+      "evidence_ids",
+      "failure_class"
+    ],
+    "aggregate": [
+      "provider_calls",
+      "cache_hits",
+      "cache_misses",
+      "deduped_calls",
+      "provider_failures",
+      "material_evidence_gaps"
+    ],
+    "secrets_forbidden": true
+  },
+  "execution_boundary": {
+    "discovery_and_decision_support_only": true,
+    "autonomous_purchase": false,
+    "terms_bypass": false,
+    "captcha_or_access_control_bypass": false,
+    "fabricate_availability": false,
+    "fabricate_price": false
+  }
+}
