@@ -1,3 +1,4 @@
+import { URL } from "node:url";
 import {
   verifyEnvironmentBlueprintRevision,
   type EnvironmentBlueprint,
@@ -13,7 +14,7 @@ export interface SupabaseEnvironmentBackendOptions {
   projectRef: string;
   serviceRoleKey: string;
   baseBackend: PlatformApiBackend;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: typeof globalThis.fetch;
 }
 
 interface RevisionRow {
