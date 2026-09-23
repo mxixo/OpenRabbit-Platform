@@ -13,6 +13,8 @@ const REQUIRED_BEFORE_DESIGNATION = [
 ];
 const REQUIRED_BEFORE_PRODUCTION = [
   'environment_blueprint_migration_verified',
+  'action_receipt_migration_verified',
+  'action_receipt_chain_restore_verified',
   'hosted_auth_tenant_isolation_verified',
   'provider_lifecycle_certified',
   'rollback_restore_drill_passed',
