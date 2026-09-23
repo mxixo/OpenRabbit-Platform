@@ -1,5 +1,6 @@
 import { URL } from "node:url";
 import {
+  sealEnvironmentBlueprintRevision,
   verifyEnvironmentBlueprintRevision,
   type EnvironmentBlueprint,
   type EnvironmentBlueprintRevisionRecord,
@@ -8,6 +9,8 @@ import type { EnvironmentBlueprintApiBackend } from "./environment-api.js";
 import type { PlatformApiBackend } from "./platform-api.js";
 
 const PROJECT_REF_PATTERN = /^[a-z0-9]{20}$/;
+const REVISION_SELECT =
+  "protocol,org_id,revision,generated_at,blueprint,previous_record_hash,record_hash";
 
 export interface SupabaseEnvironmentBackendOptions {
   supabaseUrl: string;
@@ -15,6 +18,19 @@ export interface SupabaseEnvironmentBackendOptions {
   serviceRoleKey: string;
   baseBackend: PlatformApiBackend;
   fetchImpl?: typeof globalThis.fetch;
+}
+
+export interface SupabaseEnvironmentRevisionWriterOptions {
+  supabaseUrl: string;
+  projectRef: string;
+  serviceRoleKey: string;
+  fetchImpl?: typeof globalThis.fetch;
+}
+
+export interface SupabaseEnvironmentRevisionWriter {
+  appendEnvironmentBlueprint(
+    blueprint: EnvironmentBlueprint,
+  ): Promise<EnvironmentBlueprintRevisionRecord>;
 }
 
 interface RevisionRow {
@@ -25,6 +41,12 @@ interface RevisionRow {
   blueprint: unknown;
   previous_record_hash: unknown;
   record_hash: unknown;
+}
+
+interface SupabaseEnvironmentStorageClient {
+  projectOrigin: URL;
+  serviceRoleKey: string;
+  fetchImpl: typeof globalThis.fetch;
 }
 
 function requireText(value: string, field: string): string {
@@ -61,7 +83,28 @@ function normalizeProjectBoundary(supabaseUrl: string, projectRef: string): URL 
   return new URL(`https://${expectedHost}`);
 }
 
-function decodeRevisionRow(row: RevisionRow, expectedOrgId: string): EnvironmentBlueprint {
+function createStorageClient(
+  options: SupabaseEnvironmentRevisionWriterOptions,
+): SupabaseEnvironmentStorageClient {
+  const projectOrigin = normalizeProjectBoundary(options.supabaseUrl, options.projectRef);
+  const serviceRoleKey = requireText(options.serviceRoleKey, "serviceRoleKey");
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+  if (typeof fetchImpl !== "function") throw new Error("fetch implementation is required");
+  return { projectOrigin, serviceRoleKey, fetchImpl };
+}
+
+function revisionHeaders(serviceRoleKey: string): Record<string, string> {
+  return {
+    Accept: "application/json",
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+  };
+}
+
+function decodeRevisionRow(
+  row: RevisionRow,
+  expectedOrgId: string,
+): EnvironmentBlueprintRevisionRecord {
   if (row.protocol !== "environment_blueprint_revision_v1") {
     throw new Error("environment revision protocol is unsupported");
   }
@@ -112,50 +155,105 @@ function decodeRevisionRow(row: RevisionRow, expectedOrgId: string): Environment
   if (!verifyEnvironmentBlueprintRevision(record)) {
     throw new Error("environment revision failed cryptographic integrity verification");
   }
-  return blueprint;
+  return record;
+}
+
+async function readLatestRevision(
+  client: SupabaseEnvironmentStorageClient,
+  orgId: string,
+): Promise<EnvironmentBlueprintRevisionRecord | undefined> {
+  const organization = requireText(orgId, "orgId");
+  const endpoint = new URL("/rest/v1/environment_blueprint_revisions", client.projectOrigin);
+  endpoint.searchParams.set("select", REVISION_SELECT);
+  endpoint.searchParams.set("org_id", `eq.${organization}`);
+  endpoint.searchParams.set("order", "append_seq.desc");
+  endpoint.searchParams.set("limit", "1");
+
+  const response = await client.fetchImpl(endpoint, {
+    method: "GET",
+    headers: revisionHeaders(client.serviceRoleKey),
+  });
+  if (!response.ok) {
+    throw new Error(`Supabase environment read failed with status ${response.status}`);
+  }
+  const payload: unknown = await response.json();
+  if (!Array.isArray(payload)) {
+    throw new Error("Supabase environment read returned a non-array payload");
+  }
+  if (payload.length === 0) return undefined;
+  if (payload.length !== 1) {
+    throw new Error("Supabase environment read returned an ambiguous latest revision");
+  }
+  return decodeRevisionRow(payload[0] as RevisionRow, organization);
 }
 
 export function createSupabaseEnvironmentBackend(
   options: SupabaseEnvironmentBackendOptions,
 ): EnvironmentBlueprintApiBackend {
-  const projectOrigin = normalizeProjectBoundary(options.supabaseUrl, options.projectRef);
-  const serviceRoleKey = requireText(options.serviceRoleKey, "serviceRoleKey");
-  const fetchImpl = options.fetchImpl ?? globalThis.fetch;
-  if (typeof fetchImpl !== "function") throw new Error("fetch implementation is required");
+  const client = createStorageClient(options);
 
   return {
     ...options.baseBackend,
     async getEnvironmentBlueprint(orgId: string): Promise<EnvironmentBlueprint | undefined> {
-      const organization = requireText(orgId, "orgId");
-      const endpoint = new URL("/rest/v1/environment_blueprint_revisions", projectOrigin);
-      endpoint.searchParams.set(
-        "select",
-        "protocol,org_id,revision,generated_at,blueprint,previous_record_hash,record_hash",
-      );
-      endpoint.searchParams.set("org_id", `eq.${organization}`);
-      endpoint.searchParams.set("order", "append_seq.desc");
-      endpoint.searchParams.set("limit", "1");
+      const revision = await readLatestRevision(client, orgId);
+      return revision?.blueprint;
+    },
+  };
+}
 
-      const response = await fetchImpl(endpoint, {
-        method: "GET",
+export function createSupabaseEnvironmentRevisionWriter(
+  options: SupabaseEnvironmentRevisionWriterOptions,
+): SupabaseEnvironmentRevisionWriter {
+  const client = createStorageClient(options);
+
+  return {
+    async appendEnvironmentBlueprint(
+      blueprint: EnvironmentBlueprint,
+    ): Promise<EnvironmentBlueprintRevisionRecord> {
+      if (blueprint.protocol !== "environment_blueprint_v1") {
+        throw new Error("environment blueprint protocol is unsupported");
+      }
+      const orgId = requireText(blueprint.orgId, "environment blueprint orgId");
+      const latest = await readLatestRevision(client, orgId);
+      if (latest?.revision === blueprint.revision) {
+        throw new Error(`environment blueprint revision already exists: ${blueprint.revision}`);
+      }
+      if (latest && Date.parse(blueprint.generatedAt) < Date.parse(latest.generatedAt)) {
+        throw new Error("environment blueprint generatedAt cannot move backward");
+      }
+
+      const sealed = sealEnvironmentBlueprintRevision(blueprint, latest?.recordHash);
+      const endpoint = new URL("/rest/v1/environment_blueprint_revisions", client.projectOrigin);
+      const row = {
+        protocol: sealed.protocol,
+        org_id: sealed.orgId,
+        revision: sealed.revision,
+        generated_at: sealed.generatedAt,
+        blueprint: sealed.blueprint,
+        previous_record_hash: sealed.previousRecordHash ?? null,
+        record_hash: sealed.recordHash,
+      };
+      const response = await client.fetchImpl(endpoint, {
+        method: "POST",
         headers: {
-          Accept: "application/json",
-          apikey: serviceRoleKey,
-          Authorization: `Bearer ${serviceRoleKey}`,
+          ...revisionHeaders(client.serviceRoleKey),
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
         },
+        body: JSON.stringify(row),
       });
       if (!response.ok) {
-        throw new Error(`Supabase environment read failed with status ${response.status}`);
+        throw new Error(`Supabase environment append failed with status ${response.status}`);
       }
       const payload: unknown = await response.json();
-      if (!Array.isArray(payload)) {
-        throw new Error("Supabase environment read returned a non-array payload");
+      if (!Array.isArray(payload) || payload.length !== 1) {
+        throw new Error("Supabase environment append returned an ambiguous representation");
       }
-      if (payload.length === 0) return undefined;
-      if (payload.length !== 1) {
-        throw new Error("Supabase environment read returned an ambiguous latest revision");
+      const persisted = decodeRevisionRow(payload[0] as RevisionRow, orgId);
+      if (persisted.recordHash !== sealed.recordHash) {
+        throw new Error("Supabase environment append returned a different revision record");
       }
-      return decodeRevisionRow(payload[0] as RevisionRow, organization);
+      return persisted;
     },
   };
 }
