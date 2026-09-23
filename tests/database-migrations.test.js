@@ -11,6 +11,7 @@ assert.deepStrictEqual(files, [
   "202608170001_real_estate_state.sql",
   "202608170002_execution_telemetry.sql",
   "202609230001_environment_blueprint_revisions.sql",
+  "202609230002_action_receipt_records.sql",
 ]);
 
 for (const file of files) {
@@ -43,5 +44,17 @@ assert.ok(environmentRevisions.includes("before update or delete"));
 assert.ok(environmentRevisions.includes("before truncate"));
 assert.ok(environmentRevisions.includes("grant select, insert on public.environment_blueprint_revisions to service_role"));
 assert.ok(!/grant\s+(update|delete)/i.test(environmentRevisions));
+
+const actionReceipts = fs.readFileSync(path.join(migrationsDir, files[3]), "utf8");
+assert.ok(actionReceipts.includes("public.action_receipt_records"));
+assert.ok(actionReceipts.includes("action_receipt_record_v1"));
+assert.ok(actionReceipts.includes("private.enforce_action_receipt_append"));
+assert.ok(actionReceipts.includes("pg_advisory_xact_lock"));
+assert.ok(actionReceipts.includes("previous_receipt_hash is distinct from latest.receipt_hash"));
+assert.ok(actionReceipts.includes("action receipt records are append-only"));
+assert.ok(actionReceipts.includes("before update or delete"));
+assert.ok(actionReceipts.includes("before truncate"));
+assert.ok(actionReceipts.includes("grant select, insert on public.action_receipt_records to service_role"));
+assert.ok(!/grant\s+(update|delete)/i.test(actionReceipts));
 
 console.log("Database migration tests passed.");
