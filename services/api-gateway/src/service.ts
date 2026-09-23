@@ -15,6 +15,7 @@ import {
   ServiceHealth,
   ValidationResult
 } from "./contracts.js";
+import { routeEnvironmentBlueprintApi } from "./environment-api.js";
 import { PlatformApiBackend, routePlatformApi } from "./platform-api.js";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
@@ -194,7 +195,10 @@ export function createApiGatewayService(version = "0.1.0"): ApiGatewayService {
         }
 
         try {
-          const routed = await routePlatformApi(request, platformBackend);
+          const environmentRouted = await routeEnvironmentBlueprintApi(request, platformBackend);
+          const routed = environmentRouted.matched
+            ? environmentRouted
+            : await routePlatformApi(request, platformBackend);
           if (!routed.matched) {
             operationsFailed += 1;
             lastErrorCode = "ROUTE_NOT_FOUND";
