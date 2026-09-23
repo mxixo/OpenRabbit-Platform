@@ -1,3 +1,5 @@
+import { URL } from "node:url";
+
 export type HostedDataProvider = "supabase";
 
 export interface ProductionProjectBoundaryInput {
@@ -27,7 +29,7 @@ function requireProjectRef(value: string): string {
 }
 
 export function verifyProductionProjectBoundary(
-  input: ProductionProjectBoundaryInput,
+  input: ProductionProjectBoundaryInput
 ): VerifiedProductionProjectBoundary {
   if (input.product !== "openrabbit" || input.environment !== "production") {
     throw new Error("production boundary must be explicitly scoped to openrabbit/production");
@@ -47,7 +49,14 @@ export function verifyProductionProjectBoundary(
   if (parsed.protocol !== "https:") {
     throw new Error("production project URL must use https");
   }
-  if (parsed.username || parsed.password || parsed.port || parsed.pathname !== "/" || parsed.search || parsed.hash) {
+  if (
+    parsed.username ||
+    parsed.password ||
+    parsed.port ||
+    parsed.pathname !== "/" ||
+    parsed.search ||
+    parsed.hash
+  ) {
     throw new Error("production project URL must be the canonical Supabase project origin");
   }
 
@@ -61,6 +70,6 @@ export function verifyProductionProjectBoundary(
     environment: "production" as const,
     provider: "supabase" as const,
     projectRef: expectedProjectRef,
-    projectUrl: `https://${expectedHost}`,
+    projectUrl: `https://${expectedHost}`
   });
 }
