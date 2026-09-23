@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {
   ADAPTIVE_ONBOARDING_DRAFT_KEY,
   ADAPTIVE_ONBOARDING_MAX_STEP,
@@ -58,10 +58,15 @@ export default function OnboardingPage(){
   const [profile,setProfile]=useState(loadDraft);
   const [storageStatus,setStorageStatus]=useState('');
   const [toolText,setToolText]=useState(()=>profile.existingTools.join(', '));
+  const headingRef=useRef(null);
 
   useEffect(()=>{
     document.title='Set up OpenRabbit';
   },[]);
+
+  useEffect(()=>{
+    headingRef.current?.focus({preventScroll:true});
+  },[profile.currentStep]);
 
   useEffect(()=>{
     try{
@@ -108,6 +113,7 @@ export default function OnboardingPage(){
 
   const step=profile.currentStep;
   const progress=Math.round((step/ADAPTIVE_ONBOARDING_MAX_STEP)*100);
+  const stepHeadingProps={id:'onboarding-title',ref:headingRef,tabIndex:-1};
 
   return <main className="onboarding-shell">
     <section className="onboarding-card" aria-labelledby="onboarding-title">
@@ -122,21 +128,21 @@ export default function OnboardingPage(){
 
       {step===1&&<div className="onboarding-step">
         <p className="onboarding-kicker">WORK AREA</p>
-        <h1 id="onboarding-title">What should OpenRabbit help you run?</h1>
+        <h1 {...stepHeadingProps}>What should OpenRabbit help you run?</h1>
         <p>Choose the closest fit. This changes the workspace recommendation, not your account permissions.</p>
         <fieldset><legend className="sr-only">Primary work area</legend>{WORK_AREAS.map(([value,label])=><Choice key={value} type="radio" name="work-area" label={label} checked={profile.primaryWorkArea===value} onChange={()=>patch({primaryWorkArea:value})}/>)}</fieldset>
       </div>}
 
       {step===2&&<div className="onboarding-step">
         <p className="onboarding-kicker">OUTCOMES</p>
-        <h1 id="onboarding-title">What do you want OpenRabbit to improve first?</h1>
+        <h1 {...stepHeadingProps}>What do you want OpenRabbit to improve first?</h1>
         <p>Select one or more. At least one outcome stays selected so the preview remains deterministic.</p>
         <fieldset><legend className="sr-only">Desired outcomes</legend>{OUTCOMES.map(([value,label])=><Choice key={value} label={label} checked={profile.desiredOutcomes.includes(value)} onChange={()=>toggleOutcome(value)}/>)}</fieldset>
       </div>}
 
       {step===3&&<div className="onboarding-step">
         <p className="onboarding-kicker">TOOLS</p>
-        <h1 id="onboarding-title">Which tools are already part of your day?</h1>
+        <h1 {...stepHeadingProps}>Which tools are already part of your day?</h1>
         <p>This is inventory only. Nothing is connected or authorized during onboarding.</p>
         <label className="onboarding-field">Tools, separated by commas<input value={toolText} onChange={event=>updateTools(event.target.value)} placeholder="Gmail, Google Calendar, HubSpot" autoComplete="off"/></label>
         <div className="onboarding-trust-note" role="note">Provider access remains off. Your preview can be generated without private provider data.</div>
@@ -144,20 +150,20 @@ export default function OnboardingPage(){
 
       {step===4&&<div className="onboarding-step">
         <p className="onboarding-kicker">STARTING POINT</p>
-        <h1 id="onboarding-title">How should the workspace begin?</h1>
+        <h1 {...stepHeadingProps}>How should the workspace begin?</h1>
         <fieldset><legend className="sr-only">Starting state</legend>{STARTING_STATES.map(([value,label])=><Choice key={value} type="radio" name="starting-state" label={label} checked={profile.startingState===value} onChange={()=>patch({startingState:value})}/>)}</fieldset>
       </div>}
 
       {step===5&&<div className="onboarding-step">
         <p className="onboarding-kicker">PRESENTATION</p>
-        <h1 id="onboarding-title">How should OpenRabbit organize your view?</h1>
+        <h1 {...stepHeadingProps}>How should OpenRabbit organize your view?</h1>
         <p>Choose up to three. You can return here and change these preferences later.</p>
         <fieldset><legend className="sr-only">Presentation preferences</legend>{PRESENTATION.map(([value,label])=><Choice key={value} label={label} checked={profile.presentationPreferences.includes(value)} onChange={()=>togglePresentation(value)}/>)}</fieldset>
       </div>}
 
       {step===6&&<div className="onboarding-step">
         <p className="onboarding-kicker">SIMULATED PREVIEW</p>
-        <h1 id="onboarding-title">Here is the workspace OpenRabbit would start with.</h1>
+        <h1 {...stepHeadingProps}>Here is the workspace OpenRabbit would start with.</h1>
         <div className="onboarding-simulated" role="status">Simulated preview — no private provider data is being shown.</div>
         {preview?<div className="onboarding-preview">
           <div><span>Recommended pack</span><strong>{preview.recommendedIndustryPack}</strong></div>
