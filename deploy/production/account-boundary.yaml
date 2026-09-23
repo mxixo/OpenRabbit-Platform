@@ -17,6 +17,8 @@ required_before_status_designated:
   - schema_inventory_reviewed
 required_before_production_use:
   - environment_blueprint_migration_verified
+  - action_receipt_migration_verified
+  - action_receipt_chain_restore_verified
   - hosted_auth_tenant_isolation_verified
   - provider_lifecycle_certified
   - rollback_restore_drill_passed
