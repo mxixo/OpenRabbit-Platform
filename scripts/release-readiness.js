@@ -97,9 +97,11 @@ function validateReleaseReadinessFile(filePath = path.join(__dirname, '..', 'dep
 }
 
 if (require.main === module) {
-  const result = validateReleaseReadinessFile(process.argv[2]);
+  const args = process.argv.slice(2);
+  const fileArg = args.find((arg) => !arg.startsWith('--'));
+  const result = validateReleaseReadinessFile(fileArg);
   process.stdout.write(`${JSON.stringify(result)}\n`);
-  if (process.argv.includes('--require-ready') && !result.ready) process.exitCode = 2;
+  if (args.includes('--require-ready') && !result.ready) process.exitCode = 2;
 }
 
 module.exports = { PROTOCOL, REQUIRED_GATES, validateReleaseReadiness, validateReleaseReadinessFile };
