@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('assert');
+const path = require('path');
+const { spawnSync } = require('child_process');
 const {
   REQUIRED_GATES,
   validateReleaseReadiness,
@@ -11,6 +13,15 @@ const current = validateReleaseReadinessFile();
 assert.strictEqual(current.decision, 'no-go');
 assert.strictEqual(current.ready, false);
 assert.deepStrictEqual([...current.blockers].sort(), [...REQUIRED_GATES].sort());
+
+const cli = spawnSync(
+  process.execPath,
+  [path.join(__dirname, '..', 'scripts', 'release-readiness.js'), '--require-ready'],
+  { encoding: 'utf8' },
+);
+assert.strictEqual(cli.status, 2);
+assert.strictEqual(cli.stderr, '');
+assert.strictEqual(JSON.parse(cli.stdout).decision, 'no-go');
 
 const passingGates = Object.fromEntries(
   REQUIRED_GATES.map((name) => [name, { passed: true, evidence: `evidence://${name}` }]),
