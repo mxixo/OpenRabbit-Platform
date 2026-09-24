@@ -30,6 +30,12 @@ function normalizeCapabilities(values: readonly string[]): string[] {
   return [...new Set(normalized)].sort();
 }
 
+function cloneMetadata(
+  metadata: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  return metadata ? { ...metadata } : undefined;
+}
+
 function cloneRecord(record: ExecutionNodeRecord): ExecutionNodeRecord {
   return {
     ...record,
@@ -42,7 +48,7 @@ function cloneRecord(record: ExecutionNodeRecord): ExecutionNodeRecord {
             : undefined,
         }
       : undefined,
-    metadata: record.metadata ? structuredClone(record.metadata) : undefined,
+    metadata: cloneMetadata(record.metadata),
   };
 }
 
@@ -151,7 +157,7 @@ export class InMemoryExecutionNodeRegistry implements ExecutionNodeRegistry {
               : undefined,
           }
         : current.network,
-      metadata: input.metadata ? structuredClone(input.metadata) : current.metadata,
+      metadata: input.metadata ? cloneMetadata(input.metadata) : cloneMetadata(current.metadata),
       reportedOffline: false,
     };
     this.records.set(key, updated);
