@@ -17,6 +17,7 @@
     "privacy_retention_inventory_reviewed": {"passed": false, "evidence": null},
     "terms_privacy_ai_disclosures_counsel_reviewed": {"passed": false, "evidence": null},
     "repository_visibility_license_ip_reviewed": {"passed": false, "evidence": null},
+    "repository_history_secret_scan_verified": {"passed": false, "evidence": null},
     "billing_support_escalation_ready": {"passed": false, "evidence": null},
     "monitoring_incident_response_ready": {"passed": false, "evidence": null},
     "manual_accessibility_certification_passed": {"passed": false, "evidence": null}
