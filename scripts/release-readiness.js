@@ -15,6 +15,7 @@ const REQUIRED_GATES = [
   'adversarial_regression_passed',
   'privacy_retention_inventory_reviewed',
   'terms_privacy_ai_disclosures_counsel_reviewed',
+  'repository_visibility_license_ip_reviewed',
   'billing_support_escalation_ready',
   'monitoring_incident_response_ready',
   'manual_accessibility_certification_passed',
