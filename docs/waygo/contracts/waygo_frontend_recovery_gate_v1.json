@@ -1,0 +1,66 @@
+{
+  "contract": "waygo_frontend_recovery_gate_v1",
+  "status": "source_recovery_required",
+  "purpose": "Prevent feature work from outrunning authoritative frontend provenance and make the eventual Hostinger-to-repository recovery reproducible.",
+  "authoritative_source": {
+    "provider": "Hostinger AI Builder",
+    "authoritative_baseline_required": true,
+    "accepted_recovery_paths": [
+      "supported_source_export",
+      "interactive_authenticated_builder_handoff"
+    ],
+    "site_identity_must_come_from_authenticated_provider_discovery": true,
+    "guess_or_construct_site_id": false,
+    "reconstruct_ui_from_memory": false
+  },
+  "recovery_manifest_required_fields": [
+    "recovered_at_utc",
+    "source_system",
+    "source_site_identity",
+    "source_artifact_sha256",
+    "route_inventory",
+    "screen_inventory",
+    "auth_assumptions",
+    "network_dependencies",
+    "environment_variable_names",
+    "persistence_mutation_inventory"
+  ],
+  "inventory_rules": {
+    "routes_must_be_observed_not_inferred": true,
+    "screens_must_be_observed_not_inferred": true,
+    "network_dependencies_record_origin_and_purpose_not_secret_values": true,
+    "environment_variables_record_names_only": true,
+    "auth_assumptions_must_distinguish_verified_from_unknown": true,
+    "unknown_dependencies_remain_unknown_until_observed": true
+  },
+  "supabase_alignment": {
+    "reference_contract": "waygo_supabase_persistence_v1",
+    "project_ref": "zwrsapkgdfsvvaoefhqf",
+    "favorites_allowed_authenticated_operations": ["SELECT", "INSERT", "DELETE"],
+    "favorites_update_must_not_be_inferred": true,
+    "passport_allowed_authenticated_operations": ["SELECT", "INSERT", "UPDATE", "DELETE"],
+    "cross_user_owner_id_from_ui_forbidden": true,
+    "schema_mutation_authorized_by_recovery": false
+  },
+  "repository_bootstrap_gate": {
+    "dedicated_private_waygo_repository_required": true,
+    "import_only_after_authoritative_baseline_recovered": true,
+    "first_commit_must_record_source_artifact_sha256": true,
+    "ci_required_before_feature_changes": true,
+    "route_screen_smoke_check_required_before_feature_changes": true
+  },
+  "secret_and_evidence_rules": {
+    "commit_secret_values": false,
+    "commit_provider_tokens": false,
+    "commit_private_keys": false,
+    "invent_live_prices": false,
+    "represent_estimates_as_bookable_quotes": false,
+    "provider_failure_must_not_become_zero_price": true
+  },
+  "release_gate": {
+    "frontend_feature_changes_permitted_before_recovery": false,
+    "live_provider_wiring_permitted_before_recovery": false,
+    "booking_execution_permitted_before_transaction_controls": false,
+    "persistent_itinerary_schema_permitted_before_frontend_inventory": false
+  }
+}
