@@ -6,4 +6,6 @@ The production release packet therefore includes `repository_visibility_license_
 
 The gate does **not** automatically make the repository private, change or revoke an existing license, rewrite commit history, or assert that previously published material can be made unpublished. It exists to prevent a commercial `go` decision from proceeding while the source/IP posture is merely assumed.
 
-Evidence for passing the gate should record the reviewed repository/ref, observed visibility and license at review time, the intended distribution model, reviewer/owner attribution, and any required follow-up actions. Secrets, credentials, customer data, and private keys remain prohibited from source control regardless of the chosen source-license strategy.
+Because the repository is public, the release packet separately requires `repository_history_secret_scan_verified`. That evidence must cover repository history rather than only the current working tree and must prove that exposed credentials, tokens, private keys, customer data, or similar secrets are either absent or have been remediated and rotated. A clean current file tree alone is not enough evidence for that gate.
+
+Evidence for the IP gate should record the reviewed repository/ref, observed visibility and license at review time, the intended distribution model, reviewer/owner attribution, and any required follow-up actions. Evidence for the secret-history gate should identify the scan scope/tool and remediation status without committing secret values into the repository.
