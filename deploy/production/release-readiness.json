@@ -1,0 +1,31 @@
+{
+  "protocol": "openrabbit_release_readiness_v1",
+  "product": "OpenRabbit",
+  "release_candidate": null,
+  "decision": "no-go",
+  "updated_at": null,
+  "updated_by": null,
+  "required_gates": {
+    "production_account_boundary_ready": {"passed": false, "evidence": null},
+    "hosted_auth_tenant_isolation_verified": {"passed": false, "evidence": null},
+    "environment_blueprint_migration_verified": {"passed": false, "evidence": null},
+    "action_receipt_chain_restore_verified": {"passed": false, "evidence": null},
+    "provider_lifecycle_certified": {"passed": false, "evidence": null},
+    "rollback_restore_drill_passed": {"passed": false, "evidence": null},
+    "real_estate_golden_path_e2e_passed": {"passed": false, "evidence": null},
+    "adversarial_regression_passed": {"passed": false, "evidence": null},
+    "privacy_retention_inventory_reviewed": {"passed": false, "evidence": null},
+    "terms_privacy_ai_disclosures_counsel_reviewed": {"passed": false, "evidence": null},
+    "billing_support_escalation_ready": {"passed": false, "evidence": null},
+    "monitoring_incident_response_ready": {"passed": false, "evidence": null},
+    "manual_accessibility_certification_passed": {"passed": false, "evidence": null}
+  },
+  "rules": {
+    "all_required_gates_must_pass": true,
+    "passed_gate_requires_evidence": true,
+    "go_decision_requires_named_release_candidate": true,
+    "go_decision_requires_attribution_and_timestamp": true,
+    "waygo_is_separate_release_boundary": true,
+    "trading_v1_is_separate_financial_release_boundary": true
+  }
+}
